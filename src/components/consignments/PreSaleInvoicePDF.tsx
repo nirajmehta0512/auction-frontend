@@ -1,0 +1,579 @@
+// frontend/src/components/consignments/PreSaleInvoicePDF.tsx
+"use client"
+
+import React, { useState, useEffect } from 'react'
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font, Image } from '@react-pdf/renderer'
+import { getBrandDetails, BrandCode } from '@/lib/brand-context'
+
+// Register fonts for better typography
+Font.register({
+  family: 'Helvetica',
+  fonts: [
+    { src: 'Helvetica' },
+    { src: 'Helvetica-Bold', fontWeight: 700 },
+  ]
+})
+
+interface AuctionItem {
+  id: string
+  lot_number: string
+  title: string
+  description: string
+  artist_name?: string
+  school_name?: string
+  dimensions?: string
+  condition?: string
+  low_est: number
+  high_est: number
+  reserve?: number
+  vendor_commission?: number
+  auction_date?: string
+  sale_name?: string
+}
+
+interface PreSaleInvoiceProps {
+  consignment: {
+    id: string
+    consignment_number: string
+    receipt_no?: string
+    created_at: string
+    specialist_name?: string
+    items_count?: number
+    total_estimated_value?: number
+  }
+  client: {
+    id: number
+    first_name: string
+    last_name: string
+    company_name?: string
+    email?: string
+    phone_number?: string
+    billing_address1?: string
+    billing_address2?: string
+    billing_address3?: string
+    billing_city?: string
+    billing_post_code?: string
+    billing_region?: string
+    billing_country?: string
+  }
+  auctionItems: AuctionItem[]
+  saleDetails: {
+    sale_name: string
+    sale_date: string
+    sale_location: string
+    viewing_dates?: string[]
+  }
+  brand_code?: BrandCode
+}
+
+// Define comprehensive styles based on sales advice format
+const styles = StyleSheet.create({
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+    paddingTop: 30,
+    paddingLeft: 30,
+    paddingRight: 30,
+    paddingBottom: 30,
+    color: '#333333',
+    lineHeight: 1.4,
+  },
+  
+  // Header styles
+  header: {
+    flexDirection: 'row',
+    marginBottom: 25,
+    alignItems: 'flex-start',
+  },
+  brandLogo: {
+    width: 48,
+    height: 48,
+    marginRight: 15,
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  headerLeftContent: {
+    flex: 1,
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  companyTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  establishment: {
+    fontSize: 12,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  contactInfo: {
+    fontSize: 9,
+    color: '#666666',
+    lineHeight: 1.3,
+  },
+  invoiceTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  invoiceSubtitle: {
+    fontSize: 12,
+    color: '#666666',
+    marginBottom: 2,
+  },
+  
+  // Sale information section
+  saleSection: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  saleTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    marginBottom: 8,
+    color: '#1a1a1a',
+  },
+  saleDetails: {
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#555555',
+  },
+  
+  // Client section
+  clientSection: {
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  clientName: {
+    fontSize: 12,
+    fontWeight: 600,
+    marginBottom: 2,
+  },
+  clientAddress: {
+    fontSize: 10,
+    color: '#555555',
+    lineHeight: 1.3,
+  },
+  clientDetails: {
+    marginTop: 8,
+    flexDirection: 'row',
+  },
+  clientDetailItem: {
+    marginRight: 20,
+    fontSize: 9,
+    color: '#666666',
+  },
+  
+  // Items table
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#cccccc',
+    marginBottom: 2,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e0e0e0',
+    minHeight: 45,
+  },
+  colReceiptNo: { width: '8%' },
+  colLotNo: { width: '8%' },
+  colDescription: { width: '44%' },
+  colEstimates: { width: '15%' },
+  colReserve: { width: '10%' },
+  colVendorComm: { width: '8%' },
+  colIllusCharge: { width: '7%' },
+  
+  headerText: {
+    fontSize: 8,
+    fontWeight: 600,
+    color: '#444444',
+    textAlign: 'center',
+  },
+  cellText: {
+    fontSize: 8,
+    color: '#333333',
+    textAlign: 'left',
+    lineHeight: 1.3,
+  },
+  cellTextCenter: {
+    fontSize: 8,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  cellTextRight: {
+    fontSize: 8,
+    color: '#333333',
+    textAlign: 'right',
+  },
+  
+  // Description styling
+  itemTitle: {
+    fontSize: 8,
+    fontWeight: 600,
+    marginBottom: 2,
+  },
+  itemDetails: {
+    fontSize: 7,
+    color: '#555555',
+    lineHeight: 1.2,
+  },
+  
+  // Summary section
+  summarySection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#cccccc',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+  },
+  summaryValue: {
+    fontSize: 10,
+    fontWeight: 600,
+  },
+  
+  // Terms section
+  termsSection: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  termsTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 8,
+    color: '#1a1a1a',
+  },
+  termsText: {
+    fontSize: 8,
+    lineHeight: 1.4,
+    color: '#555555',
+    marginBottom: 6,
+  },
+  
+  // Footer
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    right: 30,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  footerText: {
+    fontSize: 8,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 1.3,
+  },
+  vatNotice: {
+    fontSize: 8,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+})
+
+// Main PDF Document Component
+const PreSaleInvoiceDocument: React.FC<PreSaleInvoiceProps> = ({
+  consignment,
+  client,
+  auctionItems,
+  saleDetails,
+  brand_code = 'MSABER'
+}) => {
+  const brandDetails = getBrandDetails(brand_code)
+  const [brandLogo, setBrandLogo] = useState<string | null>(null)
+
+  // Load brand logo
+  useEffect(() => {
+    const loadBrandLogo = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/brands/by-code/${brand_code}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data.logo_url) {
+            setBrandLogo(data.data.logo_url)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load brand logo:', error)
+      }
+    }
+    loadBrandLogo()
+  }, [brand_code])
+  
+  const formatCurrency = (amount: number): string => {
+    return `£${amount.toLocaleString()}`
+  }
+  
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric'
+    })
+  }
+  
+  const totalEstimate = auctionItems.reduce((sum, item) => sum + ((item.low_est + item.high_est) / 2), 0)
+  const totalReserve = auctionItems.reduce((sum, item) => sum + (item.reserve || 0), 0)
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {brandLogo && (
+              <Image 
+                style={styles.brandLogo} 
+                src={brandLogo} 
+                cache={false} 
+              />
+            )}
+            <View style={styles.headerLeftContent}>
+              <Text style={styles.companyTitle}>{brandDetails.name}</Text>
+              <View style={styles.contactInfo}>
+                <Text>{brandDetails.address}</Text>
+                <Text>{brandDetails.city} {brandDetails.postcode}</Text>
+                <Text>{brandDetails.country}</Text>
+                <Text>VAT Reg. No. {brandDetails.vatNumber}</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.headerRight}>
+            <Text style={styles.invoiceTitle}>Pre-Sales Advice</Text>
+            <Text style={styles.invoiceSubtitle}>Page: 1/1</Text>
+          </View>
+        </View>
+
+        {/* Sale Information */}
+        <View style={styles.saleSection}>
+          <Text style={styles.saleTitle}>{saleDetails.sale_name}</Text>
+          <Text style={styles.saleDetails}>
+            Date: {formatDate(saleDetails.sale_date)}{'\n'}
+            Location: {saleDetails.sale_location}{'\n'}
+            {saleDetails.viewing_dates && saleDetails.viewing_dates.length > 0 && (
+              `Viewing: ${saleDetails.viewing_dates.join(', ')}`
+            )}
+          </Text>
+        </View>
+
+        {/* Client Information */}
+        <View style={styles.clientSection}>
+          <Text style={styles.clientName}>
+            {client.first_name} {client.last_name}
+          </Text>
+          {client.company_name && (
+            <Text style={[styles.clientName, { fontSize: 10, fontWeight: 400 }]}>
+              {client.company_name}
+            </Text>
+          )}
+          <View style={styles.clientAddress}>
+            {client.billing_address1 && <Text>{client.billing_address1}</Text>}
+            {client.billing_address2 && <Text>{client.billing_address2}</Text>}
+            {client.billing_address3 && <Text>{client.billing_address3}</Text>}
+            {client.billing_city && <Text>{client.billing_city} {client.billing_post_code}</Text>}
+            {client.billing_country && <Text>{client.billing_country}</Text>}
+          </View>
+          
+          <View style={styles.clientDetails}>
+            {client.phone_number && (
+              <Text style={styles.clientDetailItem}>Phone No.: {client.phone_number}</Text>
+            )}
+            {client.email && (
+              <Text style={styles.clientDetailItem}>Email: {client.email}</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Items Table */}
+        <View style={styles.tableHeader}>
+          <View style={styles.colReceiptNo}>
+            <Text style={styles.headerText}>Receipt No.</Text>
+          </View>
+          <View style={styles.colLotNo}>
+            <Text style={styles.headerText}>Lot No.</Text>
+          </View>
+          <View style={styles.colDescription}>
+            <Text style={styles.headerText}>Description</Text>
+          </View>
+          <View style={styles.colEstimates}>
+            <Text style={styles.headerText}>Estimates</Text>
+          </View>
+          <View style={styles.colReserve}>
+            <Text style={styles.headerText}>Reserve</Text>
+          </View>
+          <View style={styles.colVendorComm}>
+            <Text style={styles.headerText}>Vendor Comm %</Text>
+          </View>
+          <View style={styles.colIllusCharge}>
+            <Text style={styles.headerText}>Illus Charge</Text>
+          </View>
+        </View>
+
+        {auctionItems.map((item, index) => (
+          <View key={item.id} style={styles.tableRow}>
+            <View style={styles.colReceiptNo}>
+              <Text style={styles.cellTextCenter}>{(index + 1).toString().padStart(3, '0')}</Text>
+            </View>
+            <View style={styles.colLotNo}>
+              <Text style={styles.cellTextCenter}>{item.lot_number}</Text>
+            </View>
+            <View style={styles.colDescription}>
+              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemDetails}>{item.description}</Text>
+              {item.artist_name && (
+                <Text style={styles.itemDetails}>By: {item.artist_name}</Text>
+              )}
+              {item.school_name && (
+                <Text style={styles.itemDetails}>School: {item.school_name}</Text>
+              )}
+              {item.dimensions && (
+                <Text style={styles.itemDetails}>Size: {item.dimensions}</Text>
+              )}
+              {item.condition && (
+                <Text style={styles.itemDetails}>Condition: {item.condition}</Text>
+              )}
+            </View>
+            <View style={styles.colEstimates}>
+              <Text style={styles.cellTextRight}>
+                {formatCurrency(item.low_est)} - {formatCurrency(item.high_est)}
+              </Text>
+            </View>
+            <View style={styles.colReserve}>
+              <Text style={styles.cellTextRight}>
+                {item.reserve ? formatCurrency(item.reserve) : '-'}
+              </Text>
+            </View>
+            <View style={styles.colVendorComm}>
+              <Text style={styles.cellTextCenter}>{item.vendor_commission || '15'}%</Text>
+            </View>
+          </View>
+        ))}
+
+        {/* Summary */}
+        <View style={styles.summarySection}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Lots: {auctionItems.length}</Text>
+            <Text style={styles.summaryValue}>Total Estimate: {formatCurrency(totalEstimate)}</Text>
+          </View>
+          {totalReserve > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}></Text>
+              <Text style={styles.summaryValue}>Total Reserve: {formatCurrency(totalReserve)}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Terms and Conditions */}
+        <View style={styles.termsSection}>
+          <Text style={styles.termsTitle}>Terms and Conditions for Consignors in Public Auctions</Text>
+          
+          <Text style={styles.termsText}>
+            The sale of goods at our public auctions and a seller's relationship with us are governed by our Auction Terms and Conditions including these Terms of 
+            Consignment for Sellers in Public Auctions and our Conditions of Sale. Any particular auction and/or any particular lot in that auction may 
+            be subject to different or additional terms which will be published in our auction catalogue or separately announced prior to the auction.
+          </Text>
+          
+          <Text style={styles.termsText}>
+            If you, or another person acting on your behalf, provide goods to us to sell on your behalf at one of our auctions this signifies that you agree to and will 
+            comply with our Auction Terms and Conditions including these Terms of Consignment for Sellers in Public Auctions and our Conditions of Sale for Public 
+            Auctions.
+          </Text>
+          
+          <Text style={styles.termsText}>
+            COMMISSION is charged to sellers and all selling terms are available from our salerooms.
+          </Text>
+          
+          <Text style={styles.termsText}>
+            REMOVAL COSTS. Items for sale must be consigned to the saleroom by any stated deadline and at your expense. We may be able to assist you with 
+            this process but any liability incurred to a carrier for haulage charges is solely your responsibility.
+          </Text>
+          
+          <Text style={styles.termsText}>
+            ILLUSTRATIONS AND PHOTOGRAPHS. The cost of any illustrations or photographs is borne by you. The copyright in respect of such illustrations or 
+            photographs shall be the property of us, the auctioneers, as is the text of the catalogue description unless otherwise stated.
+          </Text>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.vatNotice}>
+            The above charges are subject to VAT
+          </Text>
+          <Text style={styles.footerText}>
+            {brandDetails.name}. REGISTERED IN ENGLAND AND WALES, NO. {brandDetails.registrationNumber || '12345678'}{'\n'}
+            REGISTERED OFFICE: {brandDetails.address}, {brandDetails.city} | {brandDetails.postcode} | {brandDetails.country}
+          </Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+// Download Link Component
+interface PreSaleInvoicePDFProps extends PreSaleInvoiceProps {
+  fileName?: string
+  children: React.ReactNode
+}
+
+const PreSaleInvoicePDF: React.FC<PreSaleInvoicePDFProps> = ({
+  fileName = 'pre-sale-invoice.pdf',
+  children,
+  ...props
+}) => {
+  return (
+    <PDFDownloadLink
+      document={<PreSaleInvoiceDocument {...props} />}
+      fileName={fileName}
+    >
+      {({ loading, error }) => {
+        if (loading) return 'Generating PDF...'
+        if (error) return 'Error generating PDF'
+        return children
+      }}
+    </PDFDownloadLink>
+  )
+}
+
+export default PreSaleInvoicePDF
+export { PreSaleInvoiceDocument }
