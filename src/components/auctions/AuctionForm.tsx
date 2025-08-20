@@ -1,9 +1,10 @@
 // frontend/src/components/auctions/AuctionForm.tsx
 "use client"
 
-import React, { useState } from 'react'
-import { Plus, Minus, ChevronDown, ChevronUp, Clock, Calendar, Info, DollarSign, Save, X, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Minus, ChevronDown, ChevronUp, Clock, Calendar, Info, DollarSign, Save, X, AlertCircle, Search, Image, Trash2, Check } from 'lucide-react'
 import { createAuction, updateAuction } from '@/lib/auctions-api'
+import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
 import type { Auction } from '@/lib/auctions-api'
 
 // Modern UI Components with better styling
@@ -130,9 +131,10 @@ interface AuctionFormProps {
   auction?: Auction;
   onSave?: (auction: Auction) => void;
   onCancel?: () => void;
+  initialSelectedArtworks?: string[];
 }
 
-export default function AuctionForm({ auction, onSave, onCancel }: AuctionFormProps) {
+export default function AuctionForm({ auction, onSave, onCancel, initialSelectedArtworks = [] }: AuctionFormProps) {
   const [formData, setFormData] = useState({
     type: auction?.type || 'sealed_bid',
     short_name: auction?.short_name || '',
@@ -158,6 +160,50 @@ export default function AuctionForm({ auction, onSave, onCancel }: AuctionFormPr
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Artwork selection state
+  const [selectedArtworks, setSelectedArtworks] = useState<string[]>(initialSelectedArtworks)
+  const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [artworkSearchQuery, setArtworkSearchQuery] = useState('')
+  const [artworksLoading, setArtworksLoading] = useState(false)
+  const [showArtworkSearch, setShowArtworkSearch] = useState(false)
+
+  // Load artworks when component mounts or search query changes
+  useEffect(() => {
+    loadArtworks()
+  }, [artworkSearchQuery])
+
+  const loadArtworks = async () => {
+    try {
+      setArtworksLoading(true)
+      const response = await ArtworksAPI.getArtworks({
+        search: artworkSearchQuery,
+        limit: 50,
+        status: 'active'
+      })
+      setArtworks(response.data)
+    } catch (error) {
+      console.error('Error loading artworks:', error)
+    } finally {
+      setArtworksLoading(false)
+    }
+  }
+
+  const toggleArtworkSelection = (artworkId: string) => {
+    setSelectedArtworks(prev => 
+      prev.includes(artworkId)
+        ? prev.filter(id => id !== artworkId)
+        : [...prev, artworkId]
+    )
+  }
+
+  const removeSelectedArtwork = (artworkId: string) => {
+    setSelectedArtworks(prev => prev.filter(id => id !== artworkId))
+  }
+
+  const getSelectedArtworkDetails = () => {
+    return artworks.filter(artwork => selectedArtworks.includes(artwork.id!))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -167,7 +213,7 @@ export default function AuctionForm({ auction, onSave, onCancel }: AuctionFormPr
     try {
       let savedAuction
       if (auction?.id) {
-        savedAuction = await updateAuction(auction.id, formData)
+        savedAuction = await updateAuction(auction.id.toString(), formData)
       } else {
         savedAuction = await createAuction(formData)
       }
@@ -521,6 +567,141 @@ export default function AuctionForm({ auction, onSave, onCancel }: AuctionFormPr
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Artwork Selection Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Image className="h-6 w-6 text-amber-600" />
+                  <h2 className="text-xl font-semibold text-gray-900">Auction Artworks</h2>
+                  <span className="bg-amber-100 text-amber-800 text-sm font-medium px-2 py-1 rounded-full">
+                    {selectedArtworks.length} selected
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setShowArtworkSearch(!showArtworkSearch)}
+                  variant="outline"
+                  icon={showArtworkSearch ? X : Plus}
+                  className="!py-2 !px-4 !text-sm"
+                >
+                  {showArtworkSearch ? 'Close Search' : 'Add Artworks'}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Artwork Search */}
+              {showArtworkSearch && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="mb-4">
+                    <Label>Search Artworks</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={artworkSearchQuery}
+                        onChange={(e) => setArtworkSearchQuery(e.target.value)}
+                        placeholder="Search by title, artist, lot number..."
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {artworksLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Loading artworks...</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto space-y-2">
+                      {artworks.map((artwork) => (
+                        <div
+                          key={artwork.id}
+                          onClick={() => toggleArtworkSelection(artwork.id!)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            selectedArtworks.includes(artwork.id!)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{artwork.title}</h4>
+                              <p className="text-sm text-gray-600">
+                                Lot #{artwork.lot_num} • Est: £{artwork.low_est}-{artwork.high_est}
+                              </p>
+                            </div>
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              selectedArtworks.includes(artwork.id!)
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {selectedArtworks.includes(artwork.id!) && (
+                                <Check className="w-3 h-3 text-white" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {artworks.length === 0 && !artworksLoading && (
+                        <p className="text-center text-gray-500 py-8">
+                          {artworkSearchQuery ? 'No artworks found matching your search.' : 'No active artworks available.'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Selected Artworks */}
+              {selectedArtworks.length > 0 && (
+                <div>
+                  <Label>Selected Artworks ({selectedArtworks.length})</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    {getSelectedArtworkDetails().map((artwork) => (
+                      <div key={artwork.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{artwork.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Lot #{artwork.lot_num}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Est: £{artwork.low_est}-{artwork.high_est}
+                            </p>
+                            {artwork.description && (
+                              <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                                {artwork.description}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSelectedArtwork(artwork.id!)}
+                            className="ml-2 p-1 text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedArtworks.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                  <Image className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No artworks selected</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Click "Add Artworks" to browse and select artworks for this auction.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -50,7 +50,7 @@ export default function AuctionViewPage() {
       const auctionsResponse = await getAuctions({
         page: 1,
         limit: 100, // Get all auctions to find the one we want
-        brand_code: brand
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
       
       const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
@@ -68,13 +68,25 @@ export default function AuctionViewPage() {
       const artworksResponse = await ArtworksAPI.getArtworks({
         page: 1,
         limit: 100,
-        brand: brand || 'MSABER'
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' || 'MSABER'
       })
 
       // For demo purposes, show the first 2 artworks as auction items
       // In practice, you'd filter by auction relationship
-      const auctionArtworks = artworksResponse.artworks.slice(0, 2)
-      setArtworks(auctionArtworks)
+      if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
+        // Filter artworks with valid IDs and convert to the expected type
+        const auctionArtworks = artworksResponse.data
+          .filter(artwork => artwork.id) // Filter out items without IDs
+          .slice(0, 2)
+          .map(artwork => ({
+            ...artwork,
+            id: artwork.id! // Assert that id exists since we filtered for it
+          }))
+        setArtworks(auctionArtworks)
+      } else {
+        console.warn('No artworks found or invalid response format:', artworksResponse)
+        setArtworks([])
+      }
 
     } catch (err: any) {
       console.error('Error loading auction details:', err)
@@ -154,13 +166,13 @@ export default function AuctionViewPage() {
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{auction.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{auction.long_name || auction.short_name}</h1>
                 <p className="text-gray-600">{auction.short_name}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(auction.status)}`}>
-                {auction.status.charAt(0).toUpperCase() + auction.status.slice(1)}
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(auction.status || 'unknown')}`}>
+                {auction.status ? auction.status.charAt(0).toUpperCase() + auction.status.slice(1) : 'Unknown'}
               </span>
               <button
                 onClick={() => setShowExportDialog(true)}
@@ -190,7 +202,7 @@ export default function AuctionViewPage() {
                   <Calendar className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-700">Start Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.start_date)}</p>
+                    <p className="text-sm text-gray-600">{formatDate(auction.catalogue_launch_date || auction.settlement_date)}</p>
                   </div>
                 </div>
                 
@@ -198,7 +210,7 @@ export default function AuctionViewPage() {
                   <Clock className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-700">End Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.end_date)}</p>
+                    <p className="text-sm text-gray-600">{formatDate(auction.settlement_date)}</p>
                   </div>
                 </div>
                 
@@ -206,7 +218,7 @@ export default function AuctionViewPage() {
                   <MapPin className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-700">Preview Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.preview_date)}</p>
+                    <p className="text-sm text-gray-600">{formatDate(auction.shipping_date || auction.catalogue_launch_date)}</p>
                   </div>
                 </div>
                 
@@ -321,7 +333,7 @@ export default function AuctionViewPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Published</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {auction.is_published ? 'Yes' : 'No'}
+                    {auction.status === 'in_progress' ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>

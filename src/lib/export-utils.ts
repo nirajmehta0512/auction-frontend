@@ -16,7 +16,8 @@ export interface ExportConfig {
 
 // Generate PDF from data
 export const generatePDF = async (config: ExportConfig, selectedFields: string[]): Promise<void> => {
-  const { jsPDF } = await import('jspdf')
+  const jsPDFModule = await import('jspdf')
+  const jsPDF = jsPDFModule.default
   const doc = new jsPDF()
   
   // Title

@@ -69,8 +69,9 @@ export default function BrandComplianceManager({
       setLoading(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/brands', {
+      const response = await fetch(`${API_BASE_URL}/api/brands`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -99,8 +100,9 @@ export default function BrandComplianceManager({
       setLoading(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/brands/${id}/compliance`, {
+      const response = await fetch(`${API_BASE_URL}/api/brands/${id}/compliance`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -131,8 +133,9 @@ export default function BrandComplianceManager({
       setSaving(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/brands/${editingBrand.id}/compliance`, {
+      const response = await fetch(`${API_BASE_URL}/api/brands/${editingBrand.id}/compliance`, {
         method: 'PUT',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -183,7 +186,7 @@ export default function BrandComplianceManager({
 
   const handleLogoUpdated = (logoUrl: string | null) => {
     if (selectedBrand) {
-      const updated = { ...selectedBrand, logo_url: logoUrl }
+      const updated = { ...selectedBrand, logo_url: logoUrl || undefined }
       setSelectedBrand(updated)
       setEditingBrand(updated)
     }

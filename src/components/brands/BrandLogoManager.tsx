@@ -61,8 +61,9 @@ export default function BrandLogoManager({
       setLoading(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/brand-logos', {
+      const response = await fetch(`${API_BASE_URL}/api/brand-logos`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -86,8 +87,9 @@ export default function BrandLogoManager({
       setLoading(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/brand-logos/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/brand-logos/${id}`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -131,8 +133,9 @@ export default function BrandLogoManager({
       const formData = new FormData()
       formData.append('logo', file)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/brand-logos/${brand.id}/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/brand-logos/${brand.id}/upload`, {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
@@ -185,8 +188,9 @@ export default function BrandLogoManager({
       setDeleting(true)
       setError(null)
 
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/brand-logos/${brand.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/brand-logos/${brand.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
@@ -321,7 +325,7 @@ interface BrandLogoCardProps {
   onUpload: (file: File) => void
   onDelete: () => void
   onPreview: () => void
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
   showDetails?: boolean
 }
 

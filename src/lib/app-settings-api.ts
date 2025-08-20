@@ -3,7 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // Authenticated fetch function
 async function authedFetch(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('token');
   
   return fetch(`${API_BASE_URL}${url}`, {
     ...options,

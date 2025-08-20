@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, X } from 'lucide-react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 
 interface FilterState {
   status: string
@@ -50,6 +51,20 @@ const statuses = [
 export default function ItemsFilter({ filters, onFilterChange, statusCounts }: ItemsFilterProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
+
+  // Search suggestions for SearchableSelect
+  const searchSuggestions = [
+    { value: '', label: 'All Items', description: 'Show all inventory items' },
+    { value: 'oil painting', label: 'Oil Paintings', description: 'Search for oil paintings' },
+    { value: 'watercolor', label: 'Watercolors', description: 'Search for watercolor artworks' },
+    { value: 'sculpture', label: 'Sculptures', description: 'Search for sculptural works' },
+    { value: 'contemporary', label: 'Contemporary Art', description: 'Search for contemporary pieces' },
+    { value: 'antique', label: 'Antiques', description: 'Search for antique items' },
+    { value: 'signed', label: 'Signed Works', description: 'Search for signed artworks' },
+    { value: 'framed', label: 'Framed Works', description: 'Search for framed pieces' },
+    { value: 'canvas', label: 'Canvas Works', description: 'Search for works on canvas' },
+    { value: 'limited edition', label: 'Limited Editions', description: 'Search for limited edition pieces' }
+  ]
 
   // Load brands for filter
   useEffect(() => {
@@ -123,24 +138,14 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Search */}
         <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => onFilterChange({ search: e.target.value })}
-              placeholder="Search items by title, description, lot number, or artist..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            />
-            {filters.search && (
-              <button
-                onClick={() => onFilterChange({ search: '' })}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <SearchableSelect
+            value={filters.search}
+            options={searchSuggestions}
+            placeholder="Search items..."
+            onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
+            inputPlaceholder="Search by title, description, lot number, or artist..."
+            className="w-full"
+          />
         </div>
 
         {/* Category Filter */}

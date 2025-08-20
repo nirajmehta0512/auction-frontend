@@ -12,7 +12,7 @@ import { ArrowLeft, Save, Plus, X } from 'lucide-react'
 import Link from 'next/link'
 import { createRefund } from '@/lib/refunds-api'
 import { fetchClients, type Client } from '@/lib/clients-api'
-import { ArtworksAPI, type Item } from '@/lib/artworks-api'
+import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
 import { getAuctions, type Auction } from '@/lib/auctions-api'
 import StaffDropdown from '@/components/ui/staff-dropdown'
 
@@ -20,9 +20,9 @@ export default function NewRefundPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [clients, setClients] = useState<Client[]>([])
-    const [items, setItems] = useState<Item[]>([])
+    const [items, setItems] = useState<Artwork[]>([])
     const [auctions, setAuctions] = useState<Auction[]>([])
-    const [auctionItems, setAuctionItems] = useState<Item[]>([])
+    const [auctionItems, setAuctionItems] = useState<Artwork[]>([])
     const [selectedItems, setSelectedItems] = useState<string[]>([])
 
     const [formData, setFormData] = useState({
@@ -67,7 +67,7 @@ export default function NewRefundPage() {
         try {
             const [clientsData, itemsData, auctionsData] = await Promise.all([
                 fetchClients({ limit: 1000 }),
-                ArtworksAPI.getItems({ limit: 1000 }),
+                ArtworksAPI.getArtworks({ limit: 1000 }),
                 getAuctions({ limit: 1000 })
             ])
             setClients(clientsData.data || [])
@@ -80,7 +80,7 @@ export default function NewRefundPage() {
 
     const loadAuctionItems = async () => {
         try {
-            const itemsData = await ArtworksAPI.getItems({ 
+            const itemsData = await ArtworksAPI.getArtworks({ 
                 auction_id: formData.auction_id,
                 limit: 1000,
                 status: 'sold' // Only show sold items for refunds

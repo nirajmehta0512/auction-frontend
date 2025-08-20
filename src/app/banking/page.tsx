@@ -32,7 +32,7 @@ export default function BankingPage() {
           type: typeFilter,
           bank_account: accountFilter,
           is_reconciled: reconciledFilter === 'true' ? true : reconciledFilter === 'false' ? false : undefined,
-          brand_code: brand
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
         }),
         BankingAPI.getBankAccounts()
       ])

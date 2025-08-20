@@ -56,8 +56,8 @@ export default function ItemsPage() {
     category: '',
     search: ''
   })
-  const [sortField, setSortField] = useState('created_at')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [sortField, setSortField] = useState('id')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [counts, setCounts] = useState({
     draft: 0,
     active: 0,

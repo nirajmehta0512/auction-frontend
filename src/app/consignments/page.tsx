@@ -9,6 +9,7 @@ import { isSuperAdmin } from '@/lib/auth-utils'
 import { Plus, Download, Upload, FileText, Share2, Printer } from 'lucide-react'
 import { getConsignments, exportConsignmentsCSV, bulkActionConsignments } from '@/lib/consignments-api'
 import type { Consignment } from '@/lib/consignments-api'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 
 // Convert API consignment to component consignment format
 const convertConsignmentFormat = (consignment: any) => {
@@ -38,6 +39,20 @@ const convertConsignmentFormat = (consignment: any) => {
     signed: consignment.is_signed || false
   }
 }
+
+// Search suggestions for consignments
+const consignmentSearchSuggestions = [
+  { value: '', label: 'All Consignments', description: 'Show all consignments' },
+  { value: 'paintings', label: 'Paintings', description: 'Search for painting consignments' },
+  { value: 'jewelry', label: 'Jewelry', description: 'Search for jewelry consignments' },
+  { value: 'furniture', label: 'Furniture', description: 'Search for furniture consignments' },
+  { value: 'ceramics', label: 'Ceramics', description: 'Search for ceramic consignments' },
+  { value: 'contemporary', label: 'Contemporary', description: 'Search for contemporary art' },
+  { value: 'antique', label: 'Antiques', description: 'Search for antique consignments' },
+  { value: 'silver', label: 'Silver & Metalware', description: 'Search for silver items' },
+  { value: 'textiles', label: 'Textiles', description: 'Search for textile consignments' },
+  { value: 'books', label: 'Books & Manuscripts', description: 'Search for book consignments' }
+]
 
 export default function ConsignmentsPage() {
   const router = useRouter()
@@ -365,12 +380,13 @@ export default function ConsignmentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <input
-                type="text"
+              <SearchableSelect
                 value={searchQuery}
-                onChange={(e)=> setSearchQuery(e.target.value)}
-                placeholder="Search by consignment # or client"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                options={consignmentSearchSuggestions}
+                placeholder="Search consignments..."
+                onChange={(value) => setSearchQuery(value?.toString() || '')}
+                inputPlaceholder="Search by consignment # or client name..."
+                className="w-full"
               />
             </div>
             <div>

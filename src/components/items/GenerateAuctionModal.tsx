@@ -1,7 +1,7 @@
 // frontend/src/components/items/GenerateAuctionModal.tsx
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Trophy, Calendar, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -9,6 +9,13 @@ interface GenerateAuctionModalProps {
   onClose: () => void
   selectedArtworks: string[]
   onComplete?: (auctionId: string) => void
+}
+
+interface Brand {
+  id: number
+  code: string
+  name: string
+  is_active: boolean
 }
 
 export default function GenerateAuctionModal({
@@ -20,22 +27,52 @@ export default function GenerateAuctionModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [brandsLoading, setBrandsLoading] = useState(true)
   
   // Form state
   const [auctionName, setAuctionName] = useState('')
   const [auctionDescription, setAuctionDescription] = useState('')
-  const [auctionType, setAuctionType] = useState<'live' | 'timed' | 'sealed'>('timed')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [previewDate, setPreviewDate] = useState('')
-  const [selectedBrand, setSelectedBrand] = useState('MSABER')
+  const [auctionType, setAuctionType] = useState<'live' | 'timed' | 'sealed_bid'>('timed')
+  const [settlementDate, setSettlementDate] = useState('')
+  const [catalogueLaunchDate, setCatalogueLaunchDate] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('')
 
-  // Brand options
-  const brandOptions = [
-    { value: 'MSABER', label: 'MSaber' },
-    { value: 'AURUM', label: 'Aurum' },
-    { value: 'METSAB', label: 'Metsab' }
-  ]
+  // Load brands on component mount
+  useEffect(() => {
+    loadBrands()
+  }, [])
+
+  const loadBrands = async () => {
+    try {
+      setBrandsLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/brands`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load brands')
+      }
+
+      const data = await response.json()
+      if (data.success && data.data) {
+        const activeBrands = data.data.filter((brand: Brand) => brand.is_active)
+        setBrands(activeBrands)
+        // Set default brand to the first active brand
+        if (activeBrands.length > 0) {
+          setSelectedBrand(activeBrands[0].code)
+        }
+      }
+    } catch (err) {
+      console.error('Error loading brands:', err)
+      setError('Failed to load brands')
+    } finally {
+      setBrandsLoading(false)
+    }
+  }
 
   const handleCreateAuction = async () => {
     try {
@@ -49,40 +86,36 @@ export default function GenerateAuctionModal({
         return
       }
 
-      if (!startDate) {
-        setError('Start date is required')
+      if (!selectedBrand) {
+        setError('Please select a brand')
         return
       }
 
-      if (!endDate) {
-        setError('End date is required')
+      if (!settlementDate) {
+        setError('Settlement date is required')
         return
       }
 
-      if (new Date(endDate) <= new Date(startDate)) {
-        setError('End date must be after start date')
-        return
-      }
-
-      // Create auction data
+      // Generate short name from auction name (max 50 chars)
+      const shortName = auctionName.trim().substring(0, 50)
+      
+      // Create auction data matching the backend expected structure
       const auctionData = {
-        name: auctionName.trim(),
-        short_name: auctionName.trim().substring(0, 50),
-        description: auctionDescription.trim(),
         type: auctionType,
+        short_name: shortName,
+        long_name: auctionName.trim(),
+        description: auctionDescription.trim() || 'Generated auction from selected artworks',
+        settlement_date: settlementDate,
+        catalogue_launch_date: catalogueLaunchDate || '',
+        auction_days: [],
         status: 'planned',
-        start_date: startDate,
-        end_date: endDate,
-        preview_date: previewDate || null,
-        settlement_date: null,
         lots_count: selectedArtworks.length,
         registrations_count: 0,
-        is_published: false,
         brand_code: selectedBrand
       }
 
       // Create the auction
-      const token = localStorage.getItem('auth_token')
+      const token = localStorage.getItem('token')
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions`, {
         method: 'POST',
         headers: {
@@ -168,17 +201,31 @@ export default function GenerateAuctionModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Brand *
           </label>
-          <select
-            value={selectedBrand}
-            onChange={(e) => setSelectedBrand(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-          >
-            {brandOptions.map((brand) => (
-              <option key={brand.value} value={brand.value}>
-                {brand.label}
-              </option>
-            ))}
-          </select>
+          {brandsLoading ? (
+            <div className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-500">
+              Loading brands...
+            </div>
+          ) : (
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              disabled={brands.length === 0}
+            >
+              {brands.length === 0 ? (
+                <option value="">No brands available</option>
+              ) : (
+                <>
+                  <option value="">Select a brand</option>
+                  {brands.map((brand) => (
+                    <option key={brand.code} value={brand.code}>
+                      {brand.name} ({brand.code})
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          )}
         </div>
 
         {/* Auction Name */}
@@ -216,12 +263,12 @@ export default function GenerateAuctionModal({
           </label>
           <select
             value={auctionType}
-            onChange={(e) => setAuctionType(e.target.value as 'live' | 'timed' | 'sealed')}
+            onChange={(e) => setAuctionType(e.target.value as 'live' | 'timed' | 'sealed_bid')}
             className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
           >
             <option value="timed">Timed Auction</option>
             <option value="live">Live Auction</option>
-            <option value="sealed">Sealed Bid</option>
+            <option value="sealed_bid">Sealed Bid</option>
           </select>
         </div>
 
@@ -229,39 +276,29 @@ export default function GenerateAuctionModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Start Date & Time *
+              Settlement Date *
             </label>
             <input
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              type="date"
+              value={settlementDate}
+              onChange={(e) => setSettlementDate(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">Final payment deadline</p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Date & Time *
+              Catalogue Launch Date (Optional)
             </label>
             <input
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              type="date"
+              value={catalogueLaunchDate}
+              onChange={(e) => setCatalogueLaunchDate(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">When catalogue becomes available (optional)</p>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Preview Date & Time
-          </label>
-          <input
-            type="datetime-local"
-            value={previewDate}
-            onChange={(e) => setPreviewDate(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-          />
         </div>
       </div>
 
@@ -281,17 +318,16 @@ export default function GenerateAuctionModal({
       )}
 
       {/* Preview */}
-      {auctionName && startDate && endDate && (
+      {auctionName && settlementDate && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="text-sm font-medium text-blue-800 mb-2">Auction Preview:</h4>
           <div className="text-xs text-blue-700 space-y-1">
             <p><strong>Name:</strong> {auctionName}</p>
             <p><strong>Type:</strong> {auctionType.charAt(0).toUpperCase() + auctionType.slice(1)}</p>
-            <p><strong>Brand:</strong> {brandOptions.find(b => b.value === selectedBrand)?.label}</p>
-            <p><strong>Start:</strong> {formatDate(startDate)}</p>
-            <p><strong>End:</strong> {formatDate(endDate)}</p>
+            <p><strong>Brand:</strong> {brands.find(b => b.code === selectedBrand)?.name}</p>
+            <p><strong>Settlement Date:</strong> {formatDate(settlementDate)}</p>
+            {catalogueLaunchDate && <p><strong>Catalogue Launch:</strong> {formatDate(catalogueLaunchDate)}</p>}
             <p><strong>Lots:</strong> {selectedArtworks.length} artworks</p>
-            {previewDate && <p><strong>Preview:</strong> {formatDate(previewDate)}</p>}
           </div>
         </div>
       )}
@@ -307,7 +343,7 @@ export default function GenerateAuctionModal({
         </button>
         <button
           onClick={handleCreateAuction}
-          disabled={loading || !auctionName.trim() || !startDate || !endDate}
+          disabled={loading || !auctionName.trim() || !settlementDate}
           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center"
         >
           {loading ? (

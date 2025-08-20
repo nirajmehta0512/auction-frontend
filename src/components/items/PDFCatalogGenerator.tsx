@@ -97,7 +97,7 @@ export default function PDFCatalogGenerator({
         // Load artist data
         if (artwork.artist_id) {
           try {
-            const artistResponse = await ArtistsAPI.getArtist(artwork.artist_id)
+            const artistResponse = await ArtistsAPI.getArtist(artwork.artist_id.toString())
             if (artistResponse.success) {
               enrichedArtwork.artist = artistResponse.data
             }

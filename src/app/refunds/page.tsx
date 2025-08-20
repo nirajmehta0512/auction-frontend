@@ -27,7 +27,7 @@ export default function RefundsPage() {
         search: searchTerm,
         status: statusFilter,
         type: typeFilter,
-        brand_code: brand
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
       setRefunds(data.refunds)
     } catch (error) {

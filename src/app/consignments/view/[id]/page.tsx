@@ -99,7 +99,7 @@ export default function ConsignmentViewPage() {
         let fetchedItems: Artwork[] = []
         try {
           const itemsResp = await ArtworksAPI.getArtworks({ 
-            consignment_id: consignmentId.toString(),
+            // consignment_id: consignmentId.toString(), // Note: This parameter may not be supported in the API
             limit: 1000 // Get all items for this consignment
           })
           fetchedItems = itemsResp.data

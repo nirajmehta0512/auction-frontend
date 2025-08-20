@@ -445,9 +445,6 @@ const PreSaleInvoiceDocument: React.FC<PreSaleInvoiceProps> = ({
           <View style={styles.colVendorComm}>
             <Text style={styles.headerText}>Vendor Comm %</Text>
           </View>
-          <View style={styles.colIllusCharge}>
-            <Text style={styles.headerText}>Illus Charge</Text>
-          </View>
         </View>
 
         {auctionItems.map((item, index) => (

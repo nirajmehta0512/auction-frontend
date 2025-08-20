@@ -16,6 +16,14 @@ interface ImageFile {
   aiData?: any
 }
 
+interface FolderItem {
+  id: string
+  folderName: string
+  images: ImageFile[]
+  generated?: boolean
+  aiData?: any
+}
+
 interface AIBulkGenerationModalProps {
   onClose: () => void
   onComplete: (results: any[]) => void
@@ -23,7 +31,7 @@ interface AIBulkGenerationModalProps {
 
 export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGenerationModalProps) {
   const { brand } = useBrand()
-  const [selectedImages, setSelectedImages] = useState<ImageFile[]>([])
+  const [selectedFolders, setSelectedFolders] = useState<FolderItem[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentStep, setCurrentStep] = useState<'select' | 'preview' | 'generating' | 'complete'>('select')
   const [generationProgress, setGenerationProgress] = useState(0)
@@ -35,17 +43,29 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
     const files = event.target.files
     if (!files || files.length === 0) return
 
-    const newImages: ImageFile[] = []
     const folderMap = new Map<string, ImageFile[]>()
 
-    // Process all selected files
+    // Process all selected files and group by subfolder
     Array.from(files).forEach((file, index) => {
       if (!file.type.startsWith('image/')) return
 
-      // Extract folder name from file path or use index-based naming
+      // Extract folder path - for folder selection, use the directory structure
       const path = (file as any).webkitRelativePath || file.name
       const pathParts = path.split('/')
-      const folderName = pathParts.length > 1 ? pathParts[0] : `folder-${Math.floor(index / 10) + 1}`
+      
+      // For folder uploads: ParentFolder/SubfolderA/image.jpg -> use SubfolderA
+      // For individual files: use auto-generated folder names
+      let folderName: string
+      if (pathParts.length > 2) {
+        // Has parent folder and subfolder - use subfolder as inventory item
+        folderName = `${pathParts[0]}/${pathParts[1]}`
+      } else if (pathParts.length > 1) {
+        // Direct folder upload - use folder name
+        folderName = pathParts[0]
+      } else {
+        // Individual files - group them
+        folderName = `individual-item-${Math.floor(index / 1) + 1}`
+      }
       
       const imageFile: ImageFile = {
         id: `${Date.now()}-${index}`,
@@ -62,44 +82,72 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
       folderMap.get(folderName)!.push(imageFile)
     })
 
-    // Sort folders by name and maintain order within folders
-    const sortedFolders = Array.from(folderMap.entries()).sort(([a], [b]) => {
-      // Extract numbers from folder names for proper sorting (inv-1, inv-2, etc.)
-      const getNumber = (name: string) => {
-        const match = name.match(/(\d+)/)
-        return match ? parseInt(match[1]) : 0
-      }
-      return getNumber(a) - getNumber(b)
-    })
+    // Convert to FolderItem objects
+    const folderItems: FolderItem[] = Array.from(folderMap.entries())
+      .sort(([a], [b]) => {
+        // Extract numbers from folder names for proper sorting
+        const getNumber = (name: string) => {
+          const match = name.match(/(\d+)/)
+          return match ? parseInt(match[1]) : 0
+        }
+        return getNumber(a) - getNumber(b)
+      })
+      .map(([folderName, images]) => {
+        // Sort images within each folder
+        images.sort((a, b) => a.name.localeCompare(b.name))
+        
+        return {
+          id: `folder-${Date.now()}-${folderName}`,
+          folderName,
+          images,
+          generated: false
+        }
+      })
 
-    // Flatten images maintaining folder order
-    sortedFolders.forEach(([folder, images]) => {
-      images.sort((a, b) => a.name.localeCompare(b.name))
-      newImages.push(...images)
-    })
-
-    setSelectedImages(newImages)
+    setSelectedFolders(folderItems)
     setCurrentStep('preview')
   }
 
-  // Remove individual image
-  const removeImage = (imageId: string) => {
-    setSelectedImages(prev => {
-      const updated = prev.filter(img => img.id !== imageId)
-      
-      // Clean up preview URLs
-      const removedImage = prev.find(img => img.id === imageId)
-      if (removedImage) {
-        URL.revokeObjectURL(removedImage.preview)
+  // Remove entire folder (inventory item)
+  const removeFolder = (folderId: string) => {
+    setSelectedFolders(prev => {
+      const folderToRemove = prev.find(folder => folder.id === folderId)
+      if (folderToRemove) {
+        // Clean up preview URLs for all images in the folder
+        folderToRemove.images.forEach(img => URL.revokeObjectURL(img.preview))
       }
       
-      return updated
+      return prev.filter(folder => folder.id !== folderId)
     })
   }
 
-  // Generate AI data for all images
+  // Remove individual image from a folder
+  const removeImageFromFolder = (folderId: string, imageId: string) => {
+    setSelectedFolders(prev => prev.map(folder => {
+      if (folder.id === folderId) {
+        const imageToRemove = folder.images.find(img => img.id === imageId)
+        if (imageToRemove) {
+          URL.revokeObjectURL(imageToRemove.preview)
+        }
+        
+        const updatedImages = folder.images.filter(img => img.id !== imageId)
+        // If no images left, remove the entire folder
+        if (updatedImages.length === 0) {
+          return null
+        }
+        
+        return {
+          ...folder,
+          images: updatedImages
+        }
+      }
+      return folder
+    }).filter(Boolean) as FolderItem[])
+  }
+
+  // Generate AI data for all folders (using first image from each folder)
   const generateAIData = async () => {
-    if (selectedImages.length === 0) return
+    if (selectedFolders.length === 0) return
 
     setIsGenerating(true)
     setCurrentStep('generating')
@@ -107,13 +155,17 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
 
     const results: any[] = []
 
-    for (let i = 0; i < selectedImages.length; i++) {
-      const image = selectedImages[i]
+    for (let i = 0; i < selectedFolders.length; i++) {
+      const folder = selectedFolders[i]
+      
+      // Use the first image from the folder for AI analysis
+      const firstImage = folder.images[0]
+      if (!firstImage) continue
       
       try {
-        // Create FormData for AI analysis
+        // Create FormData for AI analysis (using only the first image)
         const formData = new FormData()
-        formData.append('image', image.file)
+        formData.append('image', firstImage.file)
 
         // Call AI analysis endpoint
         const token = localStorage.getItem('token')
@@ -126,38 +178,38 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
         })
 
         if (!response.ok) {
-          throw new Error(`AI analysis failed for ${image.name}`)
+          throw new Error(`AI analysis failed for ${folder.folderName}`)
         }
 
         const aiResult = await response.json()
         
         if (aiResult.success) {
-          // Create artwork data with image
+          // Create artwork data with folder information
           const artworkData = {
             ...aiResult.result,
-            image_file_1: image.preview, // Will be replaced with actual uploaded URL
-            folder: image.folder,
-            original_filename: image.name,
-            _imageFile: image.file // Keep reference to file for upload
+            folder: folder.folderName,
+            original_filename: firstImage.name,
+            _folderImages: folder.images, // Keep all images for upload
+            _primaryImageFile: firstImage.file // Primary image for display
           }
 
           results.push(artworkData)
           
-          // Update image status
-          setSelectedImages(prev => prev.map(img => 
-            img.id === image.id 
-              ? { ...img, generated: true, aiData: artworkData }
-              : img
+          // Update folder status
+          setSelectedFolders(prev => prev.map(f => 
+            f.id === folder.id 
+              ? { ...f, generated: true, aiData: artworkData }
+              : f
           ))
         } else {
-          console.error(`AI analysis failed for ${image.name}:`, aiResult.error)
+          console.error(`AI analysis failed for ${folder.folderName}:`, aiResult.error)
         }
       } catch (error) {
-        console.error(`Error processing ${image.name}:`, error)
+        console.error(`Error processing ${folder.folderName}:`, error)
       }
 
       // Update progress
-      setGenerationProgress(((i + 1) / selectedImages.length) * 100)
+      setGenerationProgress(((i + 1) / selectedFolders.length) * 100)
     }
 
     setGeneratedResults(results)
@@ -175,12 +227,19 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
       const savedArtworks = []
 
       for (const artworkData of generatedResults) {
-        // Upload image first
-        let imageUrl = ''
-        if (artworkData._imageFile) {
+        // Upload all images from the folder
+        const imageUrls: { [key: string]: string } = {}
+        
+        if (artworkData._folderImages && artworkData._folderImages.length > 0) {
           const imageFormData = new FormData()
-          imageFormData.append('itemId', `temp_${Date.now()}`)
-          imageFormData.append('image_file_1', artworkData._imageFile)
+          const tempItemId = `temp_${Date.now()}_${Math.random()}`
+          imageFormData.append('itemId', tempItemId)
+
+          // Add all images from the folder
+          artworkData._folderImages.forEach((image: ImageFile, index: number) => {
+            const fieldName = `image_file_${index + 1}`
+            imageFormData.append(fieldName, image.file)
+          })
 
           const token = localStorage.getItem('token')
           const imageResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/images/process-item-images`, {
@@ -193,8 +252,9 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
 
           if (imageResponse.ok) {
             const imageResult = await imageResponse.json()
-            if (imageResult.success && imageResult.images?.image_file_1) {
-              imageUrl = imageResult.images.image_file_1
+            if (imageResult.success && imageResult.images) {
+              // Store all uploaded image URLs
+              Object.assign(imageUrls, imageResult.images)
             }
           }
         }
@@ -202,12 +262,13 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
         // Create artwork in database
         const artworkToSave = {
           ...artworkData,
-          image_file_1: imageUrl,
+          ...imageUrls, // Include all uploaded image URLs
           lot_num: await generateNextLotNumber(), // Generate sequential lot numbers
         }
 
         // Remove temporary fields
-        delete artworkToSave._imageFile
+        delete artworkToSave._folderImages
+        delete artworkToSave._primaryImageFile
         delete artworkToSave.folder
         delete artworkToSave.original_filename
 
@@ -240,7 +301,9 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
       }
 
       // Clean up preview URLs
-      selectedImages.forEach(img => URL.revokeObjectURL(img.preview))
+      selectedFolders.forEach(folder => {
+        folder.images.forEach(img => URL.revokeObjectURL(img.preview))
+      })
 
       // Complete the process
       onComplete(savedArtworks)
@@ -278,14 +341,8 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
 
 
 
-  // Group images by folder for display
-  const groupedImages = selectedImages.reduce((groups, image) => {
-    if (!groups[image.folder]) {
-      groups[image.folder] = []
-    }
-    groups[image.folder].push(image)
-    return groups
-  }, {} as Record<string, ImageFile[]>)
+  // Calculate total image count across all folders
+  const totalImageCount = selectedFolders.reduce((total, folder) => total + folder.images.length, 0)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -295,7 +352,7 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
           <div>
             <h2 className="text-xl font-semibold text-gray-900">AI Bulk Generation</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Select folders with images to generate artwork details with AI
+              Select folders to create inventory items. Each subfolder becomes one item with multiple images.
             </p>
           </div>
           <button
@@ -316,7 +373,8 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                   Select Multiple Folders
                 </h3>
                 <p className="text-sm text-gray-600 max-w-md">
-                  Choose folders containing images (like inv-1, inv-2, etc.). All images from selected folders will be processed in order.
+                  Choose a parent folder containing subfolders (like ParentFolder/inv-1/, ParentFolder/inv-2/, etc.). 
+                  Each subfolder becomes one inventory item, with all its images uploaded but only the first used for AI analysis.
                 </p>
               </div>
 
@@ -356,7 +414,8 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
               </div>
 
               <p className="text-xs text-gray-500 mt-4 text-center max-w-sm">
-                Supported formats: JPG, PNG, GIF. Images will be processed in folder order (inv-1, inv-2, etc.).
+                Supported formats: JPG, PNG, GIF. Each subfolder becomes one inventory item with multiple images. 
+                First image per folder is used for AI analysis.
               </p>
             </div>
           )}
@@ -365,7 +424,7 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  Preview Selected Images ({selectedImages.length} total)
+                  Preview Selected Folders ({selectedFolders.length} items, {totalImageCount} images total)
                 </h3>
                 <div className="flex space-x-3">
                   <button
@@ -376,24 +435,37 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                   </button>
                   <button
                     onClick={generateAIData}
-                    disabled={selectedImages.length === 0}
+                    disabled={selectedFolders.length === 0}
                     className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Generate AI Details
+                    Generate AI Details ({selectedFolders.length} items)
                   </button>
                 </div>
               </div>
 
               <div className="flex-1 overflow-auto">
-                {Object.entries(groupedImages).map(([folder, images]) => (
-                  <div key={folder} className="mb-6">
-                    <h4 className="text-md font-medium text-gray-800 mb-3 bg-gray-100 px-3 py-2 rounded">
-                      📁 {folder} ({images.length} images)
-                    </h4>
+                {selectedFolders.map((folder) => (
+                  <div key={folder.id} className="mb-6 border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-md font-medium text-gray-800 flex items-center">
+                        📁 {folder.folderName} 
+                        <span className="ml-2 text-sm text-gray-600">({folder.images.length} images)</span>
+                        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          Inventory Item
+                        </span>
+                      </h4>
+                      <button
+                        onClick={() => removeFolder(folder.id)}
+                        className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        title="Remove entire folder"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {images.map((image) => (
+                      {folder.images.map((image, index) => (
                         <div key={image.id} className="relative group">
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                             <img
@@ -403,9 +475,17 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                             />
                           </div>
                           
+                          {/* Show primary image indicator */}
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                              AI Primary
+                            </div>
+                          )}
+                          
                           <button
-                            onClick={() => removeImage(image.id)}
+                            onClick={() => removeImageFromFolder(folder.id, image.id)}
                             className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove this image"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -415,6 +495,10 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                           </p>
                         </div>
                       ))}
+                    </div>
+                    
+                    <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                      ℹ️ First image will be used for AI analysis. All images will be uploaded to storage.
                     </div>
                   </div>
                 ))}
@@ -430,7 +514,7 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                   Generating AI Details
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Processing {selectedImages.length} images with AI analysis...
+                  Processing {selectedFolders.length} inventory items with AI analysis...
                 </p>
               </div>
 
@@ -449,15 +533,15 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
 
               <div className="mt-6 max-w-md">
                 <div className="text-sm text-gray-600 space-y-1">
-                  {selectedImages.map((image) => (
-                    <div key={image.id} className="flex items-center space-x-2">
-                      {image.generated ? (
+                  {selectedFolders.map((folder) => (
+                    <div key={folder.id} className="flex items-center space-x-2">
+                      {folder.generated ? (
                         <Check className="h-4 w-4 text-green-500" />
                       ) : (
                         <Loader className="h-4 w-4 text-purple-600 animate-spin" />
                       )}
-                      <span className={image.generated ? 'text-green-600' : ''}>
-                        {image.name}
+                      <span className={folder.generated ? 'text-green-600' : ''}>
+                        📁 {folder.folderName} ({folder.images.length} images)
                       </span>
                     </div>
                   ))}
@@ -474,34 +558,47 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                   AI Generation Complete
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Successfully generated details for {generatedResults.length} artworks
+                  Successfully generated details for {generatedResults.length} inventory items
                 </p>
               </div>
 
               <div className="flex-1 overflow-auto mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {generatedResults.map((result, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex space-x-3">
-                        <img
-                          src={selectedImages[index]?.preview}
-                          alt={result.title}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 truncate">
-                            {result.title}
-                          </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {result.description}
-                          </p>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Est: £{result.low_est} - £{result.high_est}
+                  {generatedResults.map((result, index) => {
+                    const correspondingFolder = selectedFolders.find(f => f.aiData === result)
+                    const primaryImage = correspondingFolder?.images[0]
+                    
+                    return (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex space-x-3">
+                          <div className="flex-shrink-0">
+                            <img
+                              src={primaryImage?.preview || ''}
+                              alt={result.title}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <div className="text-xs text-center text-gray-500 mt-1">
+                              +{correspondingFolder?.images.length || 0} images
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-gray-900 truncate">
+                              {result.title}
+                            </h4>
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {result.description}
+                            </p>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Est: £{result.low_est} - £{result.high_est}
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              📁 {correspondingFolder?.folderName}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 

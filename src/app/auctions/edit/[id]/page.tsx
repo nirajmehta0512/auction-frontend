@@ -7,16 +7,29 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 
 interface AuctionData {
   id?: string
-  title: string
+  short_name: string
+  long_name: string
   description: string
-  start_date: string
-  end_date: string
-  location?: string
-  type?: string
-  status?: string
-  platform?: string
+  settlement_date: string
+  catalogue_launch_date?: string
+  type: 'timed' | 'live' | 'sealed_bid'
+  status: 'planned' | 'in_progress' | 'ended' | 'aftersale' | 'archived'
+  target_reserve?: number
+  specialist_id?: string
   created_at?: string
   updated_at?: string
+}
+
+interface AuctionArtwork {
+  id: string
+  lot_num: string
+  title: string
+  description: string
+  low_est: number
+  high_est: number
+  status: string
+  category?: string
+  image_file_1?: string
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -27,18 +40,27 @@ export default function EditAuctionPage() {
   const auctionId = params.id as string
 
   const [loading, setLoading] = useState(true)
+  const [artworksLoading, setArtworksLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [auction, setAuction] = useState<AuctionData>({
-    title: '',
+    short_name: '',
+    long_name: '',
     description: '',
-    start_date: '',
-    end_date: '',
-    location: '',
+    settlement_date: '',
+    catalogue_launch_date: '',
     type: 'live',
-    status: 'draft',
-    platform: 'internal'
+    status: 'planned',
+    target_reserve: 0
   })
+  const [artworks, setArtworks] = useState<AuctionArtwork[]>([])
+  const [platforms] = useState([
+    { value: 'internal', label: 'Internal' },
+    { value: 'liveauctioneers', label: 'LiveAuctioneers' },
+    { value: 'invaluable', label: 'Invaluable' },
+    { value: 'thesaleroom', label: 'The Saleroom' },
+    { value: 'easylive', label: 'Easy Live' }
+  ])
 
   useEffect(() => {
     if (auctionId) {
@@ -59,17 +81,24 @@ export default function EditAuctionPage() {
       setLoading(true)
       setError(null)
 
+      // Load auction data
       const response = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}`, {
         headers: getAuthHeaders()
       })
 
       if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Auction not found')
+        }
         throw new Error('Failed to load auction')
       }
 
-      const data = await response.json()
-      if (data.success && data.data) {
-        setAuction(data.data)
+      const auctionData = await response.json()
+      if (auctionData && auctionData.id) {
+        setAuction(auctionData)
+        
+        // Load artworks for this auction
+        await loadAuctionArtworks()
       } else {
         throw new Error('Auction not found')
       }
@@ -80,20 +109,41 @@ export default function EditAuctionPage() {
     }
   }
 
+  const loadAuctionArtworks = async () => {
+    try {
+      setArtworksLoading(true)
+      
+      const response = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}/artworks`, {
+        headers: getAuthHeaders()
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.artworks) {
+          setArtworks(data.artworks)
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load auction artworks:', err)
+    } finally {
+      setArtworksLoading(false)
+    }
+  }
+
   const handleSave = async () => {
     try {
       setSaving(true)
       setError(null)
 
       // Basic validation
-      if (!auction.title.trim()) {
-        throw new Error('Title is required')
+      if (!auction.short_name.trim()) {
+        throw new Error('Short name is required')
       }
-      if (!auction.start_date) {
-        throw new Error('Start date is required')
+      if (!auction.long_name.trim()) {
+        throw new Error('Long name is required')
       }
-      if (!auction.end_date) {
-        throw new Error('End date is required')
+      if (!auction.settlement_date) {
+        throw new Error('Settlement date is required')
       }
 
       const response = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}`, {
@@ -103,16 +153,18 @@ export default function EditAuctionPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update auction')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update auction' }))
+        throw new Error(errorData.error || 'Failed to update auction')
       }
 
       const data = await response.json()
-      if (data.success) {
+      // Backend returns the updated auction directly
+      if (data && data.id) {
         // Success feedback
         alert('Auction updated successfully!')
         router.push('/auctions')
       } else {
-        throw new Error(data.error || 'Failed to update auction')
+        throw new Error('Failed to update auction')
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save auction')
@@ -121,7 +173,7 @@ export default function EditAuctionPage() {
     }
   }
 
-  const handleInputChange = (field: keyof AuctionData, value: string) => {
+  const handleInputChange = (field: keyof AuctionData, value: string | number) => {
     setAuction(prev => ({
       ...prev,
       [field]: value
@@ -168,17 +220,45 @@ export default function EditAuctionPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Title */}
-              <div className="md:col-span-2">
+              {/* Short Name */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title *
+                  Short Name *
                 </label>
                 <input
                   type="text"
-                  value={auction.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  value={auction.short_name}
+                  onChange={(e) => handleInputChange('short_name', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Enter auction title"
+                  placeholder="Enter auction short name"
+                />
+              </div>
+
+              {/* Target Reserve */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Target Reserve
+                </label>
+                <input
+                  type="number"
+                  value={auction.target_reserve || 0}
+                  onChange={(e) => handleInputChange('target_reserve', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Long Name */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Long Name *
+                </label>
+                <input
+                  type="text"
+                  value={auction.long_name}
+                  onChange={(e) => handleInputChange('long_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Enter auction long name"
                 />
               </div>
 
@@ -188,7 +268,7 @@ export default function EditAuctionPage() {
                   Description
                 </label>
                 <textarea
-                  value={auction.description}
+                  value={auction.description || ''}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -196,43 +276,29 @@ export default function EditAuctionPage() {
                 />
               </div>
 
-              {/* Start Date */}
+              {/* Settlement Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date *
+                  Settlement Date *
                 </label>
                 <input
                   type="datetime-local"
-                  value={auction.start_date ? new Date(auction.start_date).toISOString().slice(0, 16) : ''}
-                  onChange={(e) => handleInputChange('start_date', e.target.value)}
+                  value={auction.settlement_date ? new Date(auction.settlement_date).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => handleInputChange('settlement_date', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
 
-              {/* End Date */}
+              {/* Catalogue Launch Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Date *
+                  Catalogue Launch Date
                 </label>
                 <input
                   type="datetime-local"
-                  value={auction.end_date ? new Date(auction.end_date).toISOString().slice(0, 16) : ''}
-                  onChange={(e) => handleInputChange('end_date', e.target.value)}
+                  value={auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => handleInputChange('catalogue_launch_date', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={auction.location || ''}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Auction location"
                 />
               </div>
 
@@ -242,14 +308,13 @@ export default function EditAuctionPage() {
                   Type
                 </label>
                 <select
-                  value={auction.type || 'live'}
+                  value={auction.type}
                   onChange={(e) => handleInputChange('type', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="live">Live Auction</option>
-                  <option value="online">Online Only</option>
                   <option value="timed">Timed Auction</option>
-                  <option value="hybrid">Hybrid (Live + Online)</option>
+                  <option value="sealed_bid">Sealed Bid</option>
                 </select>
               </div>
 
@@ -259,33 +324,15 @@ export default function EditAuctionPage() {
                   Status
                 </label>
                 <select
-                  value={auction.status || 'draft'}
+                  value={auction.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-
-              {/* Platform */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Platform
-                </label>
-                <select
-                  value={auction.platform || 'internal'}
-                  onChange={(e) => handleInputChange('platform', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="internal">Internal</option>
-                  <option value="liveauctioneers">LiveAuctioneers</option>
-                  <option value="invaluable">Invaluable</option>
-                  <option value="the_saleroom">The Saleroom</option>
-                  <option value="easy_live">Easy Live</option>
+                  <option value="planned">Planned</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="ended">Ended</option>
+                  <option value="aftersale">Aftersale</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
             </div>
@@ -310,6 +357,82 @@ export default function EditAuctionPage() {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Auction Artworks */}
+        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Auction Artworks</h3>
+              <div className="text-sm text-gray-600">
+                {artworks.length} artwork(s)
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {artworksLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-600">Loading artworks...</p>
+              </div>
+            ) : artworks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No artworks assigned to this auction yet.</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Use the "Generate Auction" feature from the Items page to add artworks.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {artworks.map((artwork) => (
+                  <div key={artwork.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                    {artwork.image_file_1 && (
+                      <div className="mb-3">
+                        <img
+                          src={artwork.image_file_1}
+                          alt={artwork.title}
+                          className="w-full h-32 object-cover rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-blue-600">
+                          Lot {artwork.lot_num}
+                        </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          artwork.status === 'active' ? 'bg-green-100 text-green-800' :
+                          artwork.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                          artwork.status === 'sold' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {artwork.status}
+                        </span>
+                      </div>
+                      <h4 className="font-medium text-gray-900 text-sm line-clamp-2">
+                        {artwork.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {artwork.description}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>Est: ${artwork.low_est} - ${artwork.high_est}</span>
+                        {artwork.category && (
+                          <span className="bg-gray-100 px-2 py-1 rounded">
+                            {artwork.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -164,7 +164,7 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   const defaultSaleDetails = saleDetails || {
     sale_name: 'Upcoming Auction',
     sale_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-    sale_location: getBrandDetails(brand_code).address,
+    sale_location: getBrandDetails(brand_code).address || 'TBD',
     viewing_dates: ['Two days prior to sale', 'Morning of sale']
   }
 

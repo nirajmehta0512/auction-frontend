@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ExternalLink, Download, Eye, Calendar, MapPin, Gavel } from 'lucide-react'
-import { Item, ArtworksAPI } from '@/lib/artworks-api'
+import { Artwork, ArtworksAPI } from '@/lib/artworks-api'
 import { Artist, ArtistsAPI } from '@/lib/artists-api'
 import { School, SchoolsAPI } from '@/lib/schools-api'
 import { useBrand } from '@/lib/brand-context'
@@ -13,7 +13,7 @@ export default function LiveAuctioneerPreviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { brand } = useBrand()
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems] = useState<Artwork[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [artists, setArtists] = useState<Record<string, Artist>>({})
@@ -32,11 +32,11 @@ export default function LiveAuctioneerPreviewPage() {
       setError(null)
 
       // Load items for preview
-      const itemsResponse = await ArtworksAPI.getItems({
+      const itemsResponse = await ArtworksAPI.getArtworks({
         auction_id: auctionId || undefined,
         status: status === 'all' ? undefined : status,
         limit: 100, // Show more items for preview
-        brand_code: brand
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
 
       if (itemsResponse.success) {
@@ -52,8 +52,8 @@ export default function LiveAuctioneerPreviewPage() {
 
         // Fetch artists and schools
         const [artistsData, schoolsData] = await Promise.all([
-          Promise.all(artistIds.map(id => ArtistsAPI.getArtist(id))),
-          Promise.all(schoolIds.map(id => SchoolsAPI.getSchool(id)))
+          Promise.all(artistIds.map(id => ArtistsAPI.getArtist(id.toString()))),
+          Promise.all(schoolIds.map(id => SchoolsAPI.getSchool(id.toString())))
         ])
 
         // Create lookup objects
@@ -84,7 +84,7 @@ export default function LiveAuctioneerPreviewPage() {
     }
   }
 
-  const getArtistSchoolInfo = (item: Item) => {
+  const getArtistSchoolInfo = (item: Artwork) => {
     if (item.artist_id && artists[item.artist_id]) {
       const artist = artists[item.artist_id]
       return {
@@ -120,7 +120,7 @@ export default function LiveAuctioneerPreviewPage() {
     return `£${low.toLocaleString()} - £${high.toLocaleString()}`
   }
 
-  const getLiveAuctioneersImageUrl = (item: Item) => {
+  const getLiveAuctioneersImageUrl = (item: Artwork) => {
     return item.image_file_1 || '/placeholder-artwork.jpg'
   }
 

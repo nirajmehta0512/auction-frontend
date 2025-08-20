@@ -455,9 +455,6 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
           <View style={styles.colItemComm}>
             <Text style={styles.headerText}>Commission %</Text>
           </View>
-          <View style={styles.colIllus}>
-            <Text style={styles.headerText}>Illus Charge</Text>
-          </View>
           <View style={styles.colReserve}>
             <Text style={styles.headerText}>Reserve</Text>
           </View>

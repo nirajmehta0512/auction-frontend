@@ -1,5 +1,7 @@
 // frontend/src/lib/google-sheets-api.ts
 
+import { getGoogleSheetsUrlForModule } from './app-settings-api'
+
 // Types for Google Sheets operations
 export interface GoogleSheetsRow {
   [key: string]: string | null;
@@ -163,7 +165,7 @@ export const downloadAndParseGoogleSheet = async (
         
         // Clean up value
         value = value.trim();
-        if (value === '') value = null;
+        if (value === '') value = '';
         
         // Handle empty brand field
         if (header === 'brand' && (!value || value === null) && options.fillEmptyBrand) {
@@ -271,7 +273,7 @@ export const syncClientsFromGoogleSheet = async (
   }
 };
 
-// Load brand settings (Google Sheets URL)
+// Load brand settings (Google Sheets URL) - now uses global URLs for ALL brand
 export const loadBrandGoogleSheetUrl = async (
   brandCode: string, 
   type: 'clients' | 'artworks' = 'clients'
@@ -279,6 +281,32 @@ export const loadBrandGoogleSheetUrl = async (
   try {
     const apiUrl = getApiBaseUrl();
     const headers = getAuthHeaders();
+
+    // If brand is "ALL", use the global Google Sheets system
+    if (brandCode.toUpperCase() === 'ALL') {
+      console.log(`Loading global Google Sheets URL for type: ${type}`);
+      
+      const response = await fetch(`${apiUrl}/api/app-settings/google-sheets/${type}`, {
+        headers
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Global Google Sheets API error (${response.status}):`, errorText);
+        return null;
+      }
+
+      const data = await response.json();
+      console.log('Global Google Sheets response:', data);
+      
+      if (data.success && data.data) {
+        const url = data.data.url || null;
+        console.log(`Found global Google Sheets URL for ${type}:`, url || 'Not configured');
+        return url;
+      }
+
+      return null;
+    }
 
     console.log(`Loading Google Sheets URL for brand: ${brandCode}, type: ${type}`);
     console.log(`API URL: ${apiUrl}/api/brand-settings?brand_code=${brandCode}`);
@@ -321,7 +349,7 @@ export const loadBrandGoogleSheetUrl = async (
   }
 };
 
-// Save brand settings (Google Sheets URL)
+// Save brand settings (Google Sheets URL) - now uses global URLs for ALL brand
 export const saveBrandGoogleSheetUrl = async (
   brandCode: string, 
   url: string, 
@@ -330,6 +358,29 @@ export const saveBrandGoogleSheetUrl = async (
   try {
     const apiUrl = getApiBaseUrl();
     const headers = getAuthHeaders();
+
+    // If brand is "ALL", use the global Google Sheets system
+    if (brandCode.toUpperCase() === 'ALL') {
+      console.log(`Saving global Google Sheets URL for type: ${type}`);
+      
+      const response = await fetch(`${apiUrl}/api/app-settings/google-sheets`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          module: type,
+          url: url
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to save global Google Sheets URL:`, errorText);
+        return false;
+      }
+
+      console.log(`Successfully saved global Google Sheets URL for ${type}`);
+      return true;
+    }
 
     const key = type === 'artworks' ? 'google_sheet_url_artworks' : 'google_sheet_url';
 
@@ -413,8 +464,8 @@ export const syncArtworksToGoogleSheet = async (
 
     // Use provided sheetUrl or load from brand settings
     let targetSheetUrl = sheetUrl;
-    if (!targetSheetUrl && brand) {
-      targetSheetUrl = await loadBrandGoogleSheetUrl(brand, 'artworks');
+    if (!targetSheetUrl) {
+      targetSheetUrl = await getGoogleSheetsUrlForModule('artworks');
     }
 
     if (!targetSheetUrl) {

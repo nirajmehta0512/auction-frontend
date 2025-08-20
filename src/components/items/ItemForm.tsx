@@ -506,8 +506,8 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       dimensions: data.dimensions || '',
       weight: data.weight || '',
       materials: data.materials || '',
-      artist_id: data.artist_id || '',
-      school_id: data.school_id || '',
+      artist_id: data.artist_id?.toString() || '',
+      school_id: data.school_id?.toString() || '',
       period_age: data.period_age || '',
       provenance: data.provenance || '',
       auction_id: data.auction_id || '',
@@ -787,7 +787,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
     e.preventDefault()
 
     // Convert form data to Artwork format
-    let artworkData: Partial<Artwork> = {
+    const artworkData: Partial<Artwork> = {
       lot_num: formData.lot_num,
       title: formData.title,
       description: formData.description,
@@ -803,7 +803,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       dimensions: formData.dimensions || undefined,
       weight: formData.weight || undefined,
       materials: formData.materials || undefined,
-      artist_id: formData.artist_id || undefined,
+      artist_id: formData.artist_id ? parseInt(formData.artist_id) : undefined,
       school_id: formData.school_id || undefined,
       period_age: formData.period_age || undefined,
       provenance: formData.provenance || undefined,

@@ -12,6 +12,7 @@ import type { Auction } from '@/lib/auctions-api'
 import { getGoogleSheetsUrlForModule } from '@/lib/app-settings-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import AuctionGoogleSheetsSync from '@/components/auctions/AuctionGoogleSheetsSync'
+import AuctionsFilter from '@/components/auctions/AuctionsFilter'
 
 // Convert API auction to component auction format
 const convertAuctionFormat = (auction: Auction) => ({
@@ -25,10 +26,18 @@ const convertAuctionFormat = (auction: Auction) => ({
   endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : ''
 })
 
+interface FilterState {
+  status: string
+  type: string
+  search: string
+  specialist: string
+  dateRange: string
+}
+
 export default function AuctionsPage() {
   const router = useRouter()
   const { brand } = useBrand()
-  const [showFilters, setShowFilters] = useState(false)
+
   const [selectedAuctions, setSelectedAuctions] = useState<number[]>([])
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [auctions, setAuctions] = useState<any[]>([])
@@ -39,6 +48,22 @@ export default function AuctionsPage() {
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
+  
+  // Filter state
+  const [filters, setFilters] = useState<FilterState>({
+    status: 'all',
+    type: 'all',
+    search: '',
+    specialist: 'all',
+    dateRange: 'all'
+  })
+  const [statusCounts, setStatusCounts] = useState({
+    planned: 0,
+    in_progress: 0,
+    ended: 0,
+    aftersale: 0,
+    archived: 0
+  })
 
   useEffect(() => {
     const loadAuctions = async () => {
@@ -47,15 +72,46 @@ export default function AuctionsPage() {
         setError(null)
         const response = await getAuctions({
           page: 1,
-          limit: 25,
+          limit: 100, // Increased to handle filtering
           sort_field: 'created_at',
           sort_direction: 'desc',
-          brand_code: brand
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined as 'MSABER' | 'AURUM' | 'METSAB' | undefined
         })
         
+        let filteredAuctions = response.auctions
+
+        // Apply filters
+        if (filters.status !== 'all') {
+          filteredAuctions = filteredAuctions.filter(auction => auction.status === filters.status)
+        }
+        
+        if (filters.type !== 'all') {
+          filteredAuctions = filteredAuctions.filter(auction => auction.type === filters.type)
+        }
+        
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase()
+          filteredAuctions = filteredAuctions.filter(auction => 
+            auction.short_name?.toLowerCase().includes(searchLower) ||
+            auction.long_name?.toLowerCase().includes(searchLower)
+          )
+        }
+        
+        if (filters.specialist !== 'all') {
+          filteredAuctions = filteredAuctions.filter(auction => auction.specialist_id === parseInt(filters.specialist))
+        }
+
+        // Apply date range filter
+        if (filters.dateRange !== 'all') {
+          filteredAuctions = applyDateRangeFilter(filteredAuctions, filters.dateRange)
+        }
+        
         // Convert API auctions to component format
-        const convertedAuctions = response.auctions.map(convertAuctionFormat)
+        const convertedAuctions = filteredAuctions.map(convertAuctionFormat)
         setAuctions(convertedAuctions)
+        
+        // Calculate status counts from all auctions (not filtered)
+        calculateStatusCounts(response.auctions)
       } catch (err: any) {
         console.error('Error loading auctions:', err)
         const msg = err?.message || 'Failed to load auctions'
@@ -66,7 +122,61 @@ export default function AuctionsPage() {
     }
 
     loadAuctions()
-  }, [brand])
+  }, [brand, filters])
+
+  // Helper function to apply date range filters
+  const applyDateRangeFilter = (auctions: any[], dateRange: string) => {
+    const now = new Date()
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const startOfPastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    return auctions.filter(auction => {
+      if (!auction.settlement_date) return false
+      const auctionDate = new Date(auction.settlement_date)
+
+      switch (dateRange) {
+        case 'this_week':
+          return auctionDate >= startOfWeek
+        case 'this_month':
+          return auctionDate >= startOfMonth && auctionDate < startOfNextMonth
+        case 'next_month':
+          return auctionDate >= startOfNextMonth
+        case 'past_month':
+          return auctionDate >= startOfPastMonth && auctionDate < startOfMonth
+        default:
+          return true
+      }
+    })
+  }
+
+  // Helper function to calculate status counts
+  const calculateStatusCounts = (auctions: any[]) => {
+    const counts = {
+      planned: 0,
+      in_progress: 0,
+      ended: 0,
+      aftersale: 0,
+      archived: 0
+    }
+
+    auctions.forEach(auction => {
+      if (auction.status && counts.hasOwnProperty(auction.status)) {
+        counts[auction.status as keyof typeof counts]++
+      }
+    })
+
+    setStatusCounts(counts)
+  }
+
+  // Filter change handler
+  const handleFilterChange = (filterUpdates: Partial<FilterState>) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      ...filterUpdates
+    }))
+  }
 
   const handleExportCSV = async () => {
     try {
@@ -124,7 +234,7 @@ export default function AuctionsPage() {
         limit: 25,
         sort_field: 'created_at',
         sort_direction: 'desc',
-        brand_code: brand
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
       
       const convertedAuctions = response.auctions.map(convertAuctionFormat)
@@ -151,16 +261,15 @@ export default function AuctionsPage() {
         </button>
       </div>
 
+      {/* Filters */}
+      <AuctionsFilter 
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        statusCounts={statusCounts}
+      />
+
       {/* Table Actions */}
       <div className="bg-white px-6 py-3 border-b border-gray-200 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-md text-sm transition-colors"
-          >
-            🔍 Show filter
-          </button>
-        </div>
         <div className="flex items-center space-x-4">
           <button
             onClick={handleExportCSV}
@@ -316,7 +425,7 @@ export default function AuctionsPage() {
                     limit: 25,
                     sort_field: 'created_at',
                     sort_direction: 'desc',
-                    brand_code: brand
+                    brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
                   })
                   const convertedAuctions = response.auctions.map(convertAuctionFormat)
                   setAuctions(convertedAuctions)
@@ -352,7 +461,7 @@ export default function AuctionsPage() {
                   try {
                     setUploadMsg('Uploading images...')
                     const resp = await ArtworksAPI.uploadImagesViaFTPFromItems({
-                      brand_code: brand || 'MSABER',
+                      brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined || 'MSABER',
                       platform: 'liveauctioneers',
                       auction_id: auctionIdForImages || undefined,
                     })
