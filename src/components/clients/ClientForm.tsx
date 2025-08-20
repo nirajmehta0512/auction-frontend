@@ -296,7 +296,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
           }
         }
         
-        const response = await createClient(payload as Omit<Client, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'>)
+        const response = await createClient(payload as Omit<Client, 'id' | 'created_at' | 'updated_at'>)
         if (!response.success) throw new Error('Failed to create client')
       } else if (mode === 'edit' && clientId) {
         const payload = { ...formData }

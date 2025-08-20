@@ -33,7 +33,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
       'artist_id', 'school_id', 'dimensions_inches', 'dimensions_cm', 'dimensions_with_frame_inches', 'dimensions_with_frame_cm',
       'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
       'restoration_done', 'restoration_by', 'image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5',
-      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10', 'created_by', 'updated_by', 'created_at', 'updated_at'
+      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10', 'created_at', 'updated_at'
     ],
     requiredFields: ['lot_num', 'title', 'description', 'low_est', 'high_est']
   },
@@ -139,30 +139,28 @@ export default function AuctionExportDialog({
         return
       }
 
-      // Get artworks for selected auctions
-      const artworkIds: string[] = []
-      for (const auctionId of selectedAuctionIds) {
-        try {
-          // Fetch artworks for each auction
-          const response = await fetch(`/api/auctions/${auctionId}/artworks`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            if (data.artworks && Array.isArray(data.artworks)) {
-              artworkIds.push(...data.artworks.map((artwork: any) => artwork.id))
-            }
-          }
-        } catch (auctionErr) {
-          console.warn(`Failed to fetch artworks for auction ${auctionId}:`, auctionErr)
+      // Get artworks for the current brand (since auction-artwork relationship was removed)
+      // In practice, you might want to restore the auction-artwork relationship or use a different approach
+      let artworkIds: string[] = []
+      
+      try {
+        const artworksResponse = await ArtworksAPI.getArtworks({
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
+          limit: 1000, // Get all artworks for the brand
+          status: 'active'
+        })
+        
+        if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
+          artworkIds = artworksResponse.data
+            .filter(artwork => artwork.id)
+            .map(artwork => artwork.id!)
         }
+      } catch (artworkErr) {
+        console.warn('Failed to fetch artworks:', artworkErr)
       }
 
       if (artworkIds.length === 0) {
-        setError('No artworks found for the selected auctions')
+        setError('No active artworks found for export')
         return
       }
 

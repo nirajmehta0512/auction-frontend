@@ -37,6 +37,9 @@ export interface Auction {
   sorting_mode?: 'standard' | 'automatic' | 'manual';
   estimates_visibility?: 'use_global' | 'show_always' | 'do_not_show';
   time_zone?: string;
+  platform?: string;
+  brand_code?: string;
+  brand_id?: string;
   lots_count?: number;
   registrations_count?: number;
   total_estimate_low?: number;

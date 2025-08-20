@@ -287,7 +287,7 @@ export const fetchClientOverview = async (id: number): Promise<ClientOverviewRes
 /**
  * Create a new client
  */
-export const createClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'>): Promise<ClientResponse> => {
+export const createClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<ClientResponse> => {
   const response = await fetch(`${API_BASE_URL}/clients`, {
     method: 'POST',
     headers: createHeaders(),

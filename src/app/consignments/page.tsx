@@ -20,18 +20,26 @@ const convertConsignmentFormat = (consignment: any) => {
   
   // Format client ID similar to clients page
   const formatClientId = (clientId: number, brandCode?: string): string => {
+    // Default to MSA if no brand code is available
     const prefix = brandCode && brandCode.trim().length > 0
       ? brandCode.trim().toUpperCase().slice(0, 3)
       : 'MSA';
     return `${prefix}-${clientId.toString().padStart(3, '0')}`;
   }
   
+  // Try to get brand code from various possible fields including nested client data
+  const brandCode = consignment.client_brand_code 
+    || consignment.brand_code 
+    || consignment.client_brand
+    || (consignment.clients && consignment.clients.brands && consignment.clients.brands.code)
+    || null
+  
   return {
     id: consignment.id,
     number: consignment.consignment_number,
     client: clientName,
     clientId: consignment.client_id,
-    clientIdFormatted: formatClientId(consignment.client_id, consignment.client_brand_code || consignment.brand_code),
+    clientIdFormatted: formatClientId(consignment.client_id, brandCode),
     itemsCount: consignment.items_count || 0,
     specialist: consignment.specialist_name || consignment.specialist || 'Unknown Specialist',
     defaultSale: consignment.default_sale || '',

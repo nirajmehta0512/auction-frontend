@@ -2,8 +2,6 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import XeroConfiguration from '@/components/settings/XeroConfiguration'
-import XeroPaymentGenerator from '@/components/payments/XeroPaymentGenerator'
 
 type Brand = { id: string; code: string; name: string }
 type PlatformCredential = { id: string; brand_id: string; platform: string; key_id?: string; secret_value?: string; additional?: any; is_active: boolean; brands?: { code: string; name: string } }
@@ -85,8 +83,6 @@ export default function PlatformSettingsPage() {
   const rows = [
     { label: 'Email SMTP', key: 'email_smtp' },
     { label: 'Instagram', key: 'instagram' },
-    { label: 'Xero', key: 'XERO' },
-    { label: 'Stripe', key: 'STRIPE' },
     { label: 'PayPal', key: 'PAYPAL' },
     { label: 'LiveAuctioneers (FTP Upload)', key: 'LIVE_AUCTIONEERS' },
     { label: 'Easy Live Auction', key: 'EASY_LIVE' },
@@ -234,20 +230,7 @@ export default function PlatformSettingsPage() {
           </div>
         )}
 
-        {/* Xero Integration Section */}
-        <div className="space-y-6 mt-8">
-          <hr className="my-6" />
-          <h2 className="text-xl font-semibold">Xero Payment Integration</h2>
-          
-          <XeroConfiguration 
-            brandId={brands.find(b => b.code === selectedBrand)?.id || selectedBrand}
-            brandName={brands.find(b => b.code === selectedBrand)?.name || selectedBrand}
-          />
-          
-          <XeroPaymentGenerator 
-            brandId={brands.find(b => b.code === selectedBrand)?.id || selectedBrand}
-          />
-        </div>
+
       </div>
     </div>
   )

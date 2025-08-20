@@ -215,8 +215,13 @@ export default function AuctionsTable({ auctions, selectedAuctions, onSelectionC
                   />
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {auction.number}
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => handleView(auction.id)}
+                    className="text-teal-600 hover:text-teal-700 font-medium hover:underline"
+                  >
+                    {auction.number}
+                  </button>
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -229,7 +234,12 @@ export default function AuctionsTable({ auctions, selectedAuctions, onSelectionC
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{auction.name}</div>
+                  <button
+                    onClick={() => handleView(auction.id)}
+                    className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline text-left"
+                  >
+                    {auction.name}
+                  </button>
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

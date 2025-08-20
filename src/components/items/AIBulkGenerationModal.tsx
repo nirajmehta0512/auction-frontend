@@ -434,6 +434,13 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                     Back
                   </button>
                   <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Add More
+                  </button>
+                  <button
                     onClick={generateAIData}
                     disabled={selectedFolders.length === 0}
                     className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
@@ -444,7 +451,7 @@ export default function AIBulkGenerationModal({ onClose, onComplete }: AIBulkGen
                 </div>
               </div>
 
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-y-auto max-h-96 pr-2 space-y-4">
                 {selectedFolders.map((folder) => (
                   <div key={folder.id} className="mb-6 border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">

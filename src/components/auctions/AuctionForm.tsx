@@ -6,6 +6,7 @@ import { Plus, Minus, ChevronDown, ChevronUp, Clock, Calendar, Info, DollarSign,
 import { createAuction, updateAuction } from '@/lib/auctions-api'
 import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
 import type { Auction } from '@/lib/auctions-api'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 
 // Modern UI Components with better styling
 const Label = ({ htmlFor, className, children, required }: { 
@@ -154,7 +155,9 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     bid_value_increments: auction?.bid_value_increments || '10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200',
     sorting_mode: auction?.sorting_mode || 'standard',
     estimates_visibility: auction?.estimates_visibility || 'use_global',
-    time_zone: auction?.time_zone || 'UTC'
+    time_zone: auction?.time_zone || 'UTC',
+    platform: auction?.platform || 'liveauctioneers',
+    brand_code: auction?.brand_code || 'MSABER'
   })
 
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
@@ -178,12 +181,14 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
       setArtworksLoading(true)
       const response = await ArtworksAPI.getArtworks({
         search: artworkSearchQuery,
-        limit: 50,
-        status: 'active'
+        limit: 100,
+        status: 'active',
+        brand_code: formData.brand_code as 'MSABER' | 'AURUM' | 'METSAB'
       })
-      setArtworks(response.data)
+      setArtworks(response.data || [])
     } catch (error) {
       console.error('Error loading artworks:', error)
+      setArtworks([]) // Set empty array on error
     } finally {
       setArtworksLoading(false)
     }
@@ -364,7 +369,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                 </div>
               </div>
 
-              {/* Target Reserve and Specialist */}
+              {/* Target Reserve, Specialist, Platform and Brand */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="target_reserve">Target Reserve</Label>
@@ -388,6 +393,29 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                     <SelectItem value="1">Sarah Buchanan</SelectItem>
                     <SelectItem value="2">James Morrison</SelectItem>
                     <SelectItem value="3">Emily Chen</SelectItem>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="platform">Auction Platform</Label>
+                  <Select 
+                    value={formData.platform} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, platform: value }))}
+                  >
+                    <SelectItem value="liveauctioneers">LiveAuctioneers</SelectItem>
+                    <SelectItem value="easylive">Easy Live Auction</SelectItem>
+                    <SelectItem value="invaluable">Invaluable</SelectItem>
+                    <SelectItem value="thesaleroom">The Saleroom</SelectItem>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="brand_code">Brand</Label>
+                  <Select 
+                    value={formData.brand_code} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand_code: value }))}
+                  >
+                    <SelectItem value="MSABER">MSaber Auctions</SelectItem>
+                    <SelectItem value="AURUM">Aurum Gallery</SelectItem>
+                    <SelectItem value="METSAB">Metsab Auctions</SelectItem>
                   </Select>
                 </div>
               </div>
@@ -598,60 +626,27 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
               {showArtworkSearch && (
                 <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="mb-4">
-                    <Label>Search Artworks</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={artworkSearchQuery}
-                        onChange={(e) => setArtworkSearchQuery(e.target.value)}
-                        placeholder="Search by title, artist, lot number..."
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
+                    <Label>Search and Select Artworks</Label>
+                    <SearchableSelect
+                      options={artworks.map(artwork => ({
+                        value: artwork.id!,
+                        label: artwork.title,
+                        description: `Lot #${artwork.lot_num} • Est: £${artwork.low_est}-${artwork.high_est}`
+                      }))}
+                      placeholder="Select artwork to add..."
+                      onChange={(artworkId) => {
+                        if (!selectedArtworks.includes(artworkId)) {
+                          setSelectedArtworks(prev => [...prev, artworkId]);
+                        }
+                      }}
+                      inputPlaceholder="Type to search by title, artist, lot number..."
+                    />
                   </div>
 
-                  {artworksLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="text-gray-600 mt-2">Loading artworks...</p>
-                    </div>
-                  ) : (
-                    <div className="max-h-96 overflow-y-auto space-y-2">
-                      {artworks.map((artwork) => (
-                        <div
-                          key={artwork.id}
-                          onClick={() => toggleArtworkSelection(artwork.id!)}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                            selectedArtworks.includes(artwork.id!)
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{artwork.title}</h4>
-                              <p className="text-sm text-gray-600">
-                                Lot #{artwork.lot_num} • Est: £{artwork.low_est}-{artwork.high_est}
-                              </p>
-                            </div>
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                              selectedArtworks.includes(artwork.id!)
-                                ? 'border-blue-500 bg-blue-500'
-                                : 'border-gray-300'
-                            }`}>
-                              {selectedArtworks.includes(artwork.id!) && (
-                                <Check className="w-3 h-3 text-white" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {artworks.length === 0 && !artworksLoading && (
-                        <p className="text-center text-gray-500 py-8">
-                          {artworkSearchQuery ? 'No artworks found matching your search.' : 'No active artworks available.'}
-                        </p>
-                      )}
+                  {artworksLoading && (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2 text-sm">Loading artworks...</p>
                     </div>
                   )}
                 </div>

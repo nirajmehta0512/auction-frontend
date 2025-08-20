@@ -131,6 +131,7 @@ export default function GenerateAuctionModal({
       }
 
       const result = await response.json()
+      console.log('result', result);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to create auction')

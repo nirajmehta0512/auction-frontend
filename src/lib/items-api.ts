@@ -76,6 +76,7 @@ interface GetArtworksParams {
   status?: string;
   category?: string;
   auction_id?: string;
+  consignment_id?: string;
   search?: string;
   page?: number;
   limit?: number;
