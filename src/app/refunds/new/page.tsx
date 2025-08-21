@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { createRefund } from '@/lib/refunds-api'
 import { fetchClients, type Client } from '@/lib/clients-api'
 import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
+import { getAuction } from '@/lib/auctions-api'
 import { getAuctions, type Auction } from '@/lib/auctions-api'
 import StaffDropdown from '@/components/ui/staff-dropdown'
 
@@ -80,8 +81,21 @@ export default function NewRefundPage() {
 
     const loadAuctionItems = async () => {
         try {
+            if (!formData.auction_id) {
+                setAuctionItems([])
+                return
+            }
+
+            // Get auction first to get artwork_ids
+            const auction = await getAuction(formData.auction_id)
+            if (!auction.artwork_ids || auction.artwork_ids.length === 0) {
+                setAuctionItems([])
+                return
+            }
+
+            // Get items using artwork_ids
             const itemsData = await ArtworksAPI.getArtworks({ 
-                auction_id: formData.auction_id,
+                item_ids: auction.artwork_ids.join(','),
                 limit: 1000,
                 status: 'sold' // Only show sold items for refunds
             })

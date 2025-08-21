@@ -98,14 +98,17 @@ export default function ConsignmentViewPage() {
         // Fetch items for this consignment
         let fetchedItems: Artwork[] = []
         try {
+          console.log('Fetching items for consignment ID:', consignmentId)
           const itemsResp = await ArtworksAPI.getArtworks({ 
-            consignment_id: consignmentId.toString(), // Now supported in the API
-            limit: 1000 // Get all items for this consignment
+            consignment_id: consignmentId, // Pass as string - backend will parse to int
+            limit: 1000, // Get all items for this consignment
+            status: 'all' // Include all statuses for consignment view
           })
-          fetchedItems = itemsResp.data
+          console.log('Items response:', itemsResp)
+          fetchedItems = itemsResp.data || []
           setItems(fetchedItems)
         } catch (itemsError) {
-          console.warn('Could not fetch consignment items:', itemsError)
+          console.error('Could not fetch consignment items:', itemsError)
           setItems([]) // Set empty array if items can't be fetched
         }
         
@@ -183,7 +186,7 @@ export default function ConsignmentViewPage() {
 
   const handleShare = () => {
     const shareData = {
-      title: `Consignment ${consignment?.consignment_number}`,
+      title: `Consignment ${consignment?.id}`,
       text: `Consignment details for ${client?.first_name} ${client?.last_name}`,
       url: window.location.href
     }
@@ -267,7 +270,7 @@ export default function ConsignmentViewPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-white">
-                Consignment {consignment.consignment_number}
+                Consignment {consignment.id}
               </h1>
               <div className="flex items-center space-x-4 mt-1">
                 <span className="text-slate-200 text-sm">
@@ -306,8 +309,8 @@ export default function ConsignmentViewPage() {
                           type="consignment"
                           consignment={{
                             id: consignmentId,
-                            consignment_number: consignment.consignment_number,
-                            receipt_no: consignment.receipt_no,
+                            consignment_number: consignment.id?.toString() || '',
+                            receipt_no: consignment.id?.toString() || '',
                             created_at: consignment.created_at || new Date().toISOString(),
                             specialist_name: consignment.specialist_name,
                             items_count: consignment.items_count,
@@ -330,8 +333,8 @@ export default function ConsignmentViewPage() {
                           type="collection"
                           consignment={{
                             id: consignmentId,
-                            consignment_number: consignment.consignment_number,
-                            receipt_no: consignment.receipt_no,
+                            consignment_number: consignment.id?.toString() || '',
+                            receipt_no: consignment.id?.toString() || '',
                             created_at: consignment.created_at || new Date().toISOString(),
                             specialist_name: consignment.specialist_name,
                             items_count: consignment.items_count,
@@ -354,8 +357,8 @@ export default function ConsignmentViewPage() {
                           type="presale"
                           consignment={{
                             id: consignmentId,
-                            consignment_number: consignment.consignment_number,
-                            receipt_no: consignment.receipt_no,
+                            consignment_number: consignment.id?.toString() || '',
+                            receipt_no: consignment.id?.toString() || '',
                             created_at: consignment.created_at || new Date().toISOString(),
                             specialist_name: consignment.specialist_name,
                             items_count: consignment.items_count,
@@ -412,7 +415,7 @@ export default function ConsignmentViewPage() {
             
             <Link 
               href="/consignments" 
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors"
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-black px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Back</span>
@@ -495,16 +498,16 @@ export default function ConsignmentViewPage() {
                     <Hash className="h-4 w-4 text-gray-400 mr-3" />
                     <div>
                       <p className="text-sm text-gray-600">Consignment Number</p>
-                      <p className="font-medium text-gray-900">{consignment.consignment_number}</p>
+                      <p className="font-medium text-gray-900">{consignment.id}</p>
                     </div>
                   </div>
                   
-                  {consignment.receipt_no && (
+                  {consignment.id && (
                     <div className="flex items-center">
                       <Receipt className="h-4 w-4 text-gray-400 mr-3" />
                       <div>
                         <p className="text-sm text-gray-600">Receipt Number</p>
-                        <p className="font-medium text-gray-900">{consignment.receipt_no}</p>
+                        <p className="font-medium text-gray-900">{consignment.id}</p>
                       </div>
                     </div>
                   )}

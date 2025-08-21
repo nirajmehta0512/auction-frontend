@@ -52,8 +52,6 @@ export interface Client {
   paddle_no?: string;
   identity_cert?: string;
   platform?: 'Liveauctioneer' | 'The saleroom' | 'Invaluable' | 'Easylive auctions' | 'Private' | 'Others';
-  created_by?: number;
-  updated_by?: number;
   created_at?: string;
   updated_at?: string;
 }

@@ -1,7 +1,7 @@
 // frontend/src/components/items/ItemForm.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
 import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice } from '@/lib/items-api'
@@ -9,6 +9,8 @@ import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
 import { getAuctions, Auction } from '@/lib/auctions-api'
 import { fetchClients, Client, getClientDisplayName, formatClientDisplay } from '@/lib/clients-api'
+import { getConsignments, type Consignment } from '@/lib/consignments-api'
+import { GalleriesAPI, Gallery } from '@/lib/galleries-api'
 import { useBrand } from '@/lib/brand-context'
 import ImageUploadField from './ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
@@ -21,7 +23,6 @@ interface ItemFormProps {
 
 interface FormData {
   // LiveAuctioneers required fields
-  lot_num: string
   title: string
   description: string
   low_est: string
@@ -36,6 +37,9 @@ interface FormData {
   // Enhanced client fields
   consigner_client_id: string
   buyer_client_id: string
+
+  // Consignment field
+  consignment_id: string
 
   // Additional auction management fields
   status: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed'
@@ -58,6 +62,7 @@ interface FormData {
   // Description enhancement fields
   include_artist_biography: boolean
   include_artist_description: boolean
+  include_artist_key_description: boolean
   include_artist_extra_info: boolean
 
   // New dimension fields with unit conversion
@@ -90,7 +95,6 @@ interface FormData {
 }
 
 const initialFormData: FormData = {
-  lot_num: '',
   title: '',
   description: '',
   low_est: '',
@@ -101,6 +105,7 @@ const initialFormData: FormData = {
   consignor: '',
   consigner_client_id: '',
   buyer_client_id: '',
+  consignment_id: '',
   status: 'draft',
   category: '',
   subcategory: '',
@@ -117,6 +122,7 @@ const initialFormData: FormData = {
   medium: '',
   include_artist_biography: false,
   include_artist_description: false,
+  include_artist_key_description: false,
   include_artist_extra_info: false,
   dimensions_inches: '',
   dimensions_cm: '',
@@ -212,32 +218,46 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
   const [schools, setSchools] = useState<School[]>([])
   const [auctions, setAuctions] = useState<Auction[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [consignments, setConsignments] = useState<Consignment[]>([])
+  const [galleries, setGalleries] = useState<Gallery[]>([])
   const [loadingArtistsSchools, setLoadingArtistsSchools] = useState(false)
   const [loadingAuctions, setLoadingAuctions] = useState(false)
   const [loadingClients, setLoadingClients] = useState(false)
+  const [loadingConsignments, setLoadingConsignments] = useState(false)
+  const [loadingGalleries, setLoadingGalleries] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
 
-  // Load artists, schools, auctions and clients data
+  // Load artists, schools, auctions, clients and consignments data
   useEffect(() => {
     const loadAllData = async () => {
       try {
         setLoadingArtistsSchools(true)
         setLoadingAuctions(true)
         setLoadingClients(true)
-        
-        const [artistsResponse, schoolsResponse, auctionsResponse, clientsResponse] = await Promise.all([
+        setLoadingConsignments(true)
+        setLoadingGalleries(true)
+
+        const [artistsResponse, schoolsResponse, auctionsResponse, clientsResponse, consignmentsResponse, galleriesResponse] = await Promise.all([
           ArtistsAPI.getArtists({ status: 'active', limit: 1000 }),
           SchoolsAPI.getSchools({ status: 'active', limit: 1000 }),
-          getAuctions({ 
+          getAuctions({
             brand_code: (brand as 'MSABER' | 'AURUM' | 'METSAB') || 'MSABER',
             limit: 1000,
             sort_field: 'created_at',
             sort_direction: 'desc'
           }),
-          fetchClients({ 
-            status: 'active', 
+          fetchClients({
+            status: 'active',
             limit: 1000,
             brand_code: brand || 'MSABER'
+          }),
+          getConsignments({
+            status: 'active',
+            limit: 1000
+          }),
+          GalleriesAPI.getGalleries({
+            status: 'active',
+            limit: 1000
           })
         ])
 
@@ -253,12 +273,20 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         if (clientsResponse.success) {
           setClients(clientsResponse.data)
         }
+        if (consignmentsResponse.success) {
+          setConsignments(consignmentsResponse.data)
+        }
+        if (galleriesResponse.success) {
+          setGalleries(galleriesResponse.data)
+        }
       } catch (err) {
         console.error('Failed to load data:', err)
       } finally {
         setLoadingArtistsSchools(false)
         setLoadingAuctions(false)
         setLoadingClients(false)
+        setLoadingConsignments(false)
+        setLoadingGalleries(false)
       }
     }
 
@@ -286,7 +314,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
   const generateAutoTitle = (data?: FormData): string => {
     const currentData = data || formData
     const parts: string[] = []
-    
+
     // 1. Artist name with birth-death years in parentheses
     if (currentData.artist_id) {
       const artist = artists.find(a => a.id?.toString() === currentData.artist_id)
@@ -300,11 +328,11 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         parts.push(artistPart)
       }
     }
-    
+
     // 2. Artwork subject or "Untitled"
     const artworkSubject = currentData.artwork_subject?.trim() || 'Untitled'
     parts.push(artworkSubject)
-    
+
     // 3. Medium (Materials) - combine medium and materials if both exist
     let mediumPart = ''
     if (currentData.medium?.trim()) {
@@ -319,54 +347,58 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
     if (mediumPart) {
       parts.push(mediumPart)
     }
-    
+
     // 4. Signature placement (if signature exists)
     if (currentData.signature_placement?.trim()) {
       parts.push(`Signed ${currentData.signature_placement.trim()}`)
     }
-    
+
     // 5. Period of the artwork
     if (currentData.period_age?.trim()) {
       parts.push(currentData.period_age.trim())
     }
-    
+
     return parts.join(' | ')
   }
 
   // Helper function to generate preview description
-  const generatePreviewDescription = (): string => {
+  const previewDescription = useMemo(() => {
     const parts: string[] = []
-    
+
     // Artwork description
     if (formData.description?.trim()) {
       parts.push(formData.description.trim())
     }
-    
+
     // Artist info (if checkboxes are selected)
     if (formData.artist_id) {
       const artist = artists.find(a => a.id === formData.artist_id)
       if (artist) {
         const artistParts: string[] = []
-        
+
         if (formData.include_artist_biography && artist.birth_year) {
           artistParts.push(`Born: ${artist.birth_year}${artist.death_year ? `, Died: ${artist.death_year}` : ''}`)
         }
-        
+
         if (formData.include_artist_description && artist.description) {
           artistParts.push(artist.description)
         }
-        
+
+        if (formData.include_artist_key_description && artist.key_description) {
+          artistParts.push(artist.key_description)
+        }
+
         if (formData.include_artist_extra_info) {
           if (artist.nationality) artistParts.push(`Nationality: ${artist.nationality}`)
           if (artist.art_movement) artistParts.push(`Movement: ${artist.art_movement}`)
         }
-        
+
         if (artistParts.length > 0) {
           parts.push(artistParts.join('. '))
         }
       }
     }
-    
+
     // Dimensions
     if (formData.dimensions_inches || formData.dimensions_cm) {
       let dimensionText = 'Dimensions: '
@@ -380,9 +412,19 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       }
       parts.push(dimensionText)
     }
-    
+
     return parts.join('<br><br>')
-  }
+  }, [
+    formData.description,
+    formData.artist_id,
+    formData.include_artist_biography,
+    formData.include_artist_description,
+    formData.include_artist_key_description,
+    formData.include_artist_extra_info,
+    formData.dimensions_inches,
+    formData.dimensions_cm,
+    artists
+  ])
 
   // Helper function to create artist options for SearchableSelect
   const createArtistOptions = (): SearchableOption[] => {
@@ -391,11 +433,11 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       .map(artist => ({
         value: artist.id!.toString(), // Ensure consistent string type
         label: artist.name,
-        description: artist.birth_year && artist.death_year 
-          ? `${artist.birth_year} - ${artist.death_year}` 
-          : artist.birth_year 
-          ? `Born ${artist.birth_year}` 
-          : artist.nationality || ''
+        description: artist.birth_year && artist.death_year
+          ? `${artist.birth_year} - ${artist.death_year}`
+          : artist.birth_year
+            ? `Born ${artist.birth_year}`
+            : artist.nationality || ''
       }))
   }
 
@@ -424,9 +466,9 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
   // Helper function to create consigner client options (vendors only)
   const createConsignerOptions = (): SearchableOption[] => {
     return clients
-      .filter(client => 
-        client.id && 
-        (client.client_type === 'vendor' || client.client_type === 'buyer_vendor')
+      .filter(client =>
+        client.id &&
+        (client.client_type === 'buyer' || client.client_type === 'vendor' || client.client_type === 'buyer_vendor')
       )
       .map(client => ({
         value: client.id!.toString(),
@@ -438,14 +480,25 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
   // Helper function to create buyer client options (buyers only, only if sold)
   const createBuyerOptions = (): SearchableOption[] => {
     return clients
-      .filter(client => 
-        client.id && 
+      .filter(client =>
+        client.id &&
         (client.client_type === 'buyer' || client.client_type === 'buyer_vendor')
       )
       .map(client => ({
         value: client.id!.toString(),
         label: getClientDisplayName(client),
         description: `${formatClientDisplay(client)} - Buyer`
+      }))
+  }
+
+  // Helper function to create consignment options for SearchableSelect
+  const createConsignmentOptions = (): SearchableOption[] => {
+    return consignments
+      .filter(consignment => consignment.id) // Ensure id exists
+      .map(consignment => ({
+        value: consignment.id!.toString(),
+        label: `Consignment ${consignment.id}`,
+        description: `Client: ${consignment.client_name || 'Unknown'} - ${consignment.status || 'No status'} - ${consignment.items_count || 0} items`
       }))
   }
 
@@ -489,7 +542,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
   const populateFormData = (data: Partial<Artwork>) => {
     setFormData({
-      lot_num: data.lot_num || '',
       title: data.title || '',
       description: data.description || '',
       low_est: data.low_est?.toString() || '',
@@ -500,6 +552,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       consignor: data.consignor || '',
       consigner_client_id: (data as any).consigner_client_id || '',
       buyer_client_id: (data as any).buyer_client_id || '',
+      consignment_id: data.consignment_id?.toString() || '',
       status: data.status || 'draft',
       category: data.category || '',
       subcategory: data.subcategory || '',
@@ -516,6 +569,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       medium: (data as any).medium || '',
       include_artist_biography: (data as any).include_artist_biography || false,
       include_artist_description: (data as any).include_artist_description || false,
+      include_artist_key_description: (data as any).include_artist_key_description || false,
       include_artist_extra_info: (data as any).include_artist_extra_info || false,
       dimensions_inches: (data as any).dimensions_inches || '',
       dimensions_cm: (data as any).dimensions_cm || '',
@@ -544,7 +598,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
   const populateAIData = (aiData: any) => {
     setFormData({
-      lot_num: '', // Will be auto-generated
       title: aiData.title || '',
       description: aiData.description || '',
       low_est: aiData.low_est?.toString() || '',
@@ -555,6 +608,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       consignor: '',
       consigner_client_id: '',
       buyer_client_id: '',
+      consignment_id: '',
       status: 'draft',
       category: aiData.category || '',
       subcategory: '',
@@ -571,6 +625,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       medium: aiData.materials || '', // Use materials as medium initially
       include_artist_biography: false,
       include_artist_description: false,
+      include_artist_key_description: false,
       include_artist_extra_info: false,
       dimensions_inches: aiData.dimensions_inches || '',
       dimensions_cm: aiData.dimensions_cm || '',
@@ -623,15 +678,15 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         setFormData(prev => {
           // Create the updated data with the new value
           const updatedData = { ...prev, [field]: value }
-          
+
           // Use the centralized title generation function
           const autoTitle = generateAutoTitle(updatedData)
-          
+
           // Update title if we have meaningful content
           if (autoTitle && autoTitle !== 'Untitled') {
             return { ...updatedData, title: autoTitle }
           }
-          
+
           return updatedData
         })
       }, 50) // Reduced delay for faster UI updates
@@ -644,7 +699,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
   const handleImageChange = (field: ImageFieldKey, url: string, file?: File) => {
     console.log('handleImageChange', field, url, file)
     setFormData(prev => ({ ...prev, [field]: url }))
-    
+
     if (file) {
       setPendingImages(prev => ({ ...prev, [field]: file }))
     } else {
@@ -678,7 +733,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
     const availableSlots = getNextAvailableSlots()
     const filesToProcess = Array.from(files).slice(0, availableSlots.length)
-    
+
     if (filesToProcess.length === 0) {
       alert('All image slots are already filled. Please remove some images first.')
       return
@@ -694,7 +749,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         alert(`File ${file.name} is not an image`)
         return
       }
-      
+
       if (file.size > 10 * 1024 * 1024) { // 10MB limit
         alert(`File ${file.name} is too large (max 10MB)`)
         return
@@ -703,10 +758,10 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       // Use next available slot
       const slotIndex = availableSlots[index]
       const fieldKey = `image_file_${slotIndex}` as ImageFieldKey
-      
+
       // Create blob URL for preview
       const blobUrl = URL.createObjectURL(file)
-      
+
       // Update form data and pending images
       setFormData(prev => ({ ...prev, [fieldKey]: blobUrl }))
       setPendingImages(prev => ({ ...prev, [fieldKey]: file }))
@@ -714,7 +769,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
     // Clear the input
     event.target.value = ''
-    
+
     // Clear validation errors
     setValidationErrors([])
   }
@@ -734,7 +789,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
   const uploadPendingImages = async (tempItemId: string): Promise<Record<string, string>> => {
     const uploadedImages: Record<string, string> = {}
-    
+
     if (Object.keys(pendingImages).length === 0) {
       return uploadedImages
     }
@@ -742,7 +797,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
     try {
       const uploadFormData = new FormData()
       uploadFormData.append('itemId', tempItemId)
-      
+
       // Add existing images that aren't files
       const existingImages: Record<string, string> = {}
       const imageFields = Object.keys(formData).filter(key => key.startsWith('image_file_')) as ImageFieldKey[]
@@ -752,7 +807,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         }
       })
       uploadFormData.append('existingImages', JSON.stringify(existingImages))
-      
+
       // Add pending image files
       Object.entries(pendingImages).forEach(([fieldName, file]) => {
         uploadFormData.append(fieldName, file)
@@ -788,7 +843,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
 
     // Convert form data to Artwork format
     const artworkData: Partial<Artwork> = {
-      lot_num: formData.lot_num,
       title: formData.title,
       description: formData.description,
       low_est: parseFloat(formData.low_est),
@@ -808,6 +862,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       period_age: formData.period_age || undefined,
       provenance: formData.provenance || undefined,
       auction_id: formData.auction_id || undefined,
+      consignment_id: formData.consignment_id ? parseInt(formData.consignment_id) : undefined,
       image_file_1: formData.image_file_1 || undefined,
       image_file_2: formData.image_file_2 || undefined,
       image_file_3: formData.image_file_3 || undefined,
@@ -834,20 +889,20 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
       // Handle image uploads if there are pending files
       if (Object.keys(pendingImages).length > 0) {
         const tempItemId = itemId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        
+
         try {
           const uploadedImageUrls = await uploadPendingImages(tempItemId)
-          
+
           // Update artwork data with uploaded image URLs
           Object.entries(uploadedImageUrls).forEach(([fieldName, url]) => {
             if (fieldName.startsWith('image_file_')) {
               (artworkData as any)[fieldName] = url
             }
           })
-          
+
           // Clear pending images
           setPendingImages({})
-          
+
           // Clean up blob URLs
           Object.values(pendingImages).forEach(file => {
             const blobUrl = formData[Object.keys(pendingImages).find(key => pendingImages[key] === file) as ImageFieldKey]
@@ -855,7 +910,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
               URL.revokeObjectURL(blobUrl)
             }
           })
-          
+
         } catch (uploadError: any) {
           setError(`Image upload failed: ${uploadError.message}`)
           return
@@ -909,9 +964,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
             <h1 className="text-2xl font-bold text-gray-900">
               {mode === 'create' ? 'Add Artwork' : 'Edit Artwork'}
             </h1>
-            {mode === 'edit' && formData.lot_num && (
-              <p className="text-gray-600 mt-1">Lot #{formData.lot_num}</p>
-            )}
           </div>
         </div>
 
@@ -979,10 +1031,41 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-6">
-              {/* Client Selection Section */}
+              {/* Client & Consignment Selection Section */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-blue-900 mb-4">Client Information</h3>
+                <h3 className="text-sm font-medium text-blue-900 mb-4">Client & Consignment Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Consignment (Optional)
+                    </label>
+                    <SearchableSelect
+                      value={formData.consignment_id}
+                      options={createConsignmentOptions()}
+                      placeholder={loadingConsignments ? "Loading consignments..." : "Select consignment..."}
+                      onChange={(value) => {
+                        const consignmentId = value?.toString() || ''
+                        handleInputChange('consignment_id', consignmentId)
+
+                        // Auto-fill consigner if consignment is selected
+                        if (consignmentId) {
+                          const selectedConsignment = consignments.find(c => c.id?.toString() === consignmentId)
+                          if (selectedConsignment?.client_id) {
+                            handleInputChange('consigner_client_id', selectedConsignment.client_id.toString())
+                          }
+                        }
+                      }}
+                      disabled={loadingConsignments}
+                      inputPlaceholder="Search consignments..."
+                    />
+                    {loadingConsignments && (
+                      <p className="text-xs text-gray-500 mt-1">Loading consignments...</p>
+                    )}
+                    {!loadingConsignments && createConsignmentOptions().length === 0 && (
+                      <p className="text-xs text-orange-500 mt-1">No consignments found. Create a consignment first.</p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Consignor (Vendor) *
@@ -1001,16 +1084,15 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                     {!loadingClients && createConsignerOptions().length === 0 && (
                       <p className="text-xs text-orange-500 mt-1">No vendor clients found. Please create vendor clients first.</p>
                     )}
-                    {/* Debug info */}
-                    {!loadingClients && clients.length > 0 && (
+                    {formData.consignment_id && (
                       <p className="text-xs text-green-600 mt-1">
-                        Total clients: {clients.length}, Vendor clients: {createConsignerOptions().length}
+                        ✓ Consigner auto-filled from selected consignment
                       </p>
                     )}
                   </div>
 
                   {formData.status === 'sold' && (
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Buyer Client * <span className="text-xs text-gray-500">(required if sold)</span>
                       </label>
@@ -1156,19 +1238,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lot Number * <span className="text-xs text-gray-500">(max 10 chars)</span>
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={10}
-                    value={formData.lot_num}
-                    onChange={(e) => handleInputChange('lot_num', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
+
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1237,7 +1307,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
               {/* Description Section with AI and Artist Info Options */}
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-purple-900 mb-4">Artwork Description & Export Options</h3>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Artwork Description *
@@ -1250,19 +1320,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                     required
                     placeholder="Enter detailed description of the artwork..."
                   />
-                  <div className="mt-2 flex items-center space-x-4">
-                    <button
-                      type="button"
-                      className="text-sm text-purple-600 hover:text-purple-800 font-medium"
-                      onClick={() => {
-                        // TODO: Implement AI description generation
-                        console.log('AI description generation clicked')
-                      }}
-                    >
-                      🤖 Generate with AI
-                    </button>
-                    <span className="text-xs text-gray-500">or write manually</span>
-                  </div>
                 </div>
 
                 {/* Artist Information Options for Export */}
@@ -1295,6 +1352,19 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                         />
                         <label htmlFor="include_artist_description" className="text-sm text-gray-700">
                           Include Artist Description
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_key_description"
+                          checked={formData.include_artist_key_description}
+                          onChange={(e) => handleInputChange('include_artist_key_description', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_key_description" className="text-sm text-gray-700">
+                          Include Artist Key Description
                         </label>
                       </div>
 
@@ -1353,14 +1423,18 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                   {formData.gallery_certification && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
-                      <select
+                      <SearchableSelect
                         value={formData.gallery_id}
-                        onChange={(e) => handleInputChange('gallery_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      >
-                        <option value="">Select gallery...</option>
-                        {/* TODO: Load galleries from API */}
-                      </select>
+                        onChange={(value) => handleInputChange('gallery_id', value?.toString() || '')}
+                        options={galleries.map(gallery => ({
+                          value: gallery.id || '',
+                          label: gallery.name,
+                          description: gallery.location ? `${gallery.location}${gallery.country ? `, ${gallery.country}` : ''}` : gallery.country || ''
+                        }))}
+                        placeholder={loadingGalleries ? "Loading galleries..." : "Search galleries..."}
+                        inputPlaceholder="Search by gallery name or location..."
+                        className="w-full"
+                      />
                     </div>
                   )}
                 </div>
@@ -1407,7 +1481,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                       type="checkbox"
                       id="artist_family_certification"
                       checked={formData.artist_family_certification}
-                      onChange={(e) => handleInputChange('artist_family_certification', e.target.checked  )}
+                      onChange={(e) => handleInputChange('artist_family_certification', e.target.checked)}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                     />
                     <label htmlFor="artist_family_certification" className="text-sm font-medium text-gray-700">
@@ -1455,7 +1529,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
               {/* Pricing Information Section */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-green-900 mb-4">Pricing & Category Information</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1713,7 +1787,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                 <p className="text-sm text-blue-800 mb-3">
                   Select multiple files to automatically populate available image slots.
                 </p>
-                
+
                 <div className="space-y-3">
                   {/* Initial Upload */}
                   <div>
@@ -1726,7 +1800,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                   </div>
-                  
+
                   {/* Add More Button */}
                   {getFilledSlotsCount() > 0 && getFilledSlotsCount() < 10 && (
                     <div className="flex items-center justify-center">
@@ -1752,7 +1826,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                     </div>
                   )}
                 </div>
-                
+
                 <p className="text-xs text-blue-600 mt-2">
                   Maximum 10 files total. Supported formats: JPG, PNG, GIF (max 10MB each)
                 </p>
@@ -1803,11 +1877,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                     <p className="text-gray-900 font-medium">
                       {formData.title || generateAutoTitle() || 'Enter title information...'}
                     </p>
-                    {formData.title && formData.title.length > 49 && (
-                      <p className="text-xs text-red-500 mt-1">
-                        ⚠️ Title exceeds 49 characters (LiveAuctioneers limit)
-                      </p>
-                    )}
                   </div>
                   <div className="mt-2">
                     <button
@@ -1828,11 +1897,14 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                 {/* Description Preview */}
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Description Preview:</h4>
-                  <div className="bg-white border border-gray-200 rounded-md p-4">
-                    <div 
+                  <div
+                    className="bg-white border border-gray-200 rounded-md p-4"
+                    key={`${formData.include_artist_biography}-${formData.include_artist_description}-${formData.include_artist_key_description}-${formData.include_artist_extra_info}`}
+                  >
+                    <div
                       className="text-gray-900 leading-relaxed"
-                      dangerouslySetInnerHTML={{ 
-                        __html: generatePreviewDescription().replace(/<br>/g, '<br>') || 'Enter artwork description...' 
+                      dangerouslySetInnerHTML={{
+                        __html: previewDescription.replace(/<br>/g, '<br>') || 'Enter artwork description...'
                       }}
                     />
                   </div>
@@ -1842,7 +1914,6 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-blue-900 mb-2">Export Information:</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Title will be truncated to 49 characters for LiveAuctioneers</li>
                     <li>• Description includes selected artist information</li>
                     <li>• Dimensions will be formatted appropriately for each platform</li>
                     {formData.consigner_client_id && (

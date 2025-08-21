@@ -21,8 +21,6 @@ export interface School {
   ai_source?: string;
   status?: 'active' | 'inactive' | 'archived';
   is_verified?: boolean;
-  created_by?: string;
-  updated_by?: string;
   created_at?: string;
   updated_at?: string;
 }

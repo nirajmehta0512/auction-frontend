@@ -32,11 +32,11 @@ export default function BankingPage() {
           type: typeFilter,
           bank_account: accountFilter,
           is_reconciled: reconciledFilter === 'true' ? true : reconciledFilter === 'false' ? false : undefined,
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+          brand_code: brand
         }),
         BankingAPI.getBankAccounts()
       ])
-      setTransactions(transactionsData.transactions)
+      setTransactions(transactionsData.transactions || [])
       setAccounts(accountsData)
     } catch (error) {
       console.error('Error loading banking data:', error)
@@ -80,10 +80,10 @@ export default function BankingPage() {
   }
 
   // Calculate total balance from transactions
-  const totalBalance = transactions
-    .filter(t => t.status === 'cleared' || t.status === 'reconciled')
-    .reduce((sum, t) => sum + (t.type === 'deposit' ? t.amount : -t.amount), 0)
-  const unreconciledCount = transactions.filter(t => !t.is_reconciled).length
+  const totalBalance = transactions?.filter(t => t.status === 'cleared' || t.status === 'reconciled')
+  .reduce((sum, t) => sum + (t.type === 'deposit' ? t.amount : -t.amount), 0) || 0;
+
+  const unreconciledCount = transactions?.filter(t => !t.is_reconciled).length || 0;
 
   return (
     <div className="container mx-auto p-6">

@@ -86,7 +86,7 @@ export default function ArtworkSelection({
     
     for (const lotNum of lotNumbers) {
       const artwork = artworks.find(a => 
-        parseInt(a.lot_num) === lotNum
+        a.id && parseInt(a.id) === lotNum
       )
       if (artwork && artwork.id) {
         selectedIds.push(artwork.id)
@@ -107,7 +107,7 @@ export default function ArtworkSelection({
     
     const selectedIds: string[] = []
     for (let i = fromNum; i <= toNum; i++) {
-      const artwork = artworks.find(a => parseInt(a.lot_num) === i)
+      const artwork = artworks.find(a => a.id && parseInt(a.id) === i)
       if (artwork && artwork.id) {
         selectedIds.push(artwork.id)
       }
@@ -228,7 +228,7 @@ export default function ArtworkSelection({
         {mode === 'individual' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lot Numbers
+              Inventory IDs
             </label>
             <input
               type="text"
@@ -238,7 +238,7 @@ export default function ArtworkSelection({
               className="w-full border border-gray-300 rounded-md px-3 py-2"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Enter lot numbers separated by commas. Use dashes for ranges (e.g., 1-5).
+              Enter inventory ids separated by commas. Use dashes for ranges (e.g., 1-5).
             </p>
           </div>
         )}
@@ -247,7 +247,7 @@ export default function ArtworkSelection({
         {mode === 'range' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lot Number Range
+              Inventory ID Range
             </label>
             <div className="flex space-x-2">
               <input

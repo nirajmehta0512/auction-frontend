@@ -11,26 +11,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Save, FileText, Calculator } from 'lucide-react'
 import Link from 'next/link'
 import { createRefund } from '@/lib/refunds-api'
+import { Invoice } from '@/types/api'
 import { getInvoicesForRefund } from '@/lib/invoices-api'
 import StaffDropdown from '@/components/ui/staff-dropdown'
 
 export default function NewInvoiceRefundPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [invoices, setInvoices] = useState<Array<{
-    id: number;
-    invoice_number: string;
-    client_name?: string;
-    total_amount: number;
-    hammer_price: number;
-    buyers_premium: number;
-    shipping_charge: number;
-    international_surcharge: number;
-    handling_charge: number;
-    insurance_charge: number;
-    is_international: boolean;
-  }>>([])
-  const [selectedInvoice, setSelectedInvoice] = useState<(typeof invoices)[number] | null>(null)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
   const [formData, setFormData] = useState({
     type: 'refund_of_artwork' as 'refund_of_artwork' | 'refund_of_courier_difference',
@@ -81,14 +70,14 @@ export default function NewInvoiceRefundPage() {
 
   const loadInvoices = async () => {
     try {
-      const invoicesData = await getInvoicesForRefund()
-      setInvoices(invoicesData)
+      const invoicesResponse = await getInvoicesForRefund()
+      setInvoices(invoicesResponse.data || [])
     } catch (error) {
       console.error('Error loading invoices:', error)
     }
   }
 
-  const populateInvoiceData = (invoice: (typeof invoices)[number]) => {
+  const populateInvoiceData = (invoice: Invoice) => {
     setFormData(prev => ({
       ...prev,
       hammer_price: String(invoice.hammer_price || 0),

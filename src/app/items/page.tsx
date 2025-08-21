@@ -179,7 +179,6 @@ export default function ItemsPage() {
       // Create the artwork directly in the database
       const finalArtworkData = {
         ...artworkData,
-        lot_num: `AI_${Date.now()}`, // Generate a unique lot number
         status: 'draft'
       }
       
@@ -373,7 +372,7 @@ export default function ItemsPage() {
                   className="flex items-center px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
                 >
                   <Trophy className="h-3 w-3 mr-1" />
-                  Generate Auction
+                  Add to Auction
                 </button>
                 <button
                   onClick={() => handlePDFAction('share')}
@@ -661,7 +660,7 @@ export default function ItemsPage() {
         />
       )}
 
-      {/* Generate Auction Modal */}
+      {/* Add to Auction Modal */}
       {showGenerateAuctionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <GenerateAuctionModal
@@ -669,7 +668,7 @@ export default function ItemsPage() {
             selectedArtworks={selectedItems}
             onComplete={(auctionId) => {
               setShowGenerateAuctionModal(false)
-              setSelectedItems([]) // Clear selection after creating auction
+              setSelectedItems([]) // Clear selection after adding to auction
             }}
           />
         </div>

@@ -209,7 +209,6 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
           // Create a mock artwork object for sync (since the actual artwork will be created by parent)
           const artworkForSync = {
             ...result,
-            lot_num: `AI_${Date.now()}`, // This will be updated by the parent
             status: 'draft',
             created_at: new Date().toISOString()
           }

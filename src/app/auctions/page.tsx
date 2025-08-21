@@ -43,6 +43,12 @@ export default function AuctionsPage() {
   const [auctions, setAuctions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12, // Show only 12 items as requested
+    total: 0,
+    pages: 0
+  })
   const [showLAImageModal, setShowLAImageModal] = useState(false)
   const [auctionIdForImages, setAuctionIdForImages] = useState('')
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
@@ -65,38 +71,46 @@ export default function AuctionsPage() {
     archived: 0
   })
 
+  // Sort state
+  const [sortField, setSortField] = useState('id')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
   useEffect(() => {
     const loadAuctions = async () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await getAuctions({
-          page: 1,
-          limit: 100, // Increased to handle filtering
-          sort_field: 'created_at',
-          sort_direction: 'desc',
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined as 'MSABER' | 'AURUM' | 'METSAB' | undefined
-        })
-        
-        let filteredAuctions = response.auctions
 
-        // Apply filters
+        // Prepare backend filters - let backend handle all filtering and sorting
+        const backendFilters: any = {
+          page: pagination.page,
+          limit: pagination.limit,
+          sort_field: sortField,
+          sort_direction: sortDirection,
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        }
+
+        // Apply filters to backend request
         if (filters.status !== 'all') {
-          filteredAuctions = filteredAuctions.filter(auction => auction.status === filters.status)
+          backendFilters.status = filters.status
         }
         
         if (filters.type !== 'all') {
-          filteredAuctions = filteredAuctions.filter(auction => auction.type === filters.type)
+          backendFilters.type = filters.type
         }
         
         if (filters.search) {
-          const searchLower = filters.search.toLowerCase()
-          filteredAuctions = filteredAuctions.filter(auction => 
-            auction.short_name?.toLowerCase().includes(searchLower) ||
-            auction.long_name?.toLowerCase().includes(searchLower)
-          )
+          backendFilters.search = filters.search
         }
+
+        // Note: specialist and dateRange filters will be applied client-side for now
+        // since the backend doesn't support them yet
         
+        const response = await getAuctions(backendFilters)
+        
+        let filteredAuctions = response.auctions
+
+        // Apply remaining client-side filters that backend doesn't support
         if (filters.specialist !== 'all') {
           filteredAuctions = filteredAuctions.filter(auction => auction.specialist_id === parseInt(filters.specialist))
         }
@@ -110,8 +124,18 @@ export default function AuctionsPage() {
         const convertedAuctions = filteredAuctions.map(convertAuctionFormat)
         setAuctions(convertedAuctions)
         
-        // Calculate status counts from all auctions (not filtered)
-        calculateStatusCounts(response.auctions)
+        // Update pagination state
+        if (response.pagination) {
+          setPagination(response.pagination)
+        }
+        
+        // Calculate status counts from all auctions (get fresh data for counts)
+        const allAuctionsResponse = await getAuctions({
+          page: 1,
+          limit: 1000,
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        })
+        calculateStatusCounts(allAuctionsResponse.auctions)
       } catch (err: any) {
         console.error('Error loading auctions:', err)
         const msg = err?.message || 'Failed to load auctions'
@@ -122,7 +146,13 @@ export default function AuctionsPage() {
     }
 
     loadAuctions()
-  }, [brand, filters])
+  }, [brand, filters, sortField, sortDirection, pagination.page, pagination.limit])
+
+  // Handle sort changes
+  const handleSort = (field: string, direction: 'asc' | 'desc') => {
+    setSortField(field)
+    setSortDirection(direction)
+  }
 
   // Helper function to apply date range filters
   const applyDateRangeFilter = (auctions: any[], dateRange: string) => {
@@ -201,8 +231,8 @@ export default function AuctionsPage() {
       const response = await getAuctions({
         page: 1,
         limit: 25,
-        sort_field: 'created_at',
-        sort_direction: 'desc'
+        sort_field: 'id',
+        sort_direction: 'asc'
       })
       
       const convertedAuctions = response.auctions.map(convertAuctionFormat)
@@ -232,8 +262,8 @@ export default function AuctionsPage() {
       const response = await getAuctions({
         page: 1,
         limit: 25,
-        sort_field: 'created_at',
-        sort_direction: 'desc',
+        sort_field: 'id',
+        sort_direction: 'asc',
         brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
       
@@ -326,7 +356,7 @@ export default function AuctionsPage() {
       )}
 
       {/* Auctions Table */}
-      <div className="flex-1 overflow-hidden bg-white">
+      <div className="flex-1 overflow-auto bg-white">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -340,6 +370,9 @@ export default function AuctionsPage() {
             onView={handleViewAuction}
             onEdit={handleEditAuction}
             onDelete={handleDeleteAuction}
+            onSort={handleSort}
+            currentSortField={sortField}
+            currentSortDirection={sortDirection}
           />
         )}
       </div>
@@ -374,16 +407,41 @@ export default function AuctionsPage() {
           {/* Pagination */}
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">
-              Items: 1 - 2 from 2
+              Items: {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)} - {Math.min(pagination.page * pagination.limit, pagination.total)} from {pagination.total}
             </span>
             <div className="text-sm text-gray-600">
               * Times are shown in UTC timezone.
             </div>
-            <select className="border border-gray-300 rounded text-sm px-2 py-1">
-              <option>25</option>
-              <option>50</option>
-              <option>100</option>
+            <select 
+              value={pagination.limit}
+              onChange={(e) => setPagination(prev => ({ ...prev, limit: parseInt(e.target.value), page: 1 }))}
+              className="border border-gray-300 rounded text-sm px-2 py-1"
+            >
+              <option value={12}>12</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
             </select>
+            {pagination.pages > 1 && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  disabled={pagination.page === 1}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-gray-600">
+                  Page {pagination.page} of {pagination.pages}
+                </span>
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                  disabled={pagination.page >= pagination.pages}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -423,8 +481,8 @@ export default function AuctionsPage() {
                   const response = await getAuctions({
                     page: 1,
                     limit: 25,
-                    sort_field: 'created_at',
-                    sort_direction: 'desc',
+                    sort_field: 'id',
+                    sort_direction: 'asc',
                     brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
                   })
                   const convertedAuctions = response.auctions.map(convertAuctionFormat)

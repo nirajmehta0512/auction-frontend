@@ -155,31 +155,64 @@ export interface GalleryFormData {
 // Auction Types
 export interface Auction {
   id: number;
-  title: string;
+  type: 'timed' | 'live' | 'sealed_bid';
   short_name: string;
-  auction_date: string;
-  preview_start?: string;
-  preview_end?: string;
-  location?: string;
+  long_name: string;
+  target_reserve?: number;
+  specialist_id?: number;
+  charges?: any;
   description?: string;
-  commission_rate?: number;
-  buyers_premium?: number;
-  is_active: boolean;
+  important_notice?: string;
+  title_image_url?: string;
+  catalogue_launch_date?: string;
+  aftersale_deadline?: string;
+  shipping_date?: string;
+  settlement_date: string;
+  auction_days: any[];
+  sale_events?: any[];
+  auctioneer_declaration?: string;
+  bid_value_increments?: string;
+  sorting_mode?: 'standard' | 'automatic' | 'manual';
+  estimates_visibility?: 'use_global' | 'show_always' | 'do_not_show';
+  time_zone?: string;
+  lots_count?: number;
+  registrations_count?: number;
+  total_estimate_low?: number;
+  total_estimate_high?: number;
+  total_sold_value?: number;
+  sold_lots_count?: number;
+  status?: 'planned' | 'in_progress' | 'ended' | 'aftersale' | 'archived';
+  brand_id?: number;
+  brand_code?: string; // For frontend compatibility
+  artwork_ids?: number[]; // Array of artwork/item IDs
   created_at: string;
   updated_at: string;
 }
 
 export interface AuctionFormData {
-  title: string;
+  type?: 'timed' | 'live' | 'sealed_bid';
   short_name: string;
-  auction_date: string;
-  preview_start?: string;
-  preview_end?: string;
-  location?: string;
+  long_name: string;
+  target_reserve?: number;
+  specialist_id?: number;
   description?: string;
-  commission_rate?: string;
-  buyers_premium?: string;
-  is_active: boolean;
+  settlement_date: string;
+  auction_days?: any[];
+  status?: 'planned' | 'in_progress' | 'ended' | 'aftersale' | 'archived';
+  brand_code?: string;
+  artwork_ids?: number[];
+}
+
+export interface InvoiceFormData {
+  auction_id?: number;
+  client_id?: number;
+  status?: 'draft' | 'generated' | 'sent' | 'paid' | 'cancelled';
+  logistics?: any;
+  shipping_charge?: number;
+  international_surcharge?: number;
+  handling_charge?: number;
+  insurance_charge?: number;
+  total_shipping_amount?: number;
 }
 
 // Item Types
@@ -332,7 +365,6 @@ export interface BankingTransaction {
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
   transaction_date: string;
   reconciled_date?: string;
-  created_by?: string;
   reconciled_by?: string;
   notes?: string;
   created_at: string;
@@ -504,50 +536,29 @@ export interface CSVUploadResult<T> {
 export interface Invoice {
   id: number;
   invoice_number: string;
-  client_id?: number;
   auction_id?: number;
-  item_id?: number;
-  
-  // Invoice amounts breakdown
-  hammer_price: number;
-  buyers_premium: number;
-  total_item_amount: number;
-  
-  // Logistics/shipping breakdown
-  shipping_charge: number;
-  handling_charge: number;
-  insurance_charge: number;
-  international_surcharge: number;
-  local_shipping_cost: number;
-  total_shipping_amount: number;
-  
-  // Other charges
-  vat_amount: number;
-  total_amount: number;
-  
-  // Invoice metadata
+  client_id?: number;
+  client_name?: string;
   invoice_date: string;
-  due_date?: string;
-  payment_status: 'pending' | 'paid' | 'overdue' | 'cancelled';
-  payment_method?: string;
-  payment_date?: string;
-  
-  // Logistics info (for courier difference refunds)
-  destination_country?: string;
-  is_international: boolean;
-  logistics_id?: number;
-  
-  // Audit fields
-  created_by?: number;
-  updated_by?: number;
+  status: 'draft' | 'generated' | 'sent' | 'paid' | 'cancelled';
+  hammer_price?: number;
+  buyers_premium?: number;
+  vat_amount?: number;
+  total_amount?: number;
+  logistics?: any;
+  shipping_charge?: number;
+  international_surcharge?: number;
+  handling_charge?: number;
+  insurance_charge?: number;
+  total_shipping_amount?: number;
+  is_international?: boolean;
+  brand_id?: number;
   created_at: string;
   updated_at: string;
-  brand_id?: string;
-  
-  // Joined fields
-  client_name?: string;
-  auction_name?: string;
-  item_title?: string;
+  // Relations
+  auction?: Auction;
+  client?: Client;
+  created_by_profile?: User;
 }
 
 // Refund Types

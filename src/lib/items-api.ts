@@ -28,6 +28,7 @@ export interface Artwork {
   period_age?: string;
   provenance?: string;
   auction_id?: string;
+  consignment_id?: number;
   
   // Image fields (1-10 images)
   image_file_1?: string;
@@ -42,8 +43,6 @@ export interface Artwork {
   image_file_10?: string;
   
   // Audit fields
-  created_by?: string;
-  updated_by?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -405,11 +404,6 @@ export async function getPlatformCredentials(brandCode: string, platform: string
 export const validateArtworkData = (data: Partial<Artwork>): string[] => {
   const errors: string[] = [];
 
-  if (!data.lot_num?.trim()) {
-    errors.push('Lot number is required');
-  } else if (data.lot_num.length > 10) {
-    errors.push('Lot number must be 10 characters or less');
-  }
 
   if (!data.title?.trim()) {
     errors.push('Title is required');

@@ -1,6 +1,8 @@
 // frontend/src/components/artists/ArtistsFilter.tsx
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
+import SearchableSelect from '@/components/ui/SearchableSelect'
+import { ArtistsAPI } from '@/lib/artists-api'
 
 interface FilterState {
   status: string;
@@ -15,6 +17,66 @@ interface ArtistsFilterProps {
 }
 
 export default function ArtistsFilter({ filters, onFilterChange }: ArtistsFilterProps) {
+  const [artistSuggestions, setArtistSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [loadingArtists, setLoadingArtists] = useState(false)
+
+  // Load artist suggestions
+  useEffect(() => {
+    const loadArtistSuggestions = async () => {
+      try {
+        setLoadingArtists(true)
+        const response = await ArtistsAPI.getArtists({ limit: 200 }) // Get enough for good suggestions
+        
+        if (response.success) {
+          const suggestions = [
+            { value: '', label: 'All Artists', description: 'Show all artists' }
+          ]
+          
+          // Add unique artist names and nationalities
+          const artistNames = new Set<string>()
+          const nationalities = new Set<string>()
+          
+          response.data.forEach((artist: any) => {
+            // Add artist names
+            if (artist.name && !artistNames.has(artist.name.toLowerCase())) {
+              artistNames.add(artist.name.toLowerCase())
+              if (artistNames.size <= 15) { // Limit suggestions
+                suggestions.push({
+                  value: artist.name,
+                  label: artist.name,
+                  description: `Search for ${artist.name}${artist.nationality ? ` (${artist.nationality})` : ''}`
+                })
+              }
+            }
+            
+            // Add unique nationalities
+            if (artist.nationality && !nationalities.has(artist.nationality.toLowerCase())) {
+              nationalities.add(artist.nationality.toLowerCase())
+              if (nationalities.size <= 10) {
+                suggestions.push({
+                  value: artist.nationality,
+                  label: `${artist.nationality} Artists`,
+                  description: `Search for ${artist.nationality} artists`
+                })
+              }
+            }
+          })
+          
+          setArtistSuggestions(suggestions)
+        }
+      } catch (error) {
+        console.error('Error loading artist suggestions:', error)
+        setArtistSuggestions([
+          { value: '', label: 'All Artists', description: 'Show all artists' }
+        ])
+      } finally {
+        setLoadingArtists(false)
+      }
+    }
+
+    loadArtistSuggestions()
+  }, [])
+
   const handleClearFilters = () => {
     onFilterChange({
       status: 'active',
@@ -29,16 +91,15 @@ export default function ArtistsFilter({ filters, onFilterChange }: ArtistsFilter
   return (
     <div className="space-y-4">
       {/* Search */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400" />
-        </div>
-        <input
-          type="text"
-          placeholder="Search artists by name, nationality, movement, or description..."
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Search Artists</label>
+        <SearchableSelect
           value={filters.search}
-          onChange={(e) => onFilterChange({ search: e.target.value })}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          options={artistSuggestions}
+          placeholder={loadingArtists ? "Loading artists..." : "Search artists..."}
+          onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
+          inputPlaceholder="Search by name, nationality, movement, or description..."
+          className="w-full"
         />
       </div>
 

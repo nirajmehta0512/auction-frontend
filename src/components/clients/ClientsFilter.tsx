@@ -105,7 +105,7 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
 
   const selectSearchSuggestion = (client: Client) => {
     // Prefer email/phone/name for quick search
-    const text = client.email || client.phone_number || `${client.first_name} ${client.last_name}`
+    const text = client.id ? String(client.id) : client.email || client.phone_number || `${client.first_name} ${client.last_name}`
     onFilterChange({ search: text || '' })
     setShowSearchSuggestions(false)
   }
@@ -132,7 +132,7 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search clients by name, email, or company..."
+            placeholder="Search clients by id, name, email, or company..."
             value={filters.search}
             onChange={handleSearchChange}
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -273,23 +273,6 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
             )}
           </div>
         </div>
-      </div>
-
-      {/* Advanced Filters Toggle */}
-      <div className="mt-4 flex items-center justify-between">
-        <button className="text-teal-600 hover:text-teal-700 text-sm font-medium">
-          Advanced filters
-        </button>
-
-        {(filters.search || filters.status !== 'all' || filters.client_type !== 'all' || (filters.tags && filters.tags.trim() !== '') || (filters.registration_date && filters.registration_date !== 'all')) && (
-          <button
-            onClick={() => onFilterChange({ search: '', status: 'all', client_type: 'all', tags: '', registration_date: 'all' })}
-            className="text-gray-600 hover:text-gray-700 text-sm flex items-center space-x-1"
-          >
-            <X className="h-4 w-4" />
-            <span>Clear filters</span>
-          </button>
-        )}
       </div>
     </div>
   )

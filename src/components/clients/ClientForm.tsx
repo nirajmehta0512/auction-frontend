@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
 import { createClient, updateClient, type Client } from '@/lib/clients-api'
 import { fetchBrands, type Brand } from '@/lib/api'
 import PhoneInput from 'react-phone-input-2'
-import { LoadScript, StandaloneSearchBox } from '@react-google-maps/api'
+import { LoadScript, StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api'
 import { useBrand } from '@/lib/brand-context'
 
 interface ClientFormProps {
@@ -81,18 +81,18 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     brand_id: '' as any
   })
   const [brands, setBrands] = useState<Brand[]>([])
-  useEffect(()=>{
-    (async ()=>{
+  useEffect(() => {
+    (async () => {
       try {
         const list = await fetchBrands()
         setBrands(list)
         // Only auto-select a brand when creating a new client and no initial data provided
-        if (mode === 'create' && !initialData && !formData.brand_id && list.length>0) {
-          setFormData(prev=>({...prev, brand_id: list[0].id as any}))
+        if (mode === 'create' && !initialData && !formData.brand_id && list.length > 0) {
+          setFormData(prev => ({ ...prev, brand_id: list[0].id as any }))
         }
-      } catch {}
+      } catch { }
     })()
-  },[mode, initialData])
+  }, [mode, initialData])
 
   // Google Places refs
   const billingSearchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
@@ -100,6 +100,11 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
 
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
   const placesLibraries = useMemo(() => ['places'] as ("places")[], [])
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: googleApiKey,
+    libraries: placesLibraries,
+  });
 
   const parsePlaceToAddress = useCallback((place: google.maps.places.PlaceResult) => {
     const components = place.address_components || []
@@ -157,7 +162,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.data) {
@@ -171,7 +176,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
         console.error('Error loading Google Sheets URL:', error)
       }
     }
-    
+
     if (brand) {
       loadGoogleSheetUrl()
     }
@@ -187,22 +192,22 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
   // Enhanced Google Sheets sync functionality
   const syncWithGoogleSheet = async (isPreSync = false) => {
     if (!googleSheetUrl) return
-    
+
     try {
       setSyncingToSheet(true)
       const token = localStorage.getItem('token')
-      
+
       if (isPreSync) {
         // Pre-sync: Import latest data from Google Sheets
         const importResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/sync-google-sheet`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json', 
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}) 
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ sheet_url: googleSheetUrl })
         })
-        
+
         if (!importResponse.ok) {
           const errorData = await importResponse.json()
           console.warn('Pre-sync import failed:', errorData.error)
@@ -211,13 +216,13 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
         // Post-sync: Export current data to Google Sheets
         const exportResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/export-to-google-sheet`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json', 
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}) 
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ sheet_url: googleSheetUrl })
         })
-        
+
         if (!exportResponse.ok) {
           const errorData = await exportResponse.json()
           console.warn('Post-sync export failed:', errorData.error)
@@ -267,7 +272,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
 
     try {
       setLoading(true)
-      
+
       // Step 1: Pre-sync - Import latest data from Google Sheets to avoid conflicts
       if (googleSheetUrl) {
         await syncWithGoogleSheet(true)
@@ -276,8 +281,10 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
       // Step 2: Save the client
       if (mode === 'create') {
         const payload = { ...formData }
+        // Convert empty strings to undefined for optional fields
         if (payload.instagram_url === '') payload.instagram_url = undefined
-        
+        if (payload.birth_date === '') payload.birth_date = undefined
+
         // Ensure brand is set from current brand context for proper id-prefixed display computation on UI
         if (!payload.brand_id && brand) {
           // Fetch brand ID from the current brand context
@@ -295,12 +302,15 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
             console.warn('Could not fetch brand ID:', error)
           }
         }
-        
+
         const response = await createClient(payload as Omit<Client, 'id' | 'created_at' | 'updated_at'>)
         if (!response.success) throw new Error('Failed to create client')
       } else if (mode === 'edit' && clientId) {
         const payload = { ...formData }
-        
+        // Convert empty strings to undefined for optional fields
+        if (payload.instagram_url === '') payload.instagram_url = undefined
+        if (payload.birth_date === '') payload.birth_date = undefined
+
         // Ensure brand is set from current brand context for proper id-prefixed display computation on UI
         if (!payload.brand_id && brand) {
           try {
@@ -317,7 +327,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
             console.warn('Could not fetch brand ID:', error)
           }
         }
-        
+
         await updateClient(clientId, payload)
       }
 
@@ -498,10 +508,10 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
                 <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
                 <select
                   value={String((formData as any).brand_id || '')}
-                  onChange={(e)=>handleInputChange('brand_id' as any, e.target.value)}
+                  onChange={(e) => handleInputChange('brand_id' as any, e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
-                  {brands.map(b=> (
+                  {brands.map(b => (
                     <option key={b.id} value={String(b.id)}>{b.name}</option>
                   ))}
                 </select>
@@ -549,7 +559,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <input type="text" value={formData.role || ''} onChange={(e) => handleInputChange('role', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" placeholder='Assistant, Director, etc.'/>
+                <input type="text" value={formData.role || ''} onChange={(e) => handleInputChange('role', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" placeholder='Assistant, Director, etc.' />
               </div>
             </div>
           </div>
@@ -560,20 +570,20 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Billing address</h3>
                 <div className="space-y-3">
-                  <LoadScript googleMapsApiKey={googleApiKey} libraries={placesLibraries}>
+                  {isLoaded && (
                     <StandaloneSearchBox onLoad={(ref) => { billingSearchBoxRef.current = ref }} onPlacesChanged={handleBillingPlaceChanged}>
-                      <input type="text" placeholder="Search address or type line 1" value={formData.billing_address1 || ''} onChange={(e)=>handleInputChange('billing_address1', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+                      <input type="text" placeholder="Search address or type line 1" value={formData.billing_address1 || ''} onChange={(e) => handleInputChange('billing_address1', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
                     </StandaloneSearchBox>
-                  </LoadScript>
-                  <input type="text" placeholder="Address line 2" value={formData.billing_address2 || ''} onChange={(e)=>handleInputChange('billing_address2', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  <input type="text" placeholder="Address line 3" value={formData.billing_address3 || ''} onChange={(e)=>handleInputChange('billing_address3', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  )}
+                  <input type="text" placeholder="Address line 2" value={formData.billing_address2 || ''} onChange={(e) => handleInputChange('billing_address2', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" placeholder="Address line 3" value={formData.billing_address3 || ''} onChange={(e) => handleInputChange('billing_address3', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input type="text" placeholder="City" value={formData.billing_city || ''} onChange={(e)=>handleInputChange('billing_city', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="text" placeholder="Post code" value={formData.billing_post_code || ''} onChange={(e)=>handleInputChange('billing_post_code', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="City" value={formData.billing_city || ''} onChange={(e) => handleInputChange('billing_city', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Post code" value={formData.billing_post_code || ''} onChange={(e) => handleInputChange('billing_post_code', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input type="text" placeholder="Country" value={formData.billing_country || ''} onChange={(e)=>handleInputChange('billing_country', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="text" placeholder="Region/State" value={formData.billing_region || ''} onChange={(e)=>handleInputChange('billing_region', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Country" value={formData.billing_country || ''} onChange={(e) => handleInputChange('billing_country', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Region/State" value={formData.billing_region || ''} onChange={(e) => handleInputChange('billing_region', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
               </div>
@@ -581,25 +591,25 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-700">Shipping address</h3>
                   <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" checked={formData.shipping_same_as_billing || false} onChange={(e)=>handleInputChange('shipping_same_as_billing', e.target.checked)} className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
+                    <input type="checkbox" checked={formData.shipping_same_as_billing || false} onChange={(e) => handleInputChange('shipping_same_as_billing', e.target.checked)} className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                     Same as billing
                   </label>
                 </div>
                 <div className="space-y-3">
-                  <LoadScript googleMapsApiKey={googleApiKey} libraries={placesLibraries}>
+                  {isLoaded && (
                     <StandaloneSearchBox onLoad={(ref) => { shippingSearchBoxRef.current = ref }} onPlacesChanged={handleShippingPlaceChanged}>
-                      <input type="text" placeholder="Search address or type line 1" value={formData.shipping_address1 || ''} onChange={(e)=>handleInputChange('shipping_address1', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                      <input type="text" placeholder="Search address or type line 1" value={formData.shipping_address1 || ''} onChange={(e) => handleInputChange('shipping_address1', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                     </StandaloneSearchBox>
-                  </LoadScript>
-                  <input type="text" placeholder="Address line 2" value={formData.shipping_address2 || ''} onChange={(e)=>handleInputChange('shipping_address2', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                  <input type="text" placeholder="Address line 3" value={formData.shipping_address3 || ''} onChange={(e)=>handleInputChange('shipping_address3', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  )}
+                  <input type="text" placeholder="Address line 2" value={formData.shipping_address2 || ''} onChange={(e) => handleInputChange('shipping_address2', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" placeholder="Address line 3" value={formData.shipping_address3 || ''} onChange={(e) => handleInputChange('shipping_address3', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input type="text" placeholder="City" value={formData.shipping_city || ''} onChange={(e)=>handleInputChange('shipping_city', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="text" placeholder="Post code" value={formData.shipping_post_code || ''} onChange={(e)=>handleInputChange('shipping_post_code', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="City" value={formData.shipping_city || ''} onChange={(e) => handleInputChange('shipping_city', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Post code" value={formData.shipping_post_code || ''} onChange={(e) => handleInputChange('shipping_post_code', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input type="text" placeholder="Country" value={formData.shipping_country || ''} onChange={(e)=>handleInputChange('shipping_country', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="text" placeholder="Region/State" value={formData.shipping_region || ''} onChange={(e)=>handleInputChange('shipping_region', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Country" value={formData.shipping_country || ''} onChange={(e) => handleInputChange('shipping_country', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Region/State" value={formData.shipping_region || ''} onChange={(e) => handleInputChange('shipping_region', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
               </div>

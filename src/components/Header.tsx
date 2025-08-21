@@ -49,18 +49,6 @@ export default function Header() {
         console.error('Error parsing user data:', error)
       }
     }
-    // Load brands from backend memberships
-    const loadBrands = async () => {
-      try {
-        const resp = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/brand-memberships', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
-        const data = await resp.json()
-        const list = (data?.brands || []).map((b: any) => ({ code: b.code, name: b.name }))
-        setBrands(list)
-      } catch {}
-    }
-    loadBrands()
   }, [])
 
   const handleSignOut = async () => {

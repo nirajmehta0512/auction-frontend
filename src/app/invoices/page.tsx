@@ -1,948 +1,455 @@
+// frontend/src/app/invoices/page.tsx
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react'
-import { FileText, Download, Truck, ArrowLeft, Eye, Plus, Search, Filter, Calendar, User, Gavel } from 'lucide-react'
-import InvoicePDF from '../../components/invoices/InvoicePDF'
-import LogisticsForm from '../../components/invoices/LogisticsForm'
-import { createInvoice as saveInvoice, updateInvoice as updateInvoiceApi, getInvoices as fetchSavedInvoices, deleteInvoice as deleteSavedInvoice, type InternalInvoice } from '@/lib/invoices-api'
-import { Invoice, InvoiceItem } from '../../types/invoice'
-import { Copy } from 'lucide-react'
-import { useBrand } from '@/lib/brand-context'
-import { ArtworksAPI } from '@/lib/artworks-api'
-import { fetchClients } from '@/lib/clients-api'
-
-interface Auction {
-  id: number
-  short_name: string
-  long_name: string
-  settlement_date?: string
-}
-
-interface GeneratedInvoice {
-  invoice: Invoice
-}
+import React, { useState, useEffect } from 'react'
+import { Plus, MoreVertical, Download, Edit, Trash2, FileText, Eye, Package } from 'lucide-react'
+import { InvoicesAPI } from '@/lib/invoices-api'
+import { getAuctions } from '@/lib/auctions-api'
+import InvoiceTemplate from '@/components/invoices/InvoiceTemplate'
+import InvoicePDF from '@/components/invoices/InvoicePDF'
+import LogisticsForm from '@/components/invoices/LogisticsForm'
+import type { Invoice } from '@/types/api'
+import type { Auction } from '@/lib/auctions-api'
 
 export default function InvoicesPage() {
-  const [currentView, setCurrentView] = useState<'list' | 'preview' | 'logistics'>('list')
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [auctions, setAuctions] = useState<Auction[]>([])
-  const [selectedAuctionId, setSelectedAuctionId] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [generatedInvoices, setGeneratedInvoices] = useState<GeneratedInvoice[]>([])
-  const { brand } = useBrand()
+  const [loading, setLoading] = useState(true)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showLogisticsModal, setShowLogisticsModal] = useState(false)
+  const [showInvoicePreview, setShowInvoicePreview] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [showingLogisticsForm, setShowingLogisticsForm] = useState<Invoice | null>(null)
-  const [isLoading, setIsLoading] = useState(false);
-  const [savedInvoices, setSavedInvoices] = useState<InternalInvoice[]>([])
-  const savedIdByInvoiceNumberRef = useRef<Record<string, number>>({})
-
-  // invoiceRef no longer needed - PDF generation is handled by InvoicePDF component
+  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null)
+  const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
+  const [includeShipping, setIncludeShipping] = useState(false)
 
   useEffect(() => {
-    const fetchAuctions = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) {
-          console.error('No token found - redirecting to login')
-          window.location.href = '/auth/login'
-          return
-        }
+    loadInvoices()
+    loadAuctions()
+  }, [])
 
-        // Include brand_code so backend can authorize properly when auctions are not public
-        const params = new URLSearchParams()
-        if (brand) params.set('brand_code', brand)
-
-        const response = await fetch(`/api/auctions${params.toString() ? `?${params.toString()}` : ''}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        if (response.status === 401) {
-          console.error('Authentication failed - redirecting to login')
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          window.location.href = '/auth/login'
-          return
-        }
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('✅ Loaded auctions:', data.auctions?.length || 0)
-          setAuctions(data.auctions || [])
-        } else {
-          const text = await response.text().catch(() => '')
-          console.error('Failed to fetch auctions:', text || response.statusText)
-          setError(text || 'Failed to fetch auctions')
-        }
-      } catch (err) {
-        console.error('Error fetching auctions:', err)
-        setError(err instanceof Error ? err.message : 'Error fetching auctions')
-      }
+  const loadInvoices = async () => {
+    try {
+      setLoading(true)
+      const response = await InvoicesAPI.getInvoices()
+      setInvoices(response.data || [])
+    } catch (error) {
+      console.error('Error loading invoices:', error)
+    } finally {
+      setLoading(false)
     }
-
-    fetchAuctions()
-    // Load saved invoices snapshots
-    ;(async () => {
-      try {
-        const res = await fetchSavedInvoices({ limit: 200 })
-        setSavedInvoices(res.invoices || [])
-        const map: Record<string, number> = {}
-        ;(res.invoices || []).forEach((inv: InternalInvoice) => { if (inv.invoice_number) map[inv.invoice_number] = inv.id })
-        savedIdByInvoiceNumberRef.current = map
-      } catch (e) {
-        console.error('Failed to load saved invoices', e)
-      }
-    })()
-  }, [brand])
-
-  const generateInvoiceNumber = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    const time = String(now.getTime()).slice(-6)
-    const prefix = brand === 'MSABER' ? 'MSA' : brand === 'AURUM' ? 'AUR' : 'MTS'
-    return `${prefix}-INV-${year}${month}${day}-${time}`
   }
 
-  const generateBasicInvoice = async () => {
-    if (!selectedAuctionId) {
-      alert('Please select an auction')
+  const loadAuctions = async () => {
+    try {
+      const auctionsData = await getAuctions()
+      setAuctions(auctionsData.auctions || [])
+    } catch (error) {
+      console.error('Error loading auctions:', error)
+    }
+  }
+
+  const handleGenerateInvoice = async () => {
+    if (!selectedAuction) return
+
+    try {
+      const newInvoice = await InvoicesAPI.generateFromAuction({
+        auction_id: selectedAuction.id,
+      })
+      setInvoices(prev => [newInvoice, ...prev])
+      setShowGenerateModal(false)
+      setSelectedAuction(null)
+      alert('Invoice generated successfully!')
+    } catch (error) {
+      console.error('Error generating invoice:', error)
+      alert('Failed to generate invoice. Please try again.')
+    }
+  }
+
+  const handleEditLogistics = (invoice: Invoice) => {
+    setSelectedInvoice(invoice)
+    setShowLogisticsModal(true)
+    setActionMenuOpen(null)
+  }
+
+  const handleLogisticsSubmit = async (logisticsInfo: any) => {
+    if (!selectedInvoice) return
+
+    try {
+      const updatedInvoice = await InvoicesAPI.updateInvoice(selectedInvoice.id!, {
+        logistics: logisticsInfo,
+        shipping_charge: logisticsInfo.shipping_cost,
+        insurance_charge: logisticsInfo.insurance_cost,
+        total_shipping_amount: logisticsInfo.total_cost,
+      })
+      
+      setInvoices(prev => prev.map(inv => 
+        inv.id === selectedInvoice.id ? updatedInvoice : inv
+      ))
+      setShowLogisticsModal(false)
+      setSelectedInvoice(null)
+      alert('Logistics information updated successfully!')
+    } catch (error) {
+      console.error('Error updating logistics:', error)
+      alert('Failed to update logistics. Please try again.')
+    }
+  }
+
+  const handleViewInvoice = async (invoice: Invoice, withShipping = false) => {
+    // Load invoice with items from backend (which computes items using auction.artwork_ids)
+    try {
+      const token = localStorage.getItem('token')
+      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const resp = await fetch(`${base}/api/invoices/${invoice.id}`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      })
+      const full = await resp.json()
+      const formattedInvoice = {
+        ...invoice,
+        ...full,
+        items: full.items || [],
+        due_date: invoice.invoice_date ? new Date(Date.parse(invoice.invoice_date) + 30 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString(),
+        subtotal: invoice.hammer_price || 0,
+        total_buyers_premium: invoice.buyers_premium || 0,
+        total_vat: invoice.vat_amount || 0,
+        shipping_cost: invoice.shipping_charge || 0,
+        insurance_cost: invoice.insurance_charge || 0,
+        brand_code: (invoice as any).brand_code || undefined
+      }
+      setSelectedInvoice(formattedInvoice as any)
+    } catch (e) {
+      // Fallback to current invoice without items
+      setSelectedInvoice(invoice as any)
+    }
+    setIncludeShipping(withShipping)
+    setShowInvoicePreview(true)
+    setActionMenuOpen(null)
+  }
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
       return
     }
 
     try {
-      setGenerating(true)
-      setError(null)
-      
-      const selectedAuction = auctions.find(a => a.id.toString() === selectedAuctionId)
-      if (!selectedAuction) {
-        throw new Error('Selected auction not found')
-      }
-
-      // Fetch auction items and client data
-      const [itemsResponse, clientResponse] = await Promise.all([
-        fetch(`/api/items?auction_id=${encodeURIComponent(selectedAuction.id.toString())}&limit=1000`, {
-        // fetch(`/api/items?auction_id=${encodeURIComponent(selectedAuction.id.toString())}&brand_code=${encodeURIComponent(brand)}&limit=1000`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        }),
-        // Get the first available client as fallback
-        fetch('/api/clients?limit=1', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
-      ])
-
-      if (!itemsResponse.ok) {
-        const itemsError = await itemsResponse.text()
-        console.error('Items API error:', itemsError)
-        throw new Error(`Failed to fetch items: ${itemsResponse.status} ${itemsError}`)
-      }
-      
-      if (!clientResponse.ok) {
-        const clientError = await clientResponse.text()
-        console.error('Client API error:', clientError)
-        throw new Error(`Failed to fetch client: ${clientResponse.status} ${clientError}`)
-      }
-
-      const [itemsData, clientsData] = await Promise.all([
-        itemsResponse.json(),
-        clientResponse.json()
-      ])
-
-      console.log('Items response structure:', itemsData)
-      console.log('Clients response structure:', clientsData)
-
-      // Extract items array from response data - check multiple possible structures
-      const items = itemsData.data || itemsData.items || itemsData || []
-      const client = clientsData.data?.[0] || clientsData.clients?.[0] || clientsData[0] || null
-
-      if (!client) {
-        throw new Error('No clients found. Please add clients before generating invoices.')
-      }
-
-      if (items.length === 0) {
-        throw new Error(`No items found for auction "${selectedAuction.short_name}". Please add items to this auction first.`)
-      }
-
-      // Create invoice items with proper pricing
-      const invoiceItems: InvoiceItem[] = items.map((item: any) => ({
-        id: item.id,
-        lot_num: item.lot_num,
-        title: item.title,
-        description: item.description,
-        hammer_price: parseFloat(item.low_est) || 100, // Using low estimate as hammer price for demo
-        buyers_premium: 0, // Will be calculated
-        buyers_premium_vat: 0, // Will be calculated
-        vat_code: 'M' as const, // Margin scheme
-        vat_rate: 0,
-        dimensions: item.dimensions,
-        weight: item.weight
-      }))
-
-      // Create the invoice
-      const invoice: Invoice = {
-        id: Date.now().toString(),
-        invoice_number: generateInvoiceNumber(),
-        invoice_date: new Date().toISOString(),
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-        brand_code: brand as any,
-        client: {
-          id: client.id,
-          display_id: `${((client.brand_code || client.brand || 'MSABER')).toUpperCase().slice(0,3)}-${String(client.id).padStart(3,'0')}`,
-          first_name: client.first_name,
-          last_name: client.last_name,
-          email: client.email,
-          phone_number: client.phone_number,
-          company_name: client.company_name,
-          vat_number: client.vat_number,
-          billing_address1: client.billing_address1,
-          billing_address2: client.billing_address2,
-          billing_city: client.billing_city,
-          billing_post_code: client.billing_post_code,
-          billing_country: client.billing_country
-        },
-        auction: {
-          id: selectedAuction.id,
-          short_name: selectedAuction.short_name,
-          long_name: selectedAuction.long_name,
-          settlement_date: selectedAuction.settlement_date || new Date().toISOString(),
-          vat_number: '478646141',
-          eori_number: 'GB478646141000'
-        },
-        items: invoiceItems,
-        subtotal: invoiceItems.reduce((sum, item) => sum + item.hammer_price, 0),
-        total_buyers_premium: 0, // Will be calculated in PDF component
-        total_vat: 0,
-        shipping_cost: 0,
-        insurance_cost: 0,
-        total_amount: 0, // Will be calculated in PDF component
-        amount_due: 0, // Will be calculated in PDF component
-        total_net_payments: 0,
-        status: 'draft',
-        logistics_added: false
-      }
-
-      setGeneratedInvoices(prev => [...prev, { invoice }])
-      setSelectedInvoice(invoice)
-      setCurrentView('preview')
-      
-    } catch (err: any) {
-      console.error('Error generating invoice:', err)
-      setError(err.message || 'Failed to generate invoice')
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  // PDF generation is now handled by the InvoicePDF component
-
-  const handleAddLogistics = (invoice: Invoice) => {
-    setShowingLogisticsForm(invoice)
-    setCurrentView('logistics')
-  }
-
-  const handleLogisticsSubmit = (logisticsInfo: any) => {
-    if (!showingLogisticsForm) return
-
-    // Update the invoice with logistics information
-    const updatedInvoice: Invoice = {
-      ...showingLogisticsForm,
-      logistics_added: true,
-      shipping_cost: logisticsInfo.shipping_cost || 0,
-      insurance_cost: logisticsInfo.insurance_cost || 0
-    }
-
-    setGeneratedInvoices(prev => 
-      prev.map(gi => 
-        gi.invoice.id === updatedInvoice.id 
-          ? { invoice: updatedInvoice }
-          : gi
-      )
-    )
-    
-    if (selectedInvoice?.id === updatedInvoice.id) {
-      setSelectedInvoice(updatedInvoice)
-    }
-    
-    setShowingLogisticsForm(null)
-    setCurrentView('preview')
-
-    // Persist to saved invoice if exists
-    const savedId = savedIdByInvoiceNumberRef.current[updatedInvoice.invoice_number]
-    if (savedId) {
-      updateInvoiceApi(String(savedId), {
-        shipping_charge: updatedInvoice.shipping_cost,
-        insurance_charge: updatedInvoice.insurance_cost,
-        total_shipping_amount: (updatedInvoice.shipping_cost || 0) + (updatedInvoice.insurance_cost || 0),
-        logistics: logisticsInfo,
-      }).then(async () => {
-        try {
-          const res = await fetchSavedInvoices({ limit: 200 })
-          setSavedInvoices(res.invoices || [])
-        } catch {}
-      }).catch(err => console.error('Failed to update saved invoice logistics', err))
-    }
-  }
-
-  const handleLogisticsCancel = () => {
-    setShowingLogisticsForm(null)
-    setCurrentView('preview')
-  }
-
-  const generatePaymentLink = async (invoice: any) => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetch('/api/xero/payment-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          invoiceNumber: invoice.invoice_number,
-          amount: invoice.total_amount || 0,
-                     customerName: invoice.client?.first_name && invoice.client?.last_name 
-             ? `${invoice.client.first_name} ${invoice.client.last_name}`
-             : 'Unknown Client',
-          customerEmail: invoice.client?.email || '',
-          dueDate: invoice.due_date,
-          lineItems: invoice.items?.map((item: any) => ({
-            description: `${item.title} (Lot ${item.lot_num})`,
-            quantity: 1,
-            unitAmount: item.hammer_price || 0,
-            accountCode: '200',
-            taxType: 'NONE'
-          })) || []
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const paymentUrl = data.paymentLink?.onlineInvoiceUrl || data.paymentLink?.paymentUrl;
-        
-        if (paymentUrl) {
-          // Copy to clipboard
-          await navigator.clipboard.writeText(paymentUrl);
-          alert(`Payment link copied to clipboard!\n\n${paymentUrl}`);
-          
-          // Optionally open in new tab
-          window.open(paymentUrl, '_blank');
-        } else {
-          alert('Failed to generate payment link');
-        }
-      } else {
-        alert('Failed to generate payment link');
-      }
+      await InvoicesAPI.deleteInvoice(invoice.id!)
+      setInvoices(prev => prev.filter(inv => inv.id !== invoice.id))
+      setActionMenuOpen(null)
+      alert('Invoice deleted successfully!')
     } catch (error) {
-      console.error('Error generating payment link:', error);
-      alert('Error generating payment link');
-    } finally {
-      setIsLoading(false);
+      console.error('Error deleting invoice:', error)
+      alert('Failed to delete invoice. Please try again.')
     }
-  };
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleDateString('en-GB')
+  }
+
+  const formatCurrency = (amount?: number) => {
+    if (!amount) return '£0.00'
+    return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`
+  }
+
+  const getStatusBadge = (status?: string) => {
+    const statusClasses = {
+      draft: 'bg-gray-100 text-gray-800',
+      generated: 'bg-blue-100 text-blue-800',
+      sent: 'bg-yellow-100 text-yellow-800',
+      paid: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800',
+    }
+    const className = statusClasses[status as keyof typeof statusClasses] || statusClasses.draft
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
+        {status || 'draft'}
+      </span>
+    )
+  }
+
+  if (showInvoicePreview && selectedInvoice) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              onClick={() => setShowInvoicePreview(false)}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              ← Back to Invoices
+            </button>
+            <div className="text-sm text-gray-500">
+              Invoice #{selectedInvoice.invoice_number} 
+              {includeShipping && ' (With Logistics)'}
+            </div>
+          </div>
+          <InvoicePDF 
+            invoice={selectedInvoice as any} 
+            includeShipping={includeShipping} 
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Management</h1>
-              <p className="text-gray-600">Generate, manage, and track auction invoices</p>
+              <h1 className="text-3xl font-bold text-gray-900">Internal Invoices</h1>
+              <p className="text-gray-600 mt-2">Manage and generate invoices for auction sales</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <Calendar className="h-4 w-4" />
-                <span>{new Date().toLocaleDateString()}</span>
-              </div>
-            </div>
+            <button
+              onClick={() => setShowGenerateModal(true)}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Generate Invoice
+            </button>
           </div>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="alert alert-error mb-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
-              </div>
-            </div>
+        {/* Invoices Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">All Saved Invoices</h2>
           </div>
-        )}
-
-        {/* Main Content */}
-        {currentView === 'list' && (
-          <div className="space-y-6">
-            {/* Generate Invoice Card */}
-            <div className="card card-hover">
-              <div className="card-header">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Generate New Invoice</h2>
-                    <p className="text-sm text-gray-600 mt-1">Select an auction to create a professional invoice</p>
+          
+          {loading ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-500 mt-4">Loading invoices...</p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-              </div>
-              <div className="card-body">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <div className="form-group">
-                      <label htmlFor="auction-select" className="form-label">
-                        Select Auction
-                      </label>
-                      <div className="relative">
-                        <select
-                          id="auction-select"
-                          value={selectedAuctionId}
-                          onChange={(e) => setSelectedAuctionId(e.target.value)}
-                          className="form-select pl-10"
-                        >
-                          <option value="">Choose an auction...</option>
-                          {auctions.map((auction) => (
-                            <option key={auction.id} value={auction.id.toString()}>
-                              {auction.long_name} - {auction.short_name}
-                            </option>
-                          ))}
-                        </select>
-                        <Gavel className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-end">
+          ) : invoices.length === 0 ? (
+            <div className="p-12 text-center">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No invoices yet</h3>
+              <p className="text-gray-500 mb-6">Get started by generating your first invoice from an auction.</p>
                     <button
-                      onClick={generateBasicInvoice}
-                      disabled={!selectedAuctionId || generating}
-                      className="btn btn-primary btn-lg w-full"
-                    >
-                      {generating ? (
-                        <>
-                          <div className="loading mr-2"></div>
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-5 w-5 mr-2" />
+                onClick={() => setShowGenerateModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
                           Generate Invoice
-                        </>
-                      )}
                     </button>
-                  </div>
-                </div>
-              </div>
             </div>
-
-            {/* Saved Invoices */}
-            <div className="card">
-              <div className="card-header">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Saved Invoices</h2>
-                    <p className="text-sm text-gray-600 mt-1">Invoices saved to database</p>
-                  </div>
-                </div>
-              </div>
-              <div className="overflow-hidden">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Invoice #</th>
-                      <th>Client</th>
-                      <th>Auction</th>
-                      <th>Status</th>
-                      <th>Total</th>
-                      <th className="text-right">Actions</th>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Invoice #
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Auction
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Logistics
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {savedInvoices.map((inv) => (
-                      <tr key={inv.id}>
-                        <td className="font-mono text-sm">{inv.invoice_number}</td>
-                        <td className="text-sm">{(inv as any).client_name || inv.client_id || '-'}</td>
-                        <td className="text-sm">{(inv as any).auction_name || inv.auction_id || '-'}</td>
-                        <td>
-                          <span className={`badge ${inv.is_international ? 'badge-secondary' : 'badge-ghost'}`}>{inv.payment_status || 'pending'}</span>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {invoices.map((invoice) => (
+                    <tr key={invoice.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {invoice.invoice_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {invoice.auction_id ? `Auction #${invoice.auction_id}` : 'N/A'}
                         </td>
-                        <td className="font-semibold">£{Number(inv.total_amount || 0).toFixed(2)}</td>
-                        <td>
-                          <div className="flex items-center justify-end space-x-2">
-                            <div className="dropdown dropdown-end">
-                              <button className="btn btn-ghost btn-sm">⋯</button>
-                              <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-56">
-                                <li>
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const itemsRes = await ArtworksAPI.getArtworks({ auction_id: String(inv.auction_id || ''), limit: 1000, brand_code: brand as any })
-                                        const clientsRes = await fetchClients({ limit: 1 })
-                                        const client = clientsRes.data?.[0]
-                                        const invoice: Invoice = {
-                                          id: String(inv.id),
-                                          invoice_number: inv.invoice_number,
-                                          invoice_date: inv.invoice_date,
-                                          due_date: inv.due_date || new Date().toISOString(),
-                                          brand_code: brand as any,
-                                          client: client ? {
-                                            id: client.id,
-                                            display_id: `${((client.brand_code || client.brand || 'MSABER')).toUpperCase().slice(0,3)}-${String(client.id).padStart(3,'0')}`,
-                                            first_name: client.first_name,
-                                            last_name: client.last_name,
-                                            email: client.email,
-                                            phone_number: client.phone_number,
-                                            company_name: client.company_name,
-                                            vat_number: client.vat_number,
-                                            billing_address1: client.billing_address1,
-                                            billing_address2: client.billing_address2,
-                                            billing_city: client.billing_city,
-                                            billing_post_code: client.billing_post_code,
-                                            billing_country: client.billing_country,
-                                          } : { id: 0, display_id: 'N/A', first_name: 'Client', last_name: 'Unknown' } as any,
-                                          auction: {
-                                            id: Number(inv.auction_id || 0),
-                                            short_name: 'Auction',
-                                            long_name: 'Auction',
-                                            settlement_date: new Date().toISOString(),
-                                            vat_number: '478646141',
-                                            eori_number: 'GB478646141000',
-                                          },
-                                          items: (itemsRes.data || []).map((it: any) => ({
-                                            id: it.id,
-                                            lot_num: it.lot_num,
-                                            title: it.title,
-                                            description: it.description,
-                                            hammer_price: Number(it.low_est || 0),
-                                            buyers_premium: 0,
-                                            buyers_premium_vat: 0,
-                                            vat_code: 'M',
-                                            vat_rate: 0,
-                                            dimensions: it.dimensions,
-                                            weight: it.weight,
-                                          })),
-                                          subtotal: Number(inv.hammer_price || 0),
-                                          total_buyers_premium: Number(inv.buyers_premium || 0),
-                                          total_vat: Number(inv.vat_amount || 0),
-                                          shipping_cost: Number(inv.shipping_charge || 0),
-                                          insurance_cost: Number(inv.insurance_charge || 0),
-                                          total_amount: Number(inv.total_amount || 0),
-                                          amount_due: Number(inv.total_amount || 0),
-                                          total_net_payments: 0,
-                                          status: 'draft',
-                                          logistics_added: !!((inv.shipping_charge || 0) + (inv.insurance_charge || 0)),
-                                        }
-                                        setSelectedInvoice(invoice)
-                                        setCurrentView('preview')
-                                      } catch (e) {
-                                        console.error('Failed to reconstruct invoice', e)
-                                      }
-                                    }}
-                                  >Edit logistics / Generate PDFs</button>
-                                </li>
-                                <li>
-                                  <button
-                                    onClick={() => {
-                                      const client: any = { first_name: (inv as any).client_name || 'Client', last_name: '', display_id: String(inv.client_id || '') }
-                                      const invoice: Invoice = {
-                                        id: String(inv.id),
-                                        invoice_number: inv.invoice_number,
-                                        invoice_date: inv.invoice_date,
-                                        due_date: inv.due_date || new Date().toISOString(),
-                                        brand_code: brand as any,
-                                        client,
-                                        auction: { id: Number(inv.auction_id || 0), short_name: (inv as any).auction_name || 'Auction', long_name: (inv as any).auction_name || 'Auction', settlement_date: new Date().toISOString(), vat_number: '478646141', eori_number: 'GB478646141000' },
-                                        items: [],
-                                        subtotal: Number((inv as any).hammer_price || 0),
-                                        total_buyers_premium: Number((inv as any).buyers_premium || 0),
-                                        total_vat: Number((inv as any).vat_amount || 0),
-                                        shipping_cost: Number((inv as any).shipping_charge || 0),
-                                        insurance_cost: Number((inv as any).insurance_charge || 0),
-                                        total_amount: Number((inv as any).total_amount || 0),
-                                        amount_due: Number((inv as any).total_amount || 0),
-                                        total_net_payments: 0,
-                                        status: 'draft',
-                                        logistics_added: true,
-                                      }
-                                      setSelectedInvoice(invoice)
-                                      setCurrentView('preview')
-                                    }}
-                                  >Generate final PDF</button>
-                                </li>
-                                <li>
-                                  <button
-                                    onClick={async () => {
-                                      if (!confirm('Delete this saved invoice?')) return
-                                      try {
-                                        await deleteSavedInvoice(String(inv.id))
-                                        setSavedInvoices(prev => prev.filter(s => s.id !== inv.id))
-                                      } catch (e) {
-                                        alert('Failed to delete invoice')
-                                      }
-                                    }}
-                                  >Delete</button>
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(invoice.invoice_date)}
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Generated Invoices */}
-            {generatedInvoices.length > 0 && (
-              <div className="card">
-                <div className="card-header">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">Recent Invoices</h2>
-                      <p className="text-sm text-gray-600 mt-1">Manage your generated invoices</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="btn btn-ghost btn-sm">
-                        <Search className="h-4 w-4 mr-2" />
-                        Search
-                      </button>
-                      <button className="btn btn-ghost btn-sm">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="overflow-hidden">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Invoice #</th>
-                        <th>Client</th>
-                        <th>Auction</th>
-                        <th>Status</th>
-                        <th>Total</th>
-                        <th className="text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {generatedInvoices.map((gi, index) => (
-                        <tr key={index}>
-                          <td className="font-mono text-sm">{gi.invoice.invoice_number}</td>
-                          <td>
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                <User className="h-4 w-4 text-gray-600" />
-                              </div>
-                              <div>
-                                <div className="font-medium">{gi.invoice.client.first_name} {gi.invoice.client.last_name}</div>
-                                <div className="text-sm text-gray-500">{gi.invoice.client.email}</div>
-                              </div>
-                            </div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(invoice.status)}
                           </td>
-                          <td>
-                            <span className="badge badge-secondary">{gi.invoice.auction.short_name}</span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(invoice.total_amount)}
                           </td>
-                          <td>
-                            <span className={`badge ${
-                              gi.invoice.logistics_added
-                                ? 'badge-success'
-                                : 'badge-warning'
-                            }`}>
-                              {gi.invoice.logistics_added ? 'With Logistics' : 'Basic'}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {invoice.logistics ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <Package className="h-3 w-3 mr-1" />
+                            Added
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Not Added
                             </span>
+                        )}
                           </td>
-                          <td className="font-semibold">£{gi.invoice.subtotal.toFixed(2)}</td>
-                          <td>
-                            <div className="flex items-center justify-end space-x-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="relative">
+                          <button
+                            onClick={() => setActionMenuOpen(actionMenuOpen === invoice.id ? null : invoice.id!)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <MoreVertical className="h-5 w-5" />
+                          </button>
+                          
+                          {actionMenuOpen === invoice.id && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
+                              <div className="py-1">
                               <button
-                                onClick={() => {
-                                  setSelectedInvoice(gi.invoice)
-                                  setCurrentView('preview')
-                                }}
-                                className="btn btn-ghost btn-sm"
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </button>
-                              {!gi.invoice.logistics_added && (
-                                <button
-                                  onClick={() => handleAddLogistics(gi.invoice)}
-                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleEditLogistics(invoice)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                 >
-                                  <Truck className="h-4 w-4 mr-1" />
-                                  Add Logistics
+                                  <Edit className="h-4 w-4 mr-3" />
+                                  Edit Logistics
+                              </button>
+                                <button
+                                  onClick={() => handleViewInvoice(invoice, false)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <Download className="h-4 w-4 mr-3" />
+                                  Generate Invoice PDF
                                 </button>
-                              )}
-                              <div className="dropdown dropdown-end">
-                                <button className="btn btn-ghost btn-sm">⋯</button>
-                                <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
-                                  <li>
                                     <button
-                                      onClick={async () => {
-                                        try {
-                                          const saved = await saveInvoice({
-                                            brand_code: brand as any,
-                                            client_id: gi.invoice.client.id,
-                                            auction_id: gi.invoice.auction.id,
-                                            invoice_date: gi.invoice.invoice_date,
-                                            due_date: gi.invoice.due_date,
-                                            is_international: false,
-                                            hammer_price: gi.invoice.subtotal,
-                                            buyers_premium: 0,
-                                            vat_amount: 0,
-                                            total_amount: gi.invoice.subtotal,
-                                            shipping_charge: gi.invoice.shipping_cost,
-                                            insurance_charge: gi.invoice.insurance_cost,
-                                            handling_charge: 0,
-                                            international_surcharge: 0,
-                                            total_shipping_amount: (gi.invoice.shipping_cost || 0) + (gi.invoice.insurance_cost || 0),
-                                          })
-                                          savedIdByInvoiceNumberRef.current[saved.invoice_number] = saved.id
-                                          setSavedInvoices(prev => [saved as any, ...prev])
-                                          alert(`Invoice saved: ${saved.invoice_number}`)
-                                        } catch (e: any) {
-                                          alert(`Failed to save invoice: ${e.message}`)
-                                        }
-                                      }}
-                                    >Save</button>
-                                  </li>
-                                  <li>
-                                    <button onClick={() => handleAddLogistics(gi.invoice)}>Edit logistics</button>
-                                  </li>
-                                  <li>
+                                  onClick={() => handleViewInvoice(invoice, true)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <Package className="h-4 w-4 mr-3" />
+                                  Generate Final Invoice PDF
+                                </button>
                                     <button
-                                      onClick={() => {
-                                        const savedId = savedIdByInvoiceNumberRef.current[gi.invoice.invoice_number]
-                                        if (savedId) {
-                                          window.location.href = `/refunds/new-invoice?invoice_id=${savedId}`
-                                        } else {
-                                          alert('Please save the invoice first to create a refund.')
-                                        }
-                                      }}
-                                    >Create refund from invoice</button>
-                                  </li>
-                                  <li>
-                                    <button onClick={() => { setSelectedInvoice(gi.invoice); setCurrentView('preview') }}>Generate invoice PDF</button>
-                                  </li>
-                                  <li>
-                                    <button onClick={() => { setSelectedInvoice({ ...gi.invoice, logistics_added: true }); setCurrentView('preview') }}>Generate final invoice PDF</button>
-                                  </li>
-                                </ul>
+                                  onClick={() => handleDeleteInvoice(invoice)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-3" />
+                                  Delete
+                                </button>
                               </div>
+                            </div>
+                          )}
                             </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
               </div>
             )}
+                  </div>
 
-            {/* Available Auctions */}
-            <div className="card">
-              <div className="card-header">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Available Auctions</h2>
-                    <p className="text-sm text-gray-600 mt-1">Select an auction to generate invoices</p>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {auctions.length} auctions available
-                  </div>
-                </div>
+        {/* Generate Invoice Modal */}
+        {showGenerateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Generate Invoice from Auction</h3>
               </div>
-              
-              {auctions.length > 0 ? (
-                <div className="overflow-hidden">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Auction Name</th>
-                        <th>Short Name</th>
-                        <th>Settlement Date</th>
-                        <th className="text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+              <div className="p-6">
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Select Auction
+                  </label>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
                       {auctions.map((auction) => (
-                        <tr key={auction.id}>
-                          <td className="font-medium">{auction.long_name}</td>
-                          <td>
-                            <span className="badge badge-primary">{auction.short_name}</span>
-                          </td>
-                          <td>
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              <span>
-                                {auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : 'Not set'}
-                              </span>
+                      <div
+                        key={auction.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedAuction?.id === auction.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setSelectedAuction(auction)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{auction.short_name}</h4>
+                            <p className="text-sm text-gray-500">{auction.long_name}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                              <span>Status: {auction.status}</span>
+                              <span>Lots: {auction.lots_count}</span>
+                              <span>Brand ID: {auction.brand_id}</span>
                             </div>
-                          </td>
-                          <td className="text-right">
-                            <button
-                              onClick={() => {
-                                setSelectedAuctionId(auction.id.toString())
-                                generateBasicInvoice()
-                              }}
-                              disabled={generating}
-                              className="btn btn-primary btn-sm"
-                            >
-                              <FileText className="h-4 w-4 mr-1" />
-                              Generate
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="card-body text-center py-12">
-                  <div className="text-gray-400 mb-4">
-                    <Gavel className="h-16 w-16 mx-auto" />
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            auction.status === 'ended' ? 'bg-green-100 text-green-800' :
+                            auction.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {auction.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No auctions available</h3>
-                  <p className="text-gray-500 mb-4">No auctions have been created yet. Contact your administrator to create auctions.</p>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Invoice Preview */}
-        {currentView === 'preview' && selectedInvoice && (
-          <div className="space-y-6">
-            <div className="card">
-              <div className="card-header">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Invoice Preview</h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Invoice #{selectedInvoice.invoice_number} • {selectedInvoice.items.length} items
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    {!selectedInvoice.logistics_added ? (
-                      <button
-                        onClick={() => handleAddLogistics(selectedInvoice)}
-                        className="btn btn-success btn-md"
-                      >
-                        <Truck className="h-4 w-4 mr-2" />
-                        Add Logistics
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAddLogistics(selectedInvoice)}
-                        className="btn btn-secondary btn-md"
-                      >
-                        <Truck className="h-4 w-4 mr-2" />
-                        Edit Logistics
-                      </button>
-                    )}
-                    
+                <div className="flex justify-end space-x-3">
                     <button
                       onClick={() => {
-                        setCurrentView('list')
-                        setSelectedInvoice(null)
-                        setShowingLogisticsForm(null)
-                      }}
-                      className="btn btn-ghost btn-md"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to List
+                      setShowGenerateModal(false)
+                      setSelectedAuction(null)
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleGenerateInvoice}
+                    disabled={!selectedAuction}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Generate Invoice
                     </button>
-                  </div>
                 </div>
               </div>
             </div>
-            
-            <InvoicePDF 
-              invoice={selectedInvoice} 
-              includeShipping={selectedInvoice.logistics_added}
-            />
           </div>
         )}
 
-        {/* Logistics Form */}
-        {currentView === 'logistics' && showingLogisticsForm && (
-          <LogisticsForm
-            invoice={showingLogisticsForm}
-            onSubmit={handleLogisticsSubmit}
-            onCancel={handleLogisticsCancel}
-          />
-        )}
-
-        {/* Help Section */}
-        <div className="mt-16">
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-bold text-sm">?</span>
-                </div>
-                How to use Invoice Management
+        {/* Logistics Modal */}
+        {showLogisticsModal && selectedInvoice && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Edit Logistics - Invoice #{selectedInvoice.invoice_number}
               </h3>
             </div>
-            <div className="card-body">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">1</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Generate Invoice</h4>
-                      <p className="text-sm text-gray-600">Select an auction and click "Generate Invoice" to create a new professional invoice with all auction details.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">2</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Add Logistics</h4>
-                      <p className="text-sm text-gray-600">Include shipping, handling, and insurance costs to create comprehensive invoices for your clients.</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">3</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Download PDF</h4>
-                      <p className="text-sm text-gray-600">Professional PDF invoices with selectable text, proper formatting, and company branding.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">4</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Track & Manage</h4>
-                      <p className="text-sm text-gray-600">Monitor invoice status, track payments, and manage your auction business efficiently.</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="p-6">
+                <LogisticsForm
+                  invoice={{
+                    ...selectedInvoice,
+                    items: [], // Will be loaded from auction data
+                    due_date: selectedInvoice.invoice_date ? new Date(Date.parse(selectedInvoice.invoice_date) + 30 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString(),
+                    subtotal: selectedInvoice.hammer_price || 0,
+                    total_buyers_premium: selectedInvoice.buyers_premium || 0,
+                    total_vat: selectedInvoice.vat_amount || 0,
+                    shipping_cost: selectedInvoice.shipping_charge || 0,
+                    insurance_cost: selectedInvoice.insurance_charge || 0,
+                    client: selectedInvoice.client || null,
+                    auction: selectedInvoice.auction || null,
+                    brand_code: selectedInvoice.brand_id?.toString() || null
+                  } as any}
+                  onSubmit={handleLogisticsSubmit}
+                  onCancel={() => {
+                    setShowLogisticsModal(false)
+                    setSelectedInvoice(null)
+                  }}
+                />
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

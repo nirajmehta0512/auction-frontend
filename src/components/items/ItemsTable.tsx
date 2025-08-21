@@ -18,14 +18,14 @@ interface ItemsTableProps {
   sortDirection?: 'asc' | 'desc'
 }
 
-type SortField = 'id' | 'lot_num' | 'title' | 'low_est' | 'high_est' | 'start_price' | 'status' | 'category' | 'created_at'
+type SortField = 'id' | 'title' | 'low_est' | 'high_est' | 'start_price' | 'status' | 'category' | 'created_at'
 
-export default function ItemsTable({ 
-  items, 
-  selectedItems, 
-  onSelectionChange, 
-  onEdit, 
-  onDelete, 
+export default function ItemsTable({
+  items,
+  selectedItems,
+  onSelectionChange,
+  onEdit,
+  onDelete,
   onSort,
   sortField = 'created_at',
   sortDirection = 'desc'
@@ -93,8 +93,8 @@ export default function ItemsTable({
     if (sortField !== field) {
       return <ChevronUp className="h-4 w-4 text-gray-400" />
     }
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="h-4 w-4 text-gray-600" /> : 
+    return sortDirection === 'asc' ?
+      <ChevronUp className="h-4 w-4 text-gray-600" /> :
       <ChevronDown className="h-4 w-4 text-gray-600" />
   }
 
@@ -118,7 +118,7 @@ export default function ItemsTable({
                   className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                 />
               </th>
-              
+
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('id')}
@@ -208,7 +208,7 @@ export default function ItemsTable({
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="bg-white divide-y divide-gray-200">
             {items.length === 0 ? (
               <tr>
@@ -219,11 +219,10 @@ export default function ItemsTable({
               </tr>
             ) : (
               items.map((item) => (
-                <tr 
-                  key={item.id} 
-                  className={`hover:bg-gray-50 ${
-                    selectedItems.includes(item.id!) ? 'bg-blue-50' : ''
-                  }`}
+                <tr
+                  key={item.id}
+                  className={`hover:bg-gray-50 ${selectedItems.includes(item.id!) ? 'bg-blue-50' : ''
+                    }`}
                 >
                   <td className="px-3 py-4 whitespace-nowrap">
                     <input
@@ -233,14 +232,14 @@ export default function ItemsTable({
                       className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                     />
                   </td>
-                  
+
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {item.id}
                   </td>
-                  
+
                   <td className="px-6 py-4 text-sm text-gray-900">
                     <div className="max-w-xs">
-                      <div 
+                      <div
                         className="font-medium truncate cursor-pointer hover:text-blue-600 hover:underline"
                         onClick={() => handlePreview(item.id!)}
                         title="Click to preview"
@@ -262,7 +261,7 @@ export default function ItemsTable({
                                 <img
                                   src={imageUrl}
                                   alt={`${item.title} - Image ${index + 1}`}
-                                  className="w-16 h-16 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80"
+                                  className="w-24 h-24 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80"
                                   onClick={() => handlePreview(item.id!)}
                                   onError={(e) => {
                                     // Hide broken images
@@ -272,14 +271,14 @@ export default function ItemsTable({
                               </div>
                             ))}
                             {images.length < 2 && (
-                              <div className="w-16 h-16 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
+                              <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
                                 <span className="text-gray-400 text-xs">No Image</span>
                               </div>
                             )}
                           </div>
                         ) : (
                           <div className="flex space-x-1 mt-2">
-                            <div className="w-16 h-16 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
+                            <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
                               <span className="text-gray-400 text-xs">No Image</span>
                             </div>
                           </div>
@@ -287,39 +286,39 @@ export default function ItemsTable({
                       })()}
                     </div>
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {item.category || '-'}
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(item.low_est)}
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(item.high_est)}
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.start_price ? formatCurrency(item.start_price) : '-'}
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status!)}`}>
                       {getStatusLabel(item.status!)}
                     </span>
                   </td>
-                  
+
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="max-w-xs truncate">
+                    <div className="max-w-xs break-words">
                       {item.condition || '-'}
                     </div>
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {item.created_at ? new Date(item.created_at).toLocaleDateString() : '-'}
                   </td>
-                  
+
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="relative">
                       <button
@@ -328,7 +327,7 @@ export default function ItemsTable({
                       >
                         <MoreVertical className="h-4 w-4" />
                       </button>
-                      
+
                       {openMenuId === item.id && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                           <div className="py-1">
@@ -364,11 +363,11 @@ export default function ItemsTable({
           </tbody>
         </table>
       </div>
-      
+
       {/* Click outside to close menu */}
       {openMenuId && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setOpenMenuId(null)}
         />
       )}

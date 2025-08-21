@@ -165,25 +165,6 @@ export default function GoogleSheetsSyncModal({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Brand Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Brand
-            </label>
-            <select
-              value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
-            >
-              {brandOptions.map(brand => (
-                <option key={brand.value} value={brand.value}>
-                  {brand.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Sync Mode Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

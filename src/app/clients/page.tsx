@@ -14,6 +14,7 @@ import {
   saveBrandGoogleSheetUrl,
   getApiBaseUrl 
 } from '@/lib/google-sheets-api'
+import ClientGoogleSheetsSync from '@/components/clients/ClientGoogleSheetsSync'
 
 export default function ClientsPage() {
   const { brand } = useBrand()
@@ -31,8 +32,8 @@ export default function ClientsPage() {
   const [filters, setFilters] = useState({
     status: 'all',
     search: '',
-    sort_field: 'created_at',
-    sort_direction: 'desc' as 'asc' | 'desc',
+    sort_field: 'id',
+    sort_direction: 'asc' as 'asc' | 'desc',
     client_type: 'all' as 'all' | 'buyer' | 'vendor' | 'supplier' | 'buyer_vendor',
     tags: '',
     platform: 'all' as 'all' | 'Liveauctioneer' | 'The saleroom' | 'Invaluable' | 'Easylive auctions' | 'Private' | 'Others',
@@ -48,6 +49,7 @@ export default function ClientsPage() {
   const [selectedBrandForSync, setSelectedBrandForSync] = useState('')
   const [editingSheetUrl, setEditingSheetUrl] = useState('')
   const [showUrlEditor, setShowUrlEditor] = useState(false)
+  const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
 
   // Activity state
   const [activityCounts, setActivityCounts] = useState({
@@ -439,17 +441,13 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
               <Download className="h-4 w-4" />
               <span>CSV Export</span>
             </button>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Google Sheets:</span>
-              <button
-                onClick={handleGoogleSheetsRefresh}
-                disabled={syncing}
-                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-                <span>{syncing ? 'Syncing...' : 'Refresh from Sheet'}</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowGoogleSheetsSync(true)}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Google Sheets
+            </button>
           </div>
         </div>
 
@@ -614,6 +612,22 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
           onImportComplete={handleCSVUploadSuccess}
           onClose={() => setShowCSVUpload(false)}
         />
+      )}
+
+      {/* Google Sheets Sync Modal */}
+      {showGoogleSheetsSync && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <ClientGoogleSheetsSync
+            onClose={() => setShowGoogleSheetsSync(false)}
+            onSyncComplete={(result) => {
+              console.log('Sync completed:', result)
+              if (result.success) {
+                loadClients() // Refresh the clients list
+              }
+            }}
+            selectedClients={selectedClients.map(id => parseInt(id))}
+          />
+        </div>
       )}
 
       {/* Brand Selector Modal */}

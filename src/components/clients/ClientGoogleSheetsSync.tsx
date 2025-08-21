@@ -1,22 +1,22 @@
-// frontend/src/components/auctions/AuctionGoogleSheetsSync.tsx
+// frontend/src/components/clients/ClientGoogleSheetsSync.tsx
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { X, Upload, Download, RefreshCw, AlertCircle, CheckCircle, Settings } from 'lucide-react'
+import { X, RefreshCw, Globe, Save, AlertCircle, CheckCircle, Upload, Download, Settings } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import { getGoogleSheetsUrlForModule, updateGoogleSheetsUrl } from '@/lib/app-settings-api'
 
-interface AuctionGoogleSheetsSyncProps {
+interface ClientGoogleSheetsSyncProps {
   onClose: () => void
   onSyncComplete?: (result: any) => void
-  selectedAuctions?: number[]
+  selectedClients?: number[]
 }
 
-export default function AuctionGoogleSheetsSync({
+export default function ClientGoogleSheetsSync({
   onClose,
   onSyncComplete,
-  selectedAuctions = []
-}: AuctionGoogleSheetsSyncProps) {
+  selectedClients = []
+}: ClientGoogleSheetsSyncProps) {
   const { brand } = useBrand()
   const [syncMode, setSyncMode] = useState<'to' | 'from'>('to')
   const [googleSheetUrl, setGoogleSheetUrl] = useState('')
@@ -35,7 +35,7 @@ export default function AuctionGoogleSheetsSync({
   const loadGoogleSheetConfig = async () => {
     try {
       setLoading(true)
-      const url = await getGoogleSheetsUrlForModule('auctions')
+      const url = await getGoogleSheetsUrlForModule('clients')
       setGoogleSheetUrl(url)
       setEditingUrl(url)
       setHasUrlConfig(!!url)
@@ -52,7 +52,7 @@ export default function AuctionGoogleSheetsSync({
       setLoading(true)
       setError('')
       
-      await updateGoogleSheetsUrl('auctions', editingUrl)
+      await updateGoogleSheetsUrl('clients', editingUrl)
       setGoogleSheetUrl(editingUrl)
       setHasUrlConfig(!!editingUrl)
       setShowUrlConfig(false)
@@ -78,9 +78,9 @@ export default function AuctionGoogleSheetsSync({
         return
       }
 
-      // Use the API endpoint to sync directly to Google Sheets
+      // Use the new API endpoint to sync directly to Google Sheets
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions/sync-to-google-sheet`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/sync-to-google-sheet`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -88,7 +88,7 @@ export default function AuctionGoogleSheetsSync({
         },
         body: JSON.stringify({
           sheet_url: googleSheetUrl,
-          auction_ids: selectedAuctions.length > 0 ? selectedAuctions : undefined
+          client_ids: selectedClients.length > 0 ? selectedClients : undefined
         }),
       })
 
@@ -98,7 +98,7 @@ export default function AuctionGoogleSheetsSync({
       }
 
       const result = await response.json()
-      setSuccess(`Successfully synced ${result.count} auctions to Google Sheets!`)
+      setSuccess(`Successfully synced ${result.count} clients to Google Sheets!`)
       
       if (onSyncComplete) {
         onSyncComplete({ success: true, count: result.count })
@@ -106,7 +106,7 @@ export default function AuctionGoogleSheetsSync({
 
     } catch (error: any) {
       console.error('Error syncing to Google Sheets:', error)
-      setError(error.message || 'Failed to sync auctions to Google Sheets')
+      setError(error.message || 'Failed to sync clients to Google Sheets')
     } finally {
       setSyncing(false)
     }
@@ -125,7 +125,7 @@ export default function AuctionGoogleSheetsSync({
 
       // Use the existing sync-google-sheet endpoint to import from Google Sheets
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions/sync-google-sheet`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/sync-google-sheet`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,15 +143,15 @@ export default function AuctionGoogleSheetsSync({
       }
 
       const result = await response.json()
-      setSuccess(`Successfully imported ${result.inserted || 0} new and updated ${result.updated || 0} existing auctions from Google Sheets!`)
+      setSuccess(`Successfully imported ${result.upserted || 0} clients from Google Sheets!`)
       
       if (onSyncComplete) {
-        onSyncComplete({ success: true, imported: result.inserted || 0, updated: result.updated || 0 })
+        onSyncComplete({ success: true, imported: result.upserted || 0 })
       }
 
     } catch (error: any) {
       console.error('Error syncing from Google Sheets:', error)
-      setError(error.message || 'Failed to sync auctions from Google Sheets')
+      setError(error.message || 'Failed to sync clients from Google Sheets')
     } finally {
       setSyncing(false)
     }
@@ -171,7 +171,7 @@ export default function AuctionGoogleSheetsSync({
   return (
     <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Google Sheets Sync - Auctions</h3>
+        <h3 className="text-lg font-semibold">Google Sheets Sync - Clients</h3>
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600"
@@ -182,10 +182,7 @@ export default function AuctionGoogleSheetsSync({
 
       <div className="mb-6">
         <p className="text-sm text-gray-600 mb-2">
-          Sync auctions {selectedAuctions.length > 0 ? `(${selectedAuctions.length} selected)` : '(all)'} with Google Sheets.
-        </p>
-        <p className="text-xs text-gray-500">
-          Current brand: {brand}
+          Sync clients {selectedClients.length > 0 ? `(${selectedClients.length} selected)` : '(all)'} with Google Sheets.
         </p>
       </div>
 
@@ -273,7 +270,7 @@ export default function AuctionGoogleSheetsSync({
               <span className="font-medium text-sm">Export to Google Sheets</span>
             </div>
             <p className="text-xs text-gray-600">
-              Export auction data from database to Google Sheets
+              Export client data from database to Google Sheets
             </p>
           </div>
           <div
@@ -289,7 +286,7 @@ export default function AuctionGoogleSheetsSync({
               <span className="font-medium text-sm">Import from Google Sheets</span>
             </div>
             <p className="text-xs text-gray-600">
-              Import auction data from Google Sheets to database
+              Import client data from Google Sheets to database
             </p>
           </div>
         </div>

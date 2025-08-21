@@ -1,8 +1,8 @@
 // frontend/src/components/consignments/CollectionReceiptPDF.tsx
 "use client"
 
-import React from 'react'
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer'
+import React, { useState, useEffect } from 'react'
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font, Image } from '@react-pdf/renderer'
 import { getBrandDetails, BrandCode } from '@/lib/brand-context'
 
 // Register fonts for better typography
@@ -76,16 +76,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 25,
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  brandLogo: {
+    width: 48,
+    height: 48,
+    marginRight: 15,
+    marginBottom: 8,
   },
   headerLeft: {
+    width: '65%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  headerLeftContent: {
     flex: 1,
   },
   headerRight: {
-    flex: 1,
+    width: '35%',
     alignItems: 'flex-end',
+    paddingLeft: 10,
   },
   companyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 700,
     color: '#1a1a1a',
     marginBottom: 2,
@@ -96,19 +109,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   contactInfo: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#666666',
     lineHeight: 1.3,
   },
   receiptTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 700,
     color: '#1a1a1a',
     marginBottom: 4,
+    textAlign: 'right',
   },
   receiptDate: {
     fontSize: 11,
     color: '#666666',
+    textAlign: 'right',
   },
   
   // Client section
@@ -299,7 +314,87 @@ const CollectionReceiptDocument: React.FC<CollectionReceiptProps> = ({
   collectedBy,
   releasedBy
 }) => {
-  const brandDetails = getBrandDetails(brand_code)
+  const [brandDetails, setBrandDetails] = useState(getBrandDetails(brand_code))
+  const [brandLogo, setBrandLogo] = useState<string | null>(null)
+
+  // Load brand compliance data including logo
+  useEffect(() => {
+    const loadBrandData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        
+        // First try to get brand compliance data
+        const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        })
+        
+        if (complianceResponse.ok) {
+          const complianceData = await complianceResponse.json()
+          if (complianceData.success) {
+            const compliance = complianceData.data
+            
+            // Update brand details with compliance data
+            setBrandDetails({
+              code: brand_code,
+              name: compliance.company_name || brandDetails.name,
+              companyName: compliance.company_name || brandDetails.companyName,
+              email: compliance.email || brandDetails.email,
+              vatNumber: compliance.vat_number || brandDetails.vatNumber,
+              address: compliance.address || brandDetails.address,
+              city: compliance.city || brandDetails.city,
+              postcode: compliance.postal_code || brandDetails.postcode,
+              country: compliance.country || brandDetails.country,
+              establishedYear: compliance.established_year || brandDetails.establishedYear,
+              registrationNumber: compliance.registration_number || brandDetails.registrationNumber
+            })
+            
+            // Set logo from compliance data
+            if (compliance.logo_url) {
+              setBrandLogo(compliance.logo_url)
+            }
+          }
+        }
+        
+        // Fallback: try to get brand logo from brand-logos API
+        if (!brandLogo) {
+          const brandResponse = await fetch(`${API_BASE_URL}/api/brands/by-code/${brand_code}`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : ''
+            }
+          })
+          if (brandResponse.ok) {
+            const brandData = await brandResponse.json()
+            if (brandData.success && brandData.data) {
+              // If we have brand ID, try to get logo from brand-logos API
+              if (brandData.data.id) {
+                const logoResponse = await fetch(`${API_BASE_URL}/api/brand-logos/${brandData.data.id}`, {
+                  headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                  }
+                })
+                if (logoResponse.ok) {
+                  const logoData = await logoResponse.json()
+                  if (logoData.success && logoData.data.logo_url) {
+                    setBrandLogo(logoData.data.logo_url)
+                  }
+                }
+              }
+              // Fallback to direct logo_url if available
+              else if (brandData.data.logo_url) {
+                setBrandLogo(brandData.data.logo_url)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load brand data:', error)
+      }
+    }
+    loadBrandData()
+  }, [brand_code, brandDetails.name])
   
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-GB', {
@@ -321,12 +416,21 @@ const CollectionReceiptDocument: React.FC<CollectionReceiptProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.companyTitle}>{brandDetails.name}</Text>
-            <View style={styles.contactInfo}>
-              <Text>{brandDetails.address}</Text>
-              <Text>{brandDetails.city} {brandDetails.postcode}</Text>
-              <Text>{brandDetails.country}</Text>
-              <Text>VAT Reg. No. {brandDetails.vatNumber}</Text>
+            {brandLogo && (
+              <Image 
+                style={styles.brandLogo} 
+                src={brandLogo} 
+                cache={false} 
+              />
+            )}
+            <View style={styles.headerLeftContent}>
+              <Text style={styles.companyTitle}>{brandDetails.name}</Text>
+              <View style={styles.contactInfo}>
+                <Text>{brandDetails.address}</Text>
+                <Text>{brandDetails.city} {brandDetails.postcode}</Text>
+                <Text>{brandDetails.country}</Text>
+                <Text>VAT Reg. No. {brandDetails.vatNumber}</Text>
+              </View>
             </View>
           </View>
           

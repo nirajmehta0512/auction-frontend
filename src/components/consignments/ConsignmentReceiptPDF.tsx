@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 25,
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   brandLogo: {
     width: 48,
@@ -87,19 +88,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerLeft: {
-    flex: 1,
+    width: '65%',
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   headerLeftContent: {
     flex: 1,
+    flexDirection: 'column',
   },
   headerRight: {
-    flex: 1,
+    width: '35%',
     alignItems: 'flex-end',
+    paddingLeft: 10,
   },
   companyTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 700,
     color: '#1a1a1a',
     marginBottom: 2,
@@ -110,19 +113,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   contactInfo: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#666666',
     lineHeight: 1.3,
   },
   receiptTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 700,
     color: '#1a1a1a',
     marginBottom: 4,
+    textAlign: 'right',
   },
   receiptDate: {
     fontSize: 11,
     color: '#666666',
+    textAlign: 'right',
   },
   
   // Client section
@@ -318,31 +323,87 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
   items,
   brand_code = 'MSABER'
 }) => {
-  const brandDetails = getBrandDetails(brand_code)
+  const [brandDetails, setBrandDetails] = useState(getBrandDetails(brand_code))
   const [brandLogo, setBrandLogo] = useState<string | null>(null)
 
-  // Load brand logo
+  // Load brand compliance data including logo
   useEffect(() => {
-    const loadBrandLogo = async () => {
+    const loadBrandData = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch(`/api/brands/by-code/${brand_code}`, {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        
+        // First try to get brand compliance data
+        const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         })
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.data.logo_url) {
-            setBrandLogo(data.data.logo_url)
+        
+        if (complianceResponse.ok) {
+          const complianceData = await complianceResponse.json()
+          if (complianceData.success) {
+            const compliance = complianceData.data
+            
+            // Update brand details with compliance data
+            setBrandDetails({
+              code: brand_code,
+              name: compliance.company_name || brandDetails.name,
+              companyName: compliance.company_name || brandDetails.companyName,
+              email: compliance.email || brandDetails.email,
+              vatNumber: compliance.vat_number || brandDetails.vatNumber,
+              address: compliance.address || brandDetails.address,
+              city: compliance.city || brandDetails.city,
+              postcode: compliance.postal_code || brandDetails.postcode,
+              country: compliance.country || brandDetails.country,
+              establishedYear: compliance.established_year || brandDetails.establishedYear,
+              registrationNumber: compliance.registration_number || brandDetails.registrationNumber
+            })
+            
+            // Set logo from compliance data
+            if (compliance.logo_url) {
+              setBrandLogo(compliance.logo_url)
+            }
+          }
+        }
+        
+        // Fallback: try to get brand logo from brand-logos API
+        if (!brandLogo) {
+          const brandResponse = await fetch(`${API_BASE_URL}/api/brands/by-code/${brand_code}`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : ''
+            }
+          })
+          if (brandResponse.ok) {
+            const brandData = await brandResponse.json()
+            if (brandData.success && brandData.data) {
+              // If we have brand ID, try to get logo from brand-logos API
+              if (brandData.data.id) {
+                const logoResponse = await fetch(`${API_BASE_URL}/api/brand-logos/${brandData.data.id}`, {
+                  headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                  }
+                })
+                if (logoResponse.ok) {
+                  const logoData = await logoResponse.json()
+                  if (logoData.success && logoData.data.logo_url) {
+                    setBrandLogo(logoData.data.logo_url)
+                  }
+                }
+              }
+              // Fallback to direct logo_url if available
+              else if (brandData.data.logo_url) {
+                setBrandLogo(brandData.data.logo_url)
+              }
+            }
           }
         }
       } catch (error) {
-        console.error('Failed to load brand logo:', error)
+        console.error('Failed to load brand data:', error)
       }
     }
-    loadBrandLogo()
-  }, [brand_code])
+    loadBrandData()
+  }, [brand_code, brandDetails.name])
   
   const formatCurrency = (amount: number): string => {
     return `£${amount.toLocaleString()}`

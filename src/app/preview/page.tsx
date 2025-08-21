@@ -7,6 +7,7 @@ import { ArrowLeft, ExternalLink, Download, Eye, Calendar, MapPin, Gavel } from 
 import { Artwork, ArtworksAPI } from '@/lib/artworks-api'
 import { Artist, ArtistsAPI } from '@/lib/artists-api'
 import { School, SchoolsAPI } from '@/lib/schools-api'
+import { getAuctions } from '@/lib/auctions-api'
 import { useBrand } from '@/lib/brand-context'
 
 export default function LiveAuctioneerPreviewPage() {
@@ -31,9 +32,29 @@ export default function LiveAuctioneerPreviewPage() {
       setLoading(true)
       setError(null)
 
+      let artworkIds: string | undefined = undefined
+
+      // If filtering by auction, get the auction's artwork_ids first
+      if (auctionId) {
+        try {
+          const auctionsResponse = await getAuctions({
+            page: 1,
+            limit: 100,
+            brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+          })
+          
+          const auction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
+          if (auction && auction.artwork_ids && Array.isArray(auction.artwork_ids)) {
+            artworkIds = auction.artwork_ids.join(',')
+          }
+        } catch (auctionError) {
+          console.warn('Failed to load auction for preview:', auctionError)
+        }
+      }
+
       // Load items for preview
       const itemsResponse = await ArtworksAPI.getArtworks({
-        auction_id: auctionId || undefined,
+        item_ids: artworkIds,
         status: status === 'all' ? undefined : status,
         limit: 100, // Show more items for preview
         brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined

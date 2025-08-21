@@ -200,11 +200,18 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({
       )
     
     case 'presale':
+      const transformedItems = transformItemsForPreSaleInvoice(filteredItems)
+      console.log('PreSale PDF data:', {
+        consignment,
+        client,
+        auctionItems: transformedItems,
+        saleDetails: defaultSaleDetails
+      })
       return (
         <PreSaleInvoicePDF
           consignment={consignment}
           client={client}
-          auctionItems={transformItemsForPreSaleInvoice(filteredItems)}
+          auctionItems={transformedItems}
           saleDetails={defaultSaleDetails}
           brand_code={brand_code}
           fileName={defaultFileName}

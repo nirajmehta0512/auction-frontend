@@ -40,9 +40,7 @@ export default function SearchableSelect<T = string | number>({
   }, [options, query])
 
   const currentLabel = useMemo(() => {
-    console.log('SearchableSelect - Finding current label for value:', value, 'in options:', options.map(o => ({ value: o.value, label: o.label })))
     const found = options.find(o => String(o.value) === String(value))
-    console.log('SearchableSelect - Found option:', found)
     return found?.label
   }, [options, value])
 
@@ -93,11 +91,11 @@ export default function SearchableSelect<T = string | number>({
               <button
                 key={String(opt.value)}
                 type="button"
-                onClick={() => { 
+                onClick={() => {
                   console.log('Option clicked:', opt.value, opt.label)
-                  setOpen(false); 
-                  setQuery(''); 
-                  onChange?.(opt.value) 
+                  setOpen(false);
+                  setQuery('');
+                  onChange?.(opt.value)
                 }}
                 className={`w-full text-left px-3 py-2 hover:bg-gray-50 ${String(value) === String(opt.value) ? 'bg-gray-100' : ''}`}
               >

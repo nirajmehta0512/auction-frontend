@@ -46,8 +46,8 @@ export default function ArtistsTable({
     if (sortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />
     }
-    return sortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
+    return sortDirection === 'asc' ?
+      <ArrowUp className="h-4 w-4" /> :
       <ArrowDown className="h-4 w-4" />
   }
 
@@ -210,14 +210,15 @@ export default function ArtistsTable({
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {artist.nationality || '—'}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-6 py-4 text-sm text-gray-900 break-words">
                 {artist.art_movement || '—'}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <div className="max-w-xs truncate">
+              <td className="px-6 py-4 text-sm text-gray-900">
+                <div className="max-w-xs break-words">
                   {artist.medium || '—'}
                 </div>
               </td>
+
               <td className="px-6 py-4 whitespace-nowrap">
                 {getStatusBadge(artist.status || 'active')}
               </td>
@@ -246,7 +247,7 @@ export default function ArtistsTable({
           ))}
         </tbody>
       </table>
-      
+
       {artists.length === 0 && (
         <div className="text-center py-8">
           <p className="text-gray-500">No artists found</p>

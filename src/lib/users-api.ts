@@ -59,7 +59,7 @@ export interface BrandMember {
 class UsersAPI {
   private static async makeRequest(endpoint: string, options: RequestInit = {}) {
     const token = getAuthToken();
-    
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -117,19 +117,6 @@ class UsersAPI {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });
-  }
-
-  // Brand members
-  static async getBrandMembers(brand_id: number): Promise<{ success: boolean; data: BrandMember[]; error?: string }> {
-    return this.makeRequest(`/api/users/brand-members?brand_id=${brand_id}`)
-  }
-
-  static async upsertBrandMember(payload: { user_id: string; brand_id: number; role: 'admin'|'accountant'|'user' }): Promise<{ success: boolean; data: BrandMember; error?: string }> {
-    return this.makeRequest(`/api/users/brand-members`, { method: 'POST', body: JSON.stringify(payload) })
-  }
-
-  static async deleteBrandMember(id: number): Promise<{ success: boolean; error?: string }> {
-    return this.makeRequest(`/api/users/brand-members/${id}`, { method: 'DELETE' })
   }
 }
 

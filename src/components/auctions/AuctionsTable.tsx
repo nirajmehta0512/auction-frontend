@@ -44,10 +44,24 @@ const statusLabels = {
   archived: 'Archived'
 }
 
-export default function AuctionsTable({ auctions, selectedAuctions, onSelectionChange, onView, onEdit, onDelete }: AuctionsTableProps) {
+interface AuctionsTablePropsExtended extends AuctionsTableProps {
+  onSort?: (field: string, direction: 'asc' | 'desc') => void
+  currentSortField?: string
+  currentSortDirection?: 'asc' | 'desc'
+}
+
+export default function AuctionsTable({ 
+  auctions, 
+  selectedAuctions, 
+  onSelectionChange, 
+  onView, 
+  onEdit, 
+  onDelete,
+  onSort,
+  currentSortField = 'id',
+  currentSortDirection = 'asc'
+}: AuctionsTablePropsExtended) {
   const router = useRouter()
-  const [sortField, setSortField] = useState<SortField>('number')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   const handleView = (auctionId: number) => {
     if (onView) {
@@ -80,11 +94,9 @@ export default function AuctionsTable({ auctions, selectedAuctions, onSelectionC
   }
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
+    if (onSort) {
+      const newDirection = currentSortField === field && currentSortDirection === 'asc' ? 'desc' : 'asc'
+      onSort(field, newDirection)
     }
   }
 
@@ -105,24 +117,16 @@ export default function AuctionsTable({ auctions, selectedAuctions, onSelectionC
   }
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
+    if (currentSortField !== field) {
       return <ChevronUp className="h-4 w-4 text-gray-400" />
     }
-    return sortDirection === 'asc' ? 
+    return currentSortDirection === 'asc' ? 
       <ChevronUp className="h-4 w-4 text-gray-600" /> : 
       <ChevronDown className="h-4 w-4 text-gray-600" />
   }
 
-  const sortedAuctions = [...auctions].sort((a, b) => {
-    const aValue = a[sortField]
-    const bValue = b[sortField]
-    
-    if (sortDirection === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
-    }
-  })
+  // Use auctions as-is since sorting is handled by backend
+  const sortedAuctions = auctions
 
   return (
     <div className="overflow-hidden">
@@ -141,11 +145,11 @@ export default function AuctionsTable({ auctions, selectedAuctions, onSelectionC
               
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
-                  onClick={() => handleSort('number')}
+                  onClick={() => handleSort('id')}
                   className="flex items-center space-x-1 hover:text-gray-700"
                 >
                   <span>#</span>
-                  <SortIcon field="number" />
+                  <SortIcon field="id" />
                 </button>
               </th>
 

@@ -10,6 +10,7 @@ export interface ArtworkPreviewOptions {
   includeArtist?: boolean
   includeArtistBiography?: boolean
   includeArtistDescription?: boolean
+  includeArtistKeyDescription?: boolean
   includeArtistExtraInfo?: boolean
   includeDimensions?: boolean
   includeCondition?: boolean
@@ -26,6 +27,7 @@ export interface ArtworkPreviewData extends Artwork {
   // Form-specific data
   include_artist_biography?: boolean
   include_artist_description?: boolean
+  include_artist_key_description?: boolean
   include_artist_extra_info?: boolean
   dimensions_inches?: string
   dimensions_cm?: string
@@ -57,6 +59,7 @@ export const generateArtworkPreview = (
     includeArtist: true,
     includeArtistBiography: true,
     includeArtistDescription: true,
+    includeArtistKeyDescription: true,
     includeArtistExtraInfo: true,
     includeDimensions: true,
     includeCondition: false,
@@ -93,6 +96,11 @@ export const generateArtworkPreview = (
     // Artist description
     if ((opts.includeArtistDescription || artwork.include_artist_description) && artwork.artist.description) {
       artistParts.push(artwork.artist.description)
+    }
+
+    // Artist key description
+    if ((opts.includeArtistKeyDescription || artwork.include_artist_key_description) && artwork.artist.key_description) {
+      artistParts.push(artwork.artist.key_description)
     }
     
     // Artist extra info

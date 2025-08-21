@@ -81,7 +81,7 @@ export default function CSVUpload({ onImportComplete, onClose }: CSVUploadProps)
 
   const downloadSampleCSV = () => {
     const sampleData = [
-      'id,full_name,brand,platform,email,phone_number,company_name,instagram_url,role,client_type,vat_number,tags,billing_country,billing_city,identity_cert,title,salutation,birth_date,preferred_language,time_zone,has_no_email,vat_applicable,secondary_email,secondary_phone_number,default_vat_scheme,default_ldl,default_consignment_charges,billing_address1,billing_address2,billing_address3,billing_post_code,billing_region,shipping_same_as_billing,shipping_address1,shipping_address2,shipping_address3,shipping_city,shipping_post_code,shipping_country,shipping_region,paddle_no',
+      'id,Full Name,brand,platform,email,phone_number,company_name,instagram_url,role,client_type,vat_number,tags,billing_country,billing_city,identity_cert,title,salutation,birth_date,preferred_language,time_zone,has_no_email,vat_applicable,secondary_email,secondary_phone_number,default_vat_scheme,default_ldl,default_consignment_charges,billing_address1,billing_address2,billing_address3,billing_post_code,billing_region,shipping_same_as_billing,shipping_address1,shipping_address2,shipping_address3,shipping_city,shipping_post_code,shipping_country,shipping_region,paddle_no',
       '1,Adnan Amjad,MSABER,Private,,92(321)2119000,,,,,,,,,,,,,,,,,,,,,"1723 Garrison Dr Frisco, Texas 75033-7358, United states",,,,,,,,,,,,',
       '2,Tarun Jain,MSABER,Private,,(917)7210426,,,,,,,,,,,,,,,,,,,,,"900 park ave suite-4E New york, new york 10075-0231 united states",,,,,,,,,,,,'
     ].join('\n')
@@ -170,11 +170,11 @@ export default function CSVUpload({ onImportComplete, onClose }: CSVUploadProps)
                 <h3 className="font-medium text-blue-800">CSV Format Requirements</h3>
               </div>
               <p className="text-blue-700 text-sm mb-3">
-                Your CSV must follow this exact header order and include <strong>full_name</strong> and required <strong>brand</strong> and <strong>platform</strong>:
+                Your CSV must follow this exact header order and include <strong>Full Name</strong> and required <strong>brand</strong> and <strong>platform</strong>:
                 <br />
-                <code className="break-words">id,full_name,brand,platform,email,phone_number,company_name,instagram_url,role,client_type,vat_number,tags,billing_country,billing_city,identity_cert,title,salutation,birth_date,preferred_language,time_zone,has_no_email,vat_applicable,secondary_email,secondary_phone_number,default_vat_scheme,default_ldl,default_consignment_charges,billing_address1,billing_address2,billing_address3,billing_post_code,billing_region,shipping_same_as_billing,shipping_address1,shipping_address2,shipping_address3,shipping_city,shipping_post_code,shipping_country,shipping_region,paddle_no</code>
+                <code className="break-words">id,Full Name,brand,platform,email,phone_number,company_name,instagram_url,role,client_type,vat_number,tags,billing_country,billing_city,identity_cert,title,salutation,birth_date,preferred_language,time_zone,has_no_email,vat_applicable,secondary_email,secondary_phone_number,default_vat_scheme,default_ldl,default_consignment_charges,billing_address1,billing_address2,billing_address3,billing_post_code,billing_region,shipping_same_as_billing,shipping_address1,shipping_address2,shipping_address3,shipping_city,shipping_post_code,shipping_country,shipping_region,paddle_no</code>
                 <br />
-                We will split <strong>full_name</strong> into first and last name (first word → first_name, second word → last_name). Empty values are accepted.
+                We will split <strong>Full Name</strong> into first and last name (first word → first_name, remaining words → last_name). Empty values are accepted.
               </p>
               <button
                 onClick={downloadSampleCSV}

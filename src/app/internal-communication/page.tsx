@@ -509,7 +509,7 @@ export default function InternalCommunicationPage() {
           <div className="space-y-2">
             {users.map((user) => {
               const isSelected = selectedUsers.includes(user.auth_user_id) && selectedUsers.length === 1
-              const userInitials = `${user.first_name[0]}${user.last_name[0]}`
+              const userInitials = `${user.first_name[0]}${user.last_name}`
               
               return (
                 <button
@@ -754,7 +754,7 @@ export default function InternalCommunicationPage() {
                   <>
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                       {users.find(u => u.auth_user_id === selectedUsers[0])?.first_name[0]}
-                      {users.find(u => u.auth_user_id === selectedUsers[0])?.last_name[0]}
+                      {users.find(u => u.auth_user_id === selectedUsers[0])?.last_name}
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">
@@ -927,7 +927,7 @@ export default function InternalCommunicationPage() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                      {user.first_name[0]}{user.last_name[0]}
+                      {user.first_name[0]}{user.last_name}
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">

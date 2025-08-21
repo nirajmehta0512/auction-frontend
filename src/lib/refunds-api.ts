@@ -35,8 +35,6 @@ export interface Refund {
   attachment_urls?: string[];
   created_at: string;
   updated_at: string;
-  created_by?: string;
-  updated_by?: string;
   // From view
   client_name?: string;
   client_email?: string;

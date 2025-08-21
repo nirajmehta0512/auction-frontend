@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Download, Upload, Filter, MoreHorizontal, Edit, Trash2, Building2, Sparkles, ExternalLink, Share2 } from 'lucide-react'
 import { GalleriesAPI, Gallery, GalleriesFilters } from '@/lib/galleries-api'
-import { LoadScript, StandaloneSearchBox } from '@react-google-maps/api'
+import { LoadScript, StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api'
 import ExportShareModal from '@/components/ExportShareModal'
 import { useExportShare } from '@/hooks/useExportShare'
 
@@ -36,6 +36,11 @@ export default function GalleriesPage() {
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
   const placesLibraries = useMemo(() => ['places'] as ("places")[], [])
 
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: googleApiKey,
+    libraries: placesLibraries,
+  })
+  
   // Export/Share configuration for superadmin
   const [userRole] = useState<string>('superadmin') // In real app, get from auth context
   
@@ -275,10 +280,8 @@ export default function GalleriesPage() {
               <label className="block text-sm font-medium text-gray-700">
                 Search World Famous Galleries
               </label>
-              <LoadScript
-                googleMapsApiKey={googleApiKey}
-                libraries={placesLibraries}
-              >
+
+              {isLoaded && (
                 <div className="flex items-center space-x-2">
                   <div className="flex-1 relative">
                     <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 z-10" />
@@ -301,7 +304,7 @@ export default function GalleriesPage() {
                       />
                     </StandaloneSearchBox>
                   </div>
-                  
+
                   {showAddOption && selectedPlace && (
                     <>
                       <button
@@ -328,7 +331,7 @@ export default function GalleriesPage() {
                     </>
                   )}
                 </div>
-              </LoadScript>
+              )}
             </div>
 
             {/* Traditional Search */}

@@ -58,8 +58,6 @@ export interface Reimbursement {
   expected_payment_date?: string;
   created_at: string;
   updated_at: string;
-  created_by?: string;
-  updated_by?: string;
   // From view
   requested_by_name?: string;
   requested_by_email?: string;

@@ -8,6 +8,7 @@ export interface Artist {
   art_movement?: string;
   medium?: string;
   description?: string;
+  key_description?: string;
   biography?: string;
   notable_works?: string;
   exhibitions?: string;
@@ -19,8 +20,6 @@ export interface Artist {
   ai_source?: string;
   status?: 'active' | 'inactive' | 'archived';
   is_verified?: boolean;
-  created_by?: string;
-  updated_by?: string;
   created_at?: string;
   updated_at?: string;
 }

@@ -123,7 +123,9 @@ export default function ArtistForm({ artist, isEditing = false, onSaved }: Artis
           router.push('/artists')
         }
       } else {
+        console.log('Creating artist with data:', formData)
         const resp = await ArtistsAPI.createArtist(formData as Omit<Artist, 'id' | 'created_at' | 'updated_at'>)
+        console.log('Artist creation response:', resp)
         if (onSaved && resp?.data) {
           onSaved(resp.data)
         } else {
@@ -131,6 +133,7 @@ export default function ArtistForm({ artist, isEditing = false, onSaved }: Artis
         }
       }
     } catch (err: any) {
+      console.error('Artist creation/update error:', err)
       setError(err.message || 'Failed to save artist')
     } finally {
       setLoading(false)

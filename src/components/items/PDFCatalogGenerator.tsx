@@ -326,8 +326,8 @@ export default function PDFCatalogGenerator({
           colX = margin + 2
           
           // Lot number
-          if (artwork.lot_num) {
-            doc.text(artwork.lot_num, colX, tableY + 13)
+          if (artwork.id) {
+            doc.text(artwork.id, colX, tableY + 13)
           }
           colX += colWidths[0]
           
@@ -383,13 +383,13 @@ export default function PDFCatalogGenerator({
           drawModernCard(margin, cardY, contentWidth, cardHeight)
 
           // Lot number badge
-          if (options.includeLotNumbers && artwork.lot_num) {
+          if (options.includeLotNumbers && artwork.id) {
             doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2])
             doc.rect(margin + 5, cardY + 5, 40, 12, 'F')
             doc.setTextColor(255, 255, 255)
             doc.setFontSize(10)
             doc.setFont(undefined, 'bold')
-            doc.text(`LOT ${artwork.lot_num}`, margin + 7, cardY + 13)
+            doc.text(`LOT ${artwork.id}`, margin + 7, cardY + 13)
           }
 
           // Reset text color
@@ -651,8 +651,8 @@ export default function PDFCatalogGenerator({
               <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
                 {generatePreviewData().slice(0, 3).map((artwork, index) => (
                   <div key={artwork.id || index} className="mb-4 p-3 bg-white rounded border">
-                    {options.includeLotNumbers && artwork.lot_num && (
-                      <div className="font-semibold text-sm mb-2">Lot {artwork.lot_num}</div>
+                    {options.includeLotNumbers && artwork.id && (
+                      <div className="font-semibold text-sm mb-2">Lot {artwork.id}</div>
                     )}
                     <div 
                       className="text-sm"

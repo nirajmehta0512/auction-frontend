@@ -26,6 +26,7 @@ export interface Artwork {
   period_age?: string;
   provenance?: string;
   auction_id?: string;
+  consignment_id?: number;
   
   // Image fields (1-10 images)
   image_file_1?: string;
@@ -40,8 +41,6 @@ export interface Artwork {
   image_file_10?: string;
   
   // Audit fields
-  created_by?: string;
-  updated_by?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -73,14 +72,14 @@ export interface ArtworkResponse {
 interface GetArtworksParams {
   status?: string;
   category?: string;
-  auction_id?: string;
+  item_ids?: string;
   consignment_id?: string;
   search?: string;
   page?: number;
   limit?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  brand_code?: 'MSABER' | 'AURUM' | 'METSAB';
+  brand_code?: string;
 }
 
 // Helper function to get auth token
@@ -145,6 +144,7 @@ export class ArtworksAPI {
       }
     });
 
+    console.log(queryParams);
     const response = await fetch(`${API_BASE_URL}/api/items?${queryParams}`, {
       method: 'GET',
       headers: getAuthHeaders(),
@@ -381,15 +381,10 @@ export async function getPlatformCredentials(brandCode: string, platform: string
 export const validateArtworkData = (data: Partial<Artwork>): string[] => {
   const errors: string[] = [];
 
-  if (!data.lot_num?.trim()) {
-    errors.push('Lot number is required');
-  } else if (data.lot_num.length > 10) {
-    errors.push('Lot number must be 10 characters or less');
-  }
-
   if (!data.title?.trim()) {
     errors.push('Title is required');
-  } else if (data.title.length > 200) {
+  }
+   else if (data.title.length > 200) {
     errors.push('Title must be 200 characters or less');
   }
 

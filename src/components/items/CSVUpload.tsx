@@ -343,7 +343,7 @@ export default function CSVUpload({ onUploadComplete, onClose, className = '' }:
                   <tbody>
                     {validationResult.sample_items.slice(0, 3).map((item, index) => (
                       <tr key={index} className="border-b border-gray-200">
-                        <td className="py-2 px-3">{item.lot_num}</td>
+                        <td className="py-2 px-3">{item.id}</td>
                         <td className="py-2 px-3">{item.title}</td>
                         <td className="py-2 px-3">£{item.low_est}</td>
                         <td className="py-2 px-3">£{item.high_est}</td>

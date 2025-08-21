@@ -89,8 +89,9 @@ export default function CSVUpload({ onUploadComplete, onClose, className = '' }:
 
   const downloadTemplate = () => {
     const template = [
-      'short_name,long_name,type,target_reserve,settlement_date,description,status',
-      'Sample Auction,Sample Auction Long Name,timed,1000,2024-12-31,Sample description,planned'
+      'id,short_name,long_name,type,target_reserve,settlement_date,description,status',
+      ',Sample Auction,Sample Auction Long Name,timed,1000,2024-12-31,Sample description,planned',
+      '1,Existing Auction,Update Existing Auction,live,2000,2024-12-31,Updated description,active'
     ].join('\n')
     
     const blob = new Blob([template], { type: 'text/csv' })
@@ -131,7 +132,8 @@ export default function CSVUpload({ onUploadComplete, onClose, className = '' }:
         {step === 'upload' && (
           <div className="space-y-4">
             <div className="text-sm text-gray-600 mb-4">
-              Upload a CSV file with auction data. The file should include columns for short_name, long_name, type, target_reserve, settlement_date, description, and status.
+              Upload a CSV file with auction data. The file should include columns for id (optional), short_name, long_name, type, target_reserve, settlement_date, description, and status. 
+              <br /><strong>Note:</strong> Include an 'id' column with existing auction IDs to update existing auctions. Leave 'id' empty to create new auctions.
             </div>
 
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">

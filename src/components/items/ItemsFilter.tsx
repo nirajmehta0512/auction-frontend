@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, X } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import { ArtworksAPI } from '@/lib/items-api'
+import { useBrand } from '@/lib/brand-context'
 
 interface FilterState {
   status: string
@@ -49,25 +51,70 @@ const statuses = [
 ]
 
 export default function ItemsFilter({ filters, onFilterChange, statusCounts }: ItemsFilterProps) {
+  const { brand } = useBrand()
   const [isExpanded, setIsExpanded] = useState(false)
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
+  const [itemSuggestions, setItemSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [loadingItems, setLoadingItems] = useState(false)
 
-  // Search suggestions for SearchableSelect
-  const searchSuggestions = [
-    { value: '', label: 'All Items', description: 'Show all inventory items' },
-    { value: 'oil painting', label: 'Oil Paintings', description: 'Search for oil paintings' },
-    { value: 'watercolor', label: 'Watercolors', description: 'Search for watercolor artworks' },
-    { value: 'sculpture', label: 'Sculptures', description: 'Search for sculptural works' },
-    { value: 'contemporary', label: 'Contemporary Art', description: 'Search for contemporary pieces' },
-    { value: 'antique', label: 'Antiques', description: 'Search for antique items' },
-    { value: 'signed', label: 'Signed Works', description: 'Search for signed artworks' },
-    { value: 'framed', label: 'Framed Works', description: 'Search for framed pieces' },
-    { value: 'canvas', label: 'Canvas Works', description: 'Search for works on canvas' },
-    { value: 'limited edition', label: 'Limited Editions', description: 'Search for limited edition pieces' }
-  ]
-
-  // Load brands for filter
+  // Load items and create suggestions
   useEffect(() => {
+    const loadItemSuggestions = async () => {
+      if (!brand) return
+      
+      try {
+        setLoadingItems(true)
+        const response = await ArtworksAPI.getArtworks({
+          page: 1,
+          limit: 200, // Get enough items to create good suggestions
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        })
+        
+        // Create search suggestions from real items
+        const suggestions = [
+          { value: '', label: 'All Items', description: 'Show all inventory items' }
+        ]
+        
+        // Add suggestions based on unique titles and categories
+        const uniqueTitles = new Set<string>()
+        const uniqueCategories = new Set<string>()
+        
+        response.data.forEach(item => {
+          if (item.title && !uniqueTitles.has(item.title.toLowerCase())) {
+            uniqueTitles.add(item.title.toLowerCase())
+            if (uniqueTitles.size <= 15) { // Limit to prevent too many suggestions
+              suggestions.push({
+                value: item.title,
+                label: item.title,
+                description: `Search for "${item.title}"`
+              })
+            }
+          }
+          
+          if (item.category && !uniqueCategories.has(item.category.toLowerCase())) {
+            uniqueCategories.add(item.category.toLowerCase())
+            if (uniqueCategories.size <= 10) {
+              suggestions.push({
+                value: item.category,
+                label: item.category,
+                description: `Search for ${item.category} items`
+              })
+            }
+          }
+        })
+        
+        setItemSuggestions(suggestions)
+      } catch (error) {
+        console.error('Failed to load item suggestions:', error)
+        // Fallback to basic suggestions
+        setItemSuggestions([
+          { value: '', label: 'All Items', description: 'Show all inventory items' }
+        ])
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+
     const loadBrands = async () => {
       try {
         const token = localStorage.getItem('token')
@@ -84,8 +131,10 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
         console.error('Failed to load brands:', error)
       }
     }
+    
     loadBrands()
-  }, [])
+    loadItemSuggestions()
+  }, [brand])
 
   const handleClearFilters = () => {
     onFilterChange({
@@ -140,8 +189,8 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
         <div className="flex-1">
           <SearchableSelect
             value={filters.search}
-            options={searchSuggestions}
-            placeholder="Search items..."
+            options={itemSuggestions}
+            placeholder={loadingItems ? "Loading items..." : "Search items..."}
             onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
             inputPlaceholder="Search by title, description, lot number, or artist..."
             className="w-full"

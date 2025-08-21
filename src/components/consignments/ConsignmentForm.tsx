@@ -141,8 +141,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const [showArtistModal, setShowArtistModal] = useState(false)
   const [warehouseSearchBoxRef, setWarehouseSearchBoxRef] = useState<any>(null)
   const [formData, setFormData] = useState({
-    consignment_number: consignment?.consignment_number || '',
-    receipt_no: consignment?.receipt_no || '',
+    receipt_no: consignment?.id?.toString() || '',
     client_id: consignment?.client_id || 0, // Changed to number (0 for no selection)
     client_name: consignment?.client_name || '',
     client_email: consignment?.client_email || '',
@@ -194,33 +193,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
           try {
             // TODO: Implement API endpoint to fetch consignment items
             // For now, we'll use mock data to show how it should work
-            const mockConsignmentItems = [
-              {
-                id: '1',
-                item_no: 1,
-                is_returned: false,
-                artwork_id: itemsResponse.data[0]?.id, // First available artwork
-                title: 'Existing Artwork 1',
-                description: 'Oil on canvas',
-                artist_name: 'John Smith',
-                low_estimate: 800,
-                high_estimate: 1200,
-                reserve: 700
-              },
-              {
-                id: '2', 
-                item_no: 2,
-                is_returned: false,
-                artwork_id: itemsResponse.data[1]?.id, // Second available artwork
-                title: 'Existing Artwork 2',
-                description: 'Watercolor on paper',
-                artist_name: 'Jane Doe',
-                low_estimate: 300,
-                high_estimate: 500,
-                reserve: 250
-              }
-            ]
-            setReceiptItems(mockConsignmentItems)
+            // setReceiptItems(mockConsignmentItems)
           } catch (error) {
             console.error('Error loading consignment items:', error)
           }
@@ -250,8 +223,9 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      setLoading(true)
       const dataToSubmit: Partial<Consignment> = {
-        consignment_number: formData.consignment_number,
+        // consignment_number removed - using auto-generated ID
         client_id: formData.client_id,
         specialist_id: formData.specialist_id || undefined,
         valuation_day_id: formData.valuation_day_id || undefined,
@@ -270,9 +244,45 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
       } else {
         savedConsignment = await createConsignment(dataToSubmit)
       }
+
+      // After saving consignment, link the selected artworks to it
+      if (savedConsignment?.id) {
+        const artworkIds = receiptItems
+          .filter(item => item.artwork_id && item.artwork_id !== 'new' && item.artwork_id !== 'create_new')
+          .map(item => Number(item.artwork_id))
+          .filter(id => Number.isFinite(id)) as number[]
+
+        if (artworkIds.length > 0) {
+          try {
+            const token = localStorage.getItem('token')
+            const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            const response = await fetch(`${base}/api/consignments/${savedConsignment.id}/add-artworks`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              },
+              body: JSON.stringify({ artwork_ids: artworkIds })
+            })
+
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to link artworks to consignment')
+            }
+
+            console.log(`Successfully linked ${artworkIds.length} artworks to consignment ${savedConsignment.id}`)
+          } catch (linkError) {
+            console.error('Error linking artworks to consignment:', linkError)
+            // Don't fail the whole operation, just log the error
+          }
+        }
+      }
+
       onSave?.(savedConsignment)
     } catch (error) {
       console.error('Error saving consignment:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -327,19 +337,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="consignment_number" className="block text-sm font-medium text-gray-700 mb-2">
-              Consignment Number *
-            </Label>
-            <Input
-              id="consignment_number"
-              value={formData.consignment_number}
-              onChange={(e) => handleInputChange('consignment_number', e.target.value)}
-              placeholder="Enter consignment number"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          {/* Consignment number is now auto-generated using the ID */}
 
           <div>
             <Label htmlFor="client_id" className="block text-sm font-medium text-gray-700 mb-2">

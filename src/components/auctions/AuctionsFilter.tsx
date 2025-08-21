@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import { getAuctions } from '@/lib/auctions-api'
+import { useBrand } from '@/lib/brand-context'
 
 interface FilterState {
   status: string
@@ -50,29 +52,26 @@ const dateRanges = [
   { value: 'custom', label: 'Custom Range' }
 ]
 
-// Search suggestions for auctions
-const auctionSearchSuggestions = [
-  { value: '', label: 'All Auctions', description: 'Show all auctions' },
-  { value: 'contemporary', label: 'Contemporary Art Sale', description: 'Search for contemporary auctions' },
-  { value: 'modern', label: 'Modern Art', description: 'Search for modern art auctions' },
-  { value: 'fine art', label: 'Fine Art', description: 'Search for fine art auctions' },
-  { value: 'jewelry', label: 'Jewelry & Watches', description: 'Search for jewelry auctions' },
-  { value: 'asian', label: 'Asian Art', description: 'Search for Asian art auctions' },
-  { value: 'european', label: 'European Art', description: 'Search for European art auctions' },
-  { value: 'prints', label: 'Prints & Multiples', description: 'Search for print auctions' },
-  { value: 'photography', label: 'Photography', description: 'Search for photography auctions' },
-  { value: 'decorative', label: 'Decorative Arts', description: 'Search for decorative arts auctions' }
-]
+// Interface for auction suggestion
+interface AuctionSuggestion {
+  value: string
+  label: string
+  description: string
+}
 
 export default function AuctionsFilter({ filters, onFilterChange, statusCounts }: AuctionsFilterProps) {
+  const { brand } = useBrand()
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState(filters.search || '')
   const [specialists, setSpecialists] = useState<Array<{id: string, name: string}>>([])
+  const [auctionSuggestions, setAuctionSuggestions] = useState<AuctionSuggestion[]>([])
+  const [loadingAuctions, setLoadingAuctions] = useState(false)
 
   useEffect(() => {
-    // Load specialists/users
+    // Load specialists/users and auction suggestions
     loadSpecialists()
-  }, [])
+    loadAuctionSuggestions()
+  }, [brand])
 
   const loadSpecialists = async () => {
     try {
@@ -95,6 +94,58 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
       }
     } catch (error) {
       console.error('Error loading specialists:', error)
+    }
+  }
+
+  const loadAuctionSuggestions = async () => {
+    try {
+      setLoadingAuctions(true)
+      const response = await getAuctions({
+        limit: 100,
+        sort_field: 'created_at',
+        sort_direction: 'desc',
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+      })
+      
+      // Create suggestions from real auctions
+      const suggestions: AuctionSuggestion[] = [
+        { value: '', label: 'All Auctions', description: 'Show all auctions' }
+      ]
+      
+      response.auctions.forEach(auction => {
+        // Add short name suggestion
+        if (auction.short_name) {
+          suggestions.push({
+            value: auction.short_name,
+            label: auction.short_name,
+            description: `Search for "${auction.short_name}" auctions`
+          })
+        }
+        
+        // Add long name suggestion if different
+        if (auction.long_name && auction.long_name !== auction.short_name) {
+          suggestions.push({
+            value: auction.long_name,
+            label: auction.long_name,
+            description: `Search for "${auction.long_name}" auctions`
+          })
+        }
+      })
+      
+      // Remove duplicates based on value
+      const uniqueSuggestions = suggestions.filter((suggestion, index, self) => 
+        index === self.findIndex(s => s.value === suggestion.value)
+      )
+      
+      setAuctionSuggestions(uniqueSuggestions)
+    } catch (error) {
+      console.error('Error loading auction suggestions:', error)
+      // Fallback to empty suggestions
+      setAuctionSuggestions([
+        { value: '', label: 'All Auctions', description: 'Show all auctions' }
+      ])
+    } finally {
+      setLoadingAuctions(false)
     }
   }
 
@@ -144,8 +195,8 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
           <div className="flex-1 max-w-md">
             <SearchableSelect
               value={filters.search}
-              options={auctionSearchSuggestions}
-              placeholder="Search auctions..."
+              options={auctionSuggestions}
+              placeholder={loadingAuctions ? "Loading auctions..." : "Search auctions..."}
               onChange={(value) => {
                 const searchValue = value?.toString() || ''
                 setSearchTerm(searchValue)
@@ -153,6 +204,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
               }}
               inputPlaceholder="Search by auction name or description..."
               className="w-full"
+              disabled={loadingAuctions}
             />
           </div>
         </div>

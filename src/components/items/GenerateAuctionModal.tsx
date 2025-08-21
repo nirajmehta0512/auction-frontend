@@ -29,18 +29,29 @@ export default function GenerateAuctionModal({
   const [success, setSuccess] = useState('')
   const [brands, setBrands] = useState<Brand[]>([])
   const [brandsLoading, setBrandsLoading] = useState(true)
+  const [existingAuctions, setExistingAuctions] = useState<any[]>([])
+  const [auctionsLoading, setAuctionsLoading] = useState(true)
   
-  // Form state
+  // Mode selection: 'new' or 'existing'
+  const [mode, setMode] = useState<'new' | 'existing'>('existing')
+  const [selectedAuction, setSelectedAuction] = useState<any>(null)
+  
+  // Form state for new auction
   const [auctionName, setAuctionName] = useState('')
   const [auctionDescription, setAuctionDescription] = useState('')
   const [auctionType, setAuctionType] = useState<'live' | 'timed' | 'sealed_bid'>('timed')
   const [settlementDate, setSettlementDate] = useState('')
   const [catalogueLaunchDate, setCatalogueLaunchDate] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
+  
+  // Duplicate check state
+  const [duplicateArtworks, setDuplicateArtworks] = useState<any[]>([])
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
 
-  // Load brands on component mount
+  // Load brands and auctions on component mount
   useEffect(() => {
     loadBrands()
+    loadExistingAuctions()
   }, [])
 
   const loadBrands = async () => {
@@ -74,7 +85,111 @@ export default function GenerateAuctionModal({
     }
   }
 
-  const handleCreateAuction = async () => {
+  const loadExistingAuctions = async () => {
+    try {
+      setAuctionsLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions?status=planned&limit=100`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load auctions')
+      }
+
+      const data = await response.json()
+      if (data.auctions) {
+        setExistingAuctions(data.auctions)
+      }
+    } catch (err) {
+      console.error('Error loading auctions:', err)
+    } finally {
+      setAuctionsLoading(false)
+    }
+  }
+
+  const checkForDuplicates = async (auctionId: string) => {
+    try {
+      setCheckingDuplicates(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions/${auctionId}/artworks`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const existingArtworkIds = data.artworks?.map((artwork: any) => artwork.id.toString()) || []
+        const duplicates = selectedArtworks.filter(id => existingArtworkIds.includes(id))
+        setDuplicateArtworks(duplicates)
+      }
+    } catch (err) {
+      console.error('Error checking for duplicates:', err)
+    } finally {
+      setCheckingDuplicates(false)
+    }
+  }
+
+  const handleAddToAuction = async () => {
+    if (mode === 'existing') {
+      return handleAddToExistingAuction()
+    } else {
+      return handleCreateNewAuction()
+    }
+  }
+
+  const handleAddToExistingAuction = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+
+      if (!selectedAuction) {
+        setError('Please select an auction')
+        return
+      }
+
+      // Check for duplicates first
+      await checkForDuplicates(selectedAuction.id)
+
+      if (duplicateArtworks.length > 0) {
+        setError(`${duplicateArtworks.length} artworks are already in this auction. Please review and continue if you want to add duplicates.`)
+        return
+      }
+
+      // Add artworks to existing auction
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions/${selectedAuction.id}/assign-artworks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ artwork_ids: selectedArtworks.map(id => parseInt(id)) }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add artworks to auction')
+      }
+
+      setSuccess(`Successfully added ${selectedArtworks.length} artworks to ${selectedAuction.short_name}`)
+      
+      setTimeout(() => {
+        onComplete?.(selectedAuction.id)
+      }, 1500)
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to add artworks to auction')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateNewAuction = async () => {
     try {
       setLoading(true)
       setError('')
@@ -175,7 +290,7 @@ export default function GenerateAuctionModal({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-orange-600" />
-          <h3 className="text-lg font-semibold">Generate Auction</h3>
+          <h3 className="text-lg font-semibold">Add to Auction</h3>
         </div>
         <button
           onClick={onClose}
@@ -187,7 +302,7 @@ export default function GenerateAuctionModal({
 
       <div className="mb-6">
         <p className="text-sm text-gray-600 mb-2">
-          Create a new auction with {selectedArtworks.length} selected artwork(s).
+          Add {selectedArtworks.length} selected artwork(s) to an auction.
         </p>
         <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
           Selected artworks: {selectedArtworks.slice(0, 3).join(', ')}
@@ -195,39 +310,146 @@ export default function GenerateAuctionModal({
         </div>
       </div>
 
+      {/* Mode Selection */}
+      <div className="mb-6">
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setMode('existing')}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
+              mode === 'existing'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Add to Existing Auction
+          </button>
+          <button
+            onClick={() => setMode('new')}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
+              mode === 'new'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Create New Auction
+          </button>
+        </div>
+      </div>
+
       {/* Form */}
       <div className="space-y-4 mb-6">
-        {/* Brand Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Brand *
-          </label>
-          {brandsLoading ? (
-            <div className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-500">
-              Loading brands...
-            </div>
-          ) : (
-            <select
-              value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-              disabled={brands.length === 0}
-            >
-              {brands.length === 0 ? (
-                <option value="">No brands available</option>
+        {mode === 'existing' ? (
+          /* Existing Auction Selection */
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Auction *
+            </label>
+            {auctionsLoading ? (
+              <div className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-500">
+                Loading auctions...
+              </div>
+            ) : existingAuctions.length === 0 ? (
+              <div className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-500">
+                No planned auctions available. Create a new auction instead.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {existingAuctions.map((auction) => (
+                  <div
+                    key={auction.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedAuction?.id === auction.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      setSelectedAuction(auction)
+                      checkForDuplicates(auction.id)
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">{auction.short_name}</p>
+                        <p className="text-xs text-gray-500">{auction.long_name}</p>
+                        <p className="text-xs text-gray-400">
+                          Settlement: {new Date(auction.settlement_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {auction.lots_count || 0} lots
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Duplicate Check Results */}
+            {selectedAuction && checkingDuplicates && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                  <span className="text-yellow-700">Checking for duplicate artworks...</span>
+                </div>
+              </div>
+            )}
+            
+            {selectedAuction && !checkingDuplicates && duplicateArtworks.length > 0 && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-yellow-700">
+                    {duplicateArtworks.length} artwork(s) already exist in this auction
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {selectedAuction && !checkingDuplicates && duplicateArtworks.length === 0 && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-green-700">
+                    No duplicate artworks found. Ready to add!
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* New Auction Form */
+          <>
+            {/* Brand Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Brand *
+              </label>
+              {brandsLoading ? (
+                <div className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-500">
+                  Loading brands...
+                </div>
               ) : (
-                <>
-                  <option value="">Select a brand</option>
-                  {brands.map((brand) => (
-                    <option key={brand.code} value={brand.code}>
-                      {brand.name} ({brand.code})
-                    </option>
-                  ))}
-                </>
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  disabled={brands.length === 0}
+                >
+                  {brands.length === 0 ? (
+                    <option value="">No brands available</option>
+                  ) : (
+                    <>
+                      <option value="">Select a brand</option>
+                      {brands.map((brand) => (
+                        <option key={brand.code} value={brand.code}>
+                          {brand.name} ({brand.code})
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
               )}
-            </select>
-          )}
-        </div>
+            </div>
 
         {/* Auction Name */}
         <div>
@@ -301,6 +523,8 @@ export default function GenerateAuctionModal({
             <p className="text-xs text-gray-500 mt-1">When catalogue becomes available (optional)</p>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Status Messages */}
@@ -343,19 +567,23 @@ export default function GenerateAuctionModal({
           Cancel
         </button>
         <button
-          onClick={handleCreateAuction}
-          disabled={loading || !auctionName.trim() || !settlementDate}
+          onClick={handleAddToAuction}
+          disabled={
+            loading || 
+            (mode === 'new' && (!auctionName.trim() || !settlementDate || !selectedBrand)) ||
+            (mode === 'existing' && !selectedAuction)
+          }
           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center"
         >
           {loading ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Creating...
+              {mode === 'existing' ? 'Adding...' : 'Creating...'}
             </>
           ) : (
             <>
               <Trophy className="h-4 w-4 mr-2" />
-              Create Auction
+              {mode === 'existing' ? 'Add to Auction' : 'Create Auction'}
             </>
           )}
         </button>

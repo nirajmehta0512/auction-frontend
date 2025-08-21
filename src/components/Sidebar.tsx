@@ -57,7 +57,7 @@ const navigationItems: NavItem[] = [
   { name: 'School of Art', href: '/schools', icon: GraduationCap },
   { name: 'Inventory', href: '/items', icon: Layers },
   { name: 'Auctions', href: '/auctions', icon: Gavel },
-  { name: 'Internal Invoices', href: '/invoices', icon: FileText, badge: 'New' },
+  { name: 'Internal Invoices', href: '/invoices', icon: FileText },
   { name: 'Banking', href: '/banking', icon: Building2 },
   { 
     name: 'Internal Communication', 
@@ -114,7 +114,6 @@ const navigationItems: NavItem[] = [
 
 const settingsItems: SubNavItem[] = [
   { name: 'Users', href: '/settings/users' },
-  { name: 'Brand Members', href: '/settings/members' },
   // { name: 'Tags', href: '/settings/tags' },
   // { name: 'Messages', href: '/settings/messages' },
   // { name: 'VAT Rates', href: '/settings/vat-rates' },
@@ -122,7 +121,6 @@ const settingsItems: SubNavItem[] = [
   // { name: 'Item Charges', href: '/settings/item-charges' },
   // { name: 'Valuation Days', href: '/settings/valuation-days' },
   { name: 'Appearance', href: '/settings/appearance' },
-  // { name: 'SEO', href: '/settings/seo' },
   { name: 'Integrations', href: '/settings/integrations' },
   { name: 'Platform Credentials', href: '/settings/platforms' },
   { name: 'Brand Settings', href: '/settings/brand' },

@@ -18,8 +18,6 @@ export interface Gallery {
   gallery_type?: 'commercial' | 'museum' | 'institution' | 'private' | 'cooperative';
   status?: 'active' | 'inactive' | 'archived';
   is_verified?: boolean;
-  created_by?: string;
-  updated_by?: string;
   created_at?: string;
   updated_at?: string;
 }

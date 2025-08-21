@@ -44,8 +44,6 @@ export interface BankingTransaction {
   metadata?: any;
   created_at: string;
   updated_at: string;
-  created_by?: string;
-  updated_by?: string;
   // From view
   client_name?: string;
   client_email?: string;
@@ -71,7 +69,7 @@ export interface BankingFilters {
   sort_direction?: 'asc' | 'desc';
   date_from?: string;
   date_to?: string;
-  brand_code?: 'MSABER' | 'AURUM' | 'METSAB';
+  brand_code?: string;
 }
 
 export interface BankingResponse {
@@ -129,7 +127,19 @@ export async function getBankingTransactions(filters: BankingFilters = {}): Prom
     throw new Error(error.error || `Error fetching banking transactions: ${response.statusText}`);
   }
 
-  return response.json();
+  // Backend returns StandardResponse with { success, data, pagination }
+  const payload = await response.json();
+  if (payload && payload.success) {
+    return {
+      transactions: payload.data || [],
+      pagination: payload.pagination || { page: 1, limit: 0, total: 0, pages: 0 }
+    } as BankingResponse
+  }
+  // Fallback to legacy direct array
+  if (Array.isArray(payload)) {
+    return { transactions: payload, pagination: { page: 1, limit: payload.length, total: payload.length, pages: 1 } }
+  }
+  return payload as BankingResponse;
 }
 
 export async function getBankingTransaction(id: string): Promise<BankingTransaction> {

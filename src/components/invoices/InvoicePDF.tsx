@@ -5,7 +5,7 @@ import React from 'react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer'
 import { Invoice } from '../../types/invoice'
 import { getBrandDetails, BrandCode } from '@/lib/brand-context'
-import { formatCurrency, calculateBuyersPremium } from '../../lib/invoice-utils'
+import { formatCurrency, calculateBuyersPremium, calculateVAT } from '../../lib/invoice-utils'
 
 // Register fonts for better typography
 Font.register({
@@ -356,11 +356,8 @@ const ItemRow = ({ item, index, includeShipping }: { item: any; index: number; i
   const shipping = includeShipping ? (item.shipping_cost || 0) : 0
   const insurance = includeShipping ? (item.insurance_cost || 0) : 0
   
-  // VAT calculation based on VAT code
-  let vatAmount = 0
-  if (item.vat_code === 'V' || item.vat_code === 'W') {
-    vatAmount = hammerPrice * (item.vat_rate || 0.20)
-  }
+  // VAT calculation based on VAT code using utility function
+  const { vatAmount } = calculateVAT(hammerPrice, item.vat_code || 'N')
   
   const total = hammerPrice + premium + premiumVAT + shipping + insurance + vatAmount
 
@@ -487,10 +484,9 @@ const InvoicePDFDocument = ({ invoice, includeShipping = false }: InvoicePDFProp
         totalInsurance += item.insurance_cost || 0
       }
       
-      // VAT calculation
-      if (item.vat_code === 'V' || item.vat_code === 'W') {
-        totalVAT += hammerPrice * (item.vat_rate || 0.20)
-      }
+      // VAT calculation using utility function
+      const { vatAmount: itemVAT } = calculateVAT(hammerPrice, item.vat_code || 'N')
+      totalVAT += itemVAT
     })
 
     // Use invoice-level shipping and insurance costs when logistics is added

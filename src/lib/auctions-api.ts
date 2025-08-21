@@ -15,7 +15,7 @@ export interface Auction {
   short_name: string;
   long_name: string;
   target_reserve?: number;
-  specialist_id?: number;
+  specialist_id?: number | null;
   specialist?: {
     id: number;
     first_name: string;
@@ -39,7 +39,7 @@ export interface Auction {
   time_zone?: string;
   platform?: string;
   brand_code?: string;
-  brand_id?: string;
+  brand_id?: number;
   lots_count?: number;
   registrations_count?: number;
   total_estimate_low?: number;
@@ -47,10 +47,9 @@ export interface Auction {
   total_sold_value?: number;
   sold_lots_count?: number;
   status?: 'planned' | 'in_progress' | 'ended' | 'aftersale' | 'archived';
+  artwork_ids?: number[]; // Array of artwork/item IDs
   created_at?: string;
   updated_at?: string;
-  created_by?: string;
-  updated_by?: string;
 }
 
 export interface AuctionFilters {
@@ -61,7 +60,7 @@ export interface AuctionFilters {
   limit?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  brand_code?: 'MSABER' | 'AURUM' | 'METSAB';
+  brand_code?: string;
 }
 
 export interface AuctionResponse {
@@ -111,6 +110,8 @@ export async function getAuctions(filters: AuctionFilters = {}): Promise<Auction
       'Content-Type': 'application/json'
     }
   });
+
+  console.log('Auctions response:', response);
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));

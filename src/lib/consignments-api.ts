@@ -11,8 +11,6 @@ const getAuthToken = (): string | null => {
 
 export interface Consignment {
   id?: number; // Changed from string to number
-  consignment_number: string;
-  receipt_no?: string;
   client_id: number; // Changed from string to number
   client_name?: string;
   client_email?: string;
@@ -39,8 +37,6 @@ export interface Consignment {
   sold_items_count?: number;
   created_at?: string;
   updated_at?: string;
-  created_by?: number; // Changed from string to number
-  updated_by?: number; // Changed from string to number
 }
 
 export interface ConsignmentFilters {
@@ -177,6 +173,44 @@ export async function deleteConsignment(id: string): Promise<void> {
   
   if (!response.ok) {
     throw new Error(`Error deleting consignment: ${response.statusText}`);
+  }
+}
+
+// Add artworks to consignment
+export async function addArtworksToConsignment(consignmentId: string, artworkIds: number[]): Promise<void> {
+  const token = getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/add-artworks`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ artwork_ids: artworkIds })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Error adding artworks to consignment: ${response.statusText}`);
+  }
+}
+
+// Remove artworks from consignment
+export async function removeArtworksFromConsignment(consignmentId: string, artworkIds: number[]): Promise<void> {
+  const token = getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/remove-artworks`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ artwork_ids: artworkIds })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Error removing artworks from consignment: ${response.statusText}`);
   }
 }
 

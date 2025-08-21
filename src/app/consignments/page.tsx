@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import ConsignmentsTable from '@/components/consignments/ConsignmentsTable'
 import CSVUpload from '@/components/consignments/CSVUpload'
 import ConsignmentPDFGenerator from '@/components/consignments/ConsignmentPDFGenerator'
+import ConsignmentGoogleSheetsSync from '@/components/consignments/ConsignmentGoogleSheetsSync'
 import { isSuperAdmin } from '@/lib/auth-utils'
 import { Plus, Download, Upload, FileText, Share2, Printer } from 'lucide-react'
 import { getConsignments, exportConsignmentsCSV, bulkActionConsignments } from '@/lib/consignments-api'
@@ -36,7 +37,7 @@ const convertConsignmentFormat = (consignment: any) => {
   
   return {
     id: consignment.id,
-    number: consignment.consignment_number,
+    number: consignment.id, // Use ID as the number display
     client: clientName,
     clientId: consignment.client_id,
     clientIdFormatted: formatClientId(consignment.client_id, brandCode),
@@ -48,19 +49,7 @@ const convertConsignmentFormat = (consignment: any) => {
   }
 }
 
-// Search suggestions for consignments
-const consignmentSearchSuggestions = [
-  { value: '', label: 'All Consignments', description: 'Show all consignments' },
-  { value: 'paintings', label: 'Paintings', description: 'Search for painting consignments' },
-  { value: 'jewelry', label: 'Jewelry', description: 'Search for jewelry consignments' },
-  { value: 'furniture', label: 'Furniture', description: 'Search for furniture consignments' },
-  { value: 'ceramics', label: 'Ceramics', description: 'Search for ceramic consignments' },
-  { value: 'contemporary', label: 'Contemporary', description: 'Search for contemporary art' },
-  { value: 'antique', label: 'Antiques', description: 'Search for antique consignments' },
-  { value: 'silver', label: 'Silver & Metalware', description: 'Search for silver items' },
-  { value: 'textiles', label: 'Textiles', description: 'Search for textile consignments' },
-  { value: 'books', label: 'Books & Manuscripts', description: 'Search for book consignments' }
-]
+// This will be dynamically loaded from actual consignments
 
 export default function ConsignmentsPage() {
   const router = useRouter()
@@ -70,13 +59,78 @@ export default function ConsignmentsPage() {
   const [selectedConsignments, setSelectedConsignments] = useState<number[]>([])
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [showPDFGenerator, setShowPDFGenerator] = useState(false)
+  const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
   const [consignments, setConsignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false)
+  const [consignmentSuggestions, setConsignmentSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   // Check user role on component mount
   useEffect(() => {
     setUserIsSuperAdmin(isSuperAdmin())
+  }, [])
+
+  // Load consignment suggestions for search
+  const loadConsignmentSuggestions = async () => {
+    try {
+      setLoadingSuggestions(true)
+      const response = await getConsignments({ limit: 200 }) // Get enough for good suggestions
+      const consignmentsData = response.data || response.consignments || []
+      
+      // Create search suggestions from actual consignments
+      const suggestions = [
+        { value: '', label: 'All Consignments', description: 'Show all consignments' }
+      ]
+      
+      // Add unique client names
+      const clientNames = new Set<string>()
+      const consignmentNumbers = new Set<string>()
+      
+      consignmentsData.forEach((consignment: any) => {
+        const clientName = consignment.client_name || 
+          [consignment.client_first_name, consignment.client_last_name].filter(Boolean).join(' ') ||
+          consignment.client_company;
+        
+        if (clientName && !clientNames.has(clientName.toLowerCase())) {
+          clientNames.add(clientName.toLowerCase())
+          if (clientNames.size <= 10) { // Limit suggestions
+            suggestions.push({
+              value: clientName,
+              label: clientName,
+              description: `Search for ${clientName}'s consignments`
+            })
+          }
+        }
+        
+        // Add consignment numbers/IDs
+        if (consignment.id && !consignmentNumbers.has(consignment.id.toString())) {
+          consignmentNumbers.add(consignment.id.toString())
+          if (consignmentNumbers.size <= 10) {
+            suggestions.push({
+              value: consignment.id.toString(),
+              label: `Consignment #${consignment.id}`,
+              description: `Search for consignment ${consignment.id}`
+            })
+          }
+        }
+      })
+      
+      setConsignmentSuggestions(suggestions)
+    } catch (error) {
+      console.error('Error loading consignment suggestions:', error)
+      // Fallback to basic suggestions
+      setConsignmentSuggestions([
+        { value: '', label: 'All Consignments', description: 'Show all consignments' }
+      ])
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  // Load suggestions on component mount
+  useEffect(() => {
+    loadConsignmentSuggestions()
   }, [])
 
   // Fetch consignments on component mount
@@ -152,7 +206,7 @@ export default function ConsignmentsPage() {
   }
 
   const handleDeleteConsignment = async (consignment: any) => {
-    if (confirm(`Are you sure you want to delete consignment ${consignment.number}?`)) {
+    if (confirm(`Are you sure you want to delete consignment ${consignment.id}?`)) {
       try {
         // Import the delete function from consignments API
         const { deleteConsignment } = await import('@/lib/consignments-api')
@@ -255,8 +309,7 @@ export default function ConsignmentsPage() {
 
       const consignmentData = {
         id: consignment.id.toString(),
-        consignment_number: consignment.number,
-        receipt_no: consignment.number,
+        receipt_no: consignment.id.toString(),
         created_at: new Date().toISOString(),
         specialist_name: consignment.specialist,
         items_count: consignment.itemsCount,
@@ -283,8 +336,8 @@ export default function ConsignmentsPage() {
     try {
       const consignmentUrl = `${window.location.origin}/consignments/view/${consignment.id}`
       const shareData: ShareData = {
-        title: `Consignment ${consignment.number}`,
-        text: `Consignment ${consignment.number} for ${consignment.client}`,
+        title: `Consignment ${consignment.id}`,
+        text: `Consignment ${consignment.id} for ${consignment.client}`,
         url: consignmentUrl
       }
       
@@ -360,6 +413,13 @@ export default function ConsignmentsPage() {
             <Upload className="h-4 w-4" />
             <span>Import CSV</span>
           </button>
+          <button
+            onClick={() => setShowGoogleSheetsSync(true)}
+            className="flex items-center space-x-2 text-green-600 hover:text-green-700 text-sm"
+          >
+            <Share2 className="h-4 w-4" />
+            <span>Google Sheets</span>
+          </button>
           
           {/* PDF Generation Button */}
           <button
@@ -390,8 +450,8 @@ export default function ConsignmentsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
               <SearchableSelect
                 value={searchQuery}
-                options={consignmentSearchSuggestions}
-                placeholder="Search consignments..."
+                options={consignmentSuggestions}
+                placeholder={loadingSuggestions ? "Loading suggestions..." : "Search consignments..."}
                 onChange={(value) => setSearchQuery(value?.toString() || '')}
                 inputPlaceholder="Search by consignment # or client name..."
                 className="w-full"
@@ -479,6 +539,20 @@ export default function ConsignmentsPage() {
           selectedConsignments={consignments.filter(c => selectedConsignments.includes(c.id))}
           onClose={handlePDFComplete}
         />
+      )}
+
+      {/* Google Sheets Sync Modal */}
+      {showGoogleSheetsSync && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <ConsignmentGoogleSheetsSync
+            selectedConsignments={selectedConsignments}
+            onSyncComplete={(result) => {
+              console.log('Google Sheets sync completed:', result)
+              setShowGoogleSheetsSync(false)
+            }}
+            onClose={() => setShowGoogleSheetsSync(false)}
+          />
+        </div>
       )}
     </div>
   )

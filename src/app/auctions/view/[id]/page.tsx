@@ -8,6 +8,7 @@ import { getAuctions } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/artworks-api'
 import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
+import { getAuctionStatusColor } from '@/lib/constants'
 import type { Auction } from '@/lib/auctions-api'
 
 interface AuctionArtwork {
@@ -62,29 +63,36 @@ export default function AuctionViewPage() {
       
       setAuction(foundAuction)
 
-      // Load artworks for this auction
-      // Note: Since we removed auction_id from items, we'll get artworks by brand for now
-      // In a real implementation, you'd want to create a relationship table for auction-artwork mappings
-      const artworksResponse = await ArtworksAPI.getArtworks({
-        page: 1,
-        limit: 100,
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' || 'MSABER'
-      })
+      // Load artworks for this auction using the auction's artwork_ids array
+      console.log('Loading artworks for auction ID:', auctionId)
+      
+      if (foundAuction.artwork_ids && Array.isArray(foundAuction.artwork_ids) && foundAuction.artwork_ids.length > 0) {
+        console.log('Found artwork IDs in auction:', foundAuction.artwork_ids)
+        
+        const artworksResponse = await ArtworksAPI.getArtworks({
+          item_ids: foundAuction.artwork_ids.join(','), // Use the artwork_ids from auction
+          page: 1,
+          limit: 1000,
+          status: 'all', // Include all statuses
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' || 'MSABER'
+        })
 
-      // For demo purposes, show the first 2 artworks as auction items
-      // In practice, you'd filter by auction relationship
-      if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
-        // Filter artworks with valid IDs and convert to the expected type
-        const auctionArtworks = artworksResponse.data
-          .filter(artwork => artwork.id) // Filter out items without IDs
-          .slice(0, 2)
-          .map(artwork => ({
-            ...artwork,
-            id: artwork.id! // Assert that id exists since we filtered for it
-          }))
-        setArtworks(auctionArtworks)
+        console.log('Auction artworks response:', artworksResponse)
+        if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
+          // Filter artworks with valid IDs and convert to the expected type
+          const auctionArtworks = artworksResponse.data
+            .filter(artwork => artwork.id) // Filter out items without IDs
+            .map(artwork => ({
+              ...artwork,
+              id: artwork.id! // Assert that id exists since we filtered for it
+            }))
+          setArtworks(auctionArtworks)
+        } else {
+          console.warn('No artworks found or invalid response format:', artworksResponse)
+          setArtworks([])
+        }
       } else {
-        console.warn('No artworks found or invalid response format:', artworksResponse)
+        console.log('No artwork_ids found in auction:', foundAuction)
         setArtworks([])
       }
 
@@ -115,16 +123,8 @@ export default function AuctionViewPage() {
     }).format(amount)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'planned': return 'bg-gray-100 text-gray-800'
-      case 'in_progress': return 'bg-red-100 text-red-800'
-      case 'ended': return 'bg-green-100 text-green-800'
-      case 'aftersale': return 'bg-yellow-100 text-yellow-800'
-      case 'archived': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
+  // Using the constants helper function
+  const getStatusColor = getAuctionStatusColor
 
   if (loading) {
     return (

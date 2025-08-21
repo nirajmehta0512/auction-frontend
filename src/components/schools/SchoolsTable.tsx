@@ -46,8 +46,8 @@ export default function SchoolsTable({
     if (sortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />
     }
-    return sortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
+    return sortDirection === 'asc' ?
+      <ArrowUp className="h-4 w-4" /> :
       <ArrowDown className="h-4 w-4" />
   }
 
@@ -214,14 +214,15 @@ export default function SchoolsTable({
                   {!school.location && !school.country && '—'}
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-6 py-4 text-sm text-gray-900">
                 {school.school_type || '—'}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <div className="max-w-xs truncate">
+              <td className="px-6 py-4 text-sm text-gray-900">
+                <div className="max-w-xs break-words">
                   {school.specialties || '—'}
                 </div>
               </td>
+
               <td className="px-6 py-4 whitespace-nowrap">
                 {getStatusBadge(school.status || 'active')}
               </td>
@@ -250,7 +251,7 @@ export default function SchoolsTable({
           ))}
         </tbody>
       </table>
-      
+
       {schools.length === 0 && (
         <div className="text-center py-8">
           <p className="text-gray-500">No schools found</p>

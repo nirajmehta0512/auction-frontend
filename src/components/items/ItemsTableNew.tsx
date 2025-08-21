@@ -18,7 +18,7 @@ interface ItemsTableProps {
   sortDirection?: 'asc' | 'desc'
 }
 
-type SortField = 'id' | 'lot_num' | 'title' | 'low_est' | 'high_est' | 'start_price' | 'status' | 'category' | 'created_at'
+type SortField = 'id' | 'title' | 'low_est' | 'high_est' | 'start_price' | 'status' | 'category' | 'created_at'
 
 export default function ItemsTableNew({ 
   items, 

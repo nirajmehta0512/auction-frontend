@@ -16,6 +16,8 @@ interface Consignment {
   defaultSale: string
   created: string
   signed: boolean
+  brandCode?: string
+  client_brand_code?: string
 }
 
 interface ConsignmentsTableProps {
@@ -100,6 +102,11 @@ export default function ConsignmentsTable({
   const sortedConsignments = [...consignments].sort((a, b) => {
     const aValue = a[sortField]
     const bValue = b[sortField]
+    
+    // Handle undefined values
+    if (aValue === undefined && bValue === undefined) return 0
+    if (aValue === undefined) return sortDirection === 'asc' ? 1 : -1
+    if (bValue === undefined) return sortDirection === 'asc' ? -1 : 1
     
     if (sortDirection === 'asc') {
       return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
@@ -204,7 +211,22 @@ export default function ConsignmentsTable({
                         </td>
 
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {consignment.clientIdFormatted}
+                          {(() => {
+                            // Extract brand code from nested client data structure if available
+                            const clientData = (consignment as any).clients;
+                            let brandCode = 'MSA'; // Default fallback
+                            
+                            if (clientData?.brands?.code) {
+                              brandCode = clientData.brands.code;
+                            } else if (consignment.client_brand_code) {
+                              brandCode = consignment.client_brand_code;
+                            } else if (consignment.brandCode) {
+                              brandCode = consignment.brandCode;
+                            }
+                            
+                            const prefix = brandCode.slice(0, 3).toUpperCase();
+                            return `${prefix}-${consignment.clientId.toString().padStart(3, '0')}`;
+                          })()}
                         </td>
 
                         <td className="px-6 py-4 whitespace-nowrap">
