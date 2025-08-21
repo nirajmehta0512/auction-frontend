@@ -73,11 +73,11 @@ const styles = StyleSheet.create({
     color: '#333333',
     lineHeight: 1.4,
   },
-  
+
   // Header styles
   header: {
     flexDirection: 'row',
-    marginBottom: 25,
+    marginBottom: 30,
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
   headerLeftContent: {
     flex: 1,
     flexDirection: 'column',
+    justifyContent: 'center',
   },
   headerRight: {
     width: '35%',
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 700,
     color: '#1a1a1a',
-    marginBottom: 2,
+    marginBottom: 10,
   },
   establishment: {
     fontSize: 12,
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'right',
   },
-  
+
   // Client section
   clientSection: {
     marginBottom: 20,
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#666666',
   },
-  
+
   // Reference section
   referenceSection: {
     backgroundColor: '#f8f9fa',
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
     color: '#333333',
     flex: 1,
   },
-  
+
   // Items table
   tableHeader: {
     flexDirection: 'row',
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
   colIllus: { width: '6%' },
   colReserve: { width: '10%' },
   colEstimate: { width: '16%' },
-  
+
   headerText: {
     fontSize: 8,
     fontWeight: 600,
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
     color: '#333333',
     textAlign: 'right',
   },
-  
+
   // Description styling
   itemTitle: {
     fontSize: 8,
@@ -245,8 +246,9 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: '#555555',
     lineHeight: 1.2,
+    maxLines: 2,
   },
-  
+
   // Summary section
   summarySection: {
     marginTop: 20,
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 600,
   },
-  
+
   // Footer
   footer: {
     position: 'absolute',
@@ -291,7 +293,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
-  
+
   // Specialist signature section
   signatureSection: {
     marginTop: 20,
@@ -332,19 +334,19 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
       try {
         const token = localStorage.getItem('token')
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-        
+
         // First try to get brand compliance data
         const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         })
-        
+
         if (complianceResponse.ok) {
           const complianceData = await complianceResponse.json()
           if (complianceData.success) {
             const compliance = complianceData.data
-            
+
             // Update brand details with compliance data
             setBrandDetails({
               code: brand_code,
@@ -359,14 +361,14 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
               establishedYear: compliance.established_year || brandDetails.establishedYear,
               registrationNumber: compliance.registration_number || brandDetails.registrationNumber
             })
-            
+
             // Set logo from compliance data
             if (compliance.logo_url) {
               setBrandLogo(compliance.logo_url)
             }
           }
         }
-        
+
         // Fallback: try to get brand logo from brand-logos API
         if (!brandLogo) {
           const brandResponse = await fetch(`${API_BASE_URL}/api/brands/by-code/${brand_code}`, {
@@ -404,19 +406,19 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
     }
     loadBrandData()
   }, [brand_code, brandDetails.name])
-  
+
   const formatCurrency = (amount: number): string => {
     return `£${amount.toLocaleString()}`
   }
-  
+
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: '2-digit',
-      month: '2-digit', 
+      month: '2-digit',
       year: 'numeric'
     })
   }
-  
+
   const totalEstimate = items.reduce((sum, item) => sum + ((item.low_est + item.high_est) / 2), 0)
   const totalReserve = items.reduce((sum, item) => sum + (item.reserve || 0), 0)
 
@@ -427,10 +429,10 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             {brandLogo && (
-              <Image 
-                style={styles.brandLogo} 
-                src={brandLogo} 
-                cache={false} 
+              <Image
+                style={styles.brandLogo}
+                src={brandLogo}
+                cache={false}
               />
             )}
             <View style={styles.headerLeftContent}>
@@ -443,7 +445,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
               </View>
             </View>
           </View>
-          
+
           <View style={styles.headerRight}>
             <Text style={styles.receiptTitle}>Consignment Receipt {consignment.receipt_no || consignment.consignment_number}</Text>
             <Text style={styles.receiptDate}>Date: {formatDate(consignment.created_at)}</Text>
@@ -473,7 +475,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
             {client.billing_city && <Text>{client.billing_city} {client.billing_post_code}</Text>}
             {client.billing_country && <Text>{client.billing_country}</Text>}
           </View>
-          
+
           <View style={styles.clientDetails}>
             {client.phone_number && (
               <Text style={styles.clientDetailItem}>Phone No.: {client.phone_number}</Text>
@@ -551,7 +553,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
             <View style={styles.colItemComm}>
               <Text style={styles.cellTextCenter}>{item.vendor_commission || '15'}%</Text>
             </View>
-       
+
             <View style={styles.colReserve}>
               <Text style={styles.cellTextRight}>
                 {item.reserve ? formatCurrency(item.reserve) : '-'}
@@ -585,7 +587,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
             <Text style={styles.signatureLabel}>Collected by</Text>
             <Text style={styles.signatureName}>Transfer to {brandDetails.name}</Text>
           </View>
-          
+
           <View style={styles.signatureBox}>
             <Text style={styles.signatureLabel}>Released by</Text>
             <Text style={styles.signatureName}>
@@ -598,7 +600,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Please inspect your lot(s) to satisfy yourself as to present condition and content upon collection, as we take no responsibility for 
+            Please inspect your lot(s) to satisfy yourself as to present condition and content upon collection, as we take no responsibility for
             loss or damage after they leave our premises.
           </Text>
           <Text style={styles.vatNotice}>
