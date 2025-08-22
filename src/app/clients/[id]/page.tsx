@@ -45,6 +45,21 @@ interface ClientStats {
   lastActivity: string
 }
 
+interface BidderAnalytics {
+  memberSince: string
+  cardOnFile: boolean
+  auctionsAttended: number
+  bidsPlaced: number
+  itemsWon: number
+  taxExemption: boolean
+  paymentRate: number
+  avgHammerPriceLow: number
+  avgHammerPriceHigh: number
+  disputesOpen: number
+  disputesClosed: number
+  bidderNotes: string
+}
+
 export default function ClientViewPage() {
   const params = useParams()
   const router = useRouter()
@@ -53,6 +68,7 @@ export default function ClientViewPage() {
   const [client, setClient] = useState<Client | null>(null)
   const [overview, setOverview] = useState<any>(null)
   const [stats, setStats] = useState<ClientStats | null>(null)
+  const [bidderAnalytics, setBidderAnalytics] = useState<BidderAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string>('superadmin') // In real app, get from auth context
@@ -74,6 +90,16 @@ export default function ClientViewPage() {
     { key: 'paddle_no', label: 'Paddle Number', selected: false },
     { key: 'platform', label: 'Platform', selected: false },
     { key: 'created_at', label: 'Created Date', selected: false },
+    // Bidder Analytics fields
+    { key: 'card_on_file', label: 'Card on File', selected: false },
+    { key: 'auctions_attended', label: 'Auctions Attended', selected: false },
+    { key: 'bids_placed', label: 'Bids Placed', selected: false },
+    { key: 'items_won', label: 'Items Won', selected: false },
+    { key: 'tax_exemption', label: 'Tax Exemption', selected: false },
+    { key: 'payment_rate', label: 'Payment Rate', selected: false },
+    { key: 'avg_hammer_price_range', label: 'Avg Hammer Price Range', selected: false },
+    { key: 'disputes_total', label: 'Dispute History', selected: false },
+    { key: 'bidder_notes', label: 'Bidder Notes', selected: false },
   ]
 
   const exportShare = useExportShare({
@@ -119,6 +145,27 @@ export default function ClientViewPage() {
         }
         
         setStats(calculatedStats)
+
+        // Set bidder analytics
+        const clientData = clientResp.data
+        setBidderAnalytics({
+          memberSince: clientData.created_at ? new Date(clientData.created_at).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : 'Unknown',
+          cardOnFile: clientData.card_on_file || false,
+          auctionsAttended: clientData.auctions_attended || 0,
+          bidsPlaced: clientData.bids_placed || 0,
+          itemsWon: clientData.items_won || 0,
+          taxExemption: clientData.tax_exemption || false,
+          paymentRate: clientData.payment_rate || 0,
+          avgHammerPriceLow: clientData.avg_hammer_price_low || 0,
+          avgHammerPriceHigh: clientData.avg_hammer_price_high || 0,
+          disputesOpen: clientData.disputes_open || 0,
+          disputesClosed: clientData.disputes_closed || 0,
+          bidderNotes: clientData.bidder_notes || ''
+        })
       } catch (err: any) {
         setError(err?.message || 'Failed to load client')
       } finally {
@@ -360,6 +407,86 @@ export default function ClientViewPage() {
                 </div>
               </div>
 
+              {/* Bidder Analytics */}
+              {bidderAnalytics && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Activity className="h-5 w-5 mr-2 text-gray-600" />
+                    Bidder Analytics
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-gray-600">Member Since</p>
+                      <p className="font-medium text-gray-900">{bidderAnalytics.memberSince}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Card on File</p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          bidderAnalytics.cardOnFile ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {bidderAnalytics.cardOnFile ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Tax Exemption</p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          bidderAnalytics.taxExemption ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {bidderAnalytics.taxExemption ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-600">Auctions Attended</p>
+                        <p className="font-medium text-gray-900">{bidderAnalytics.auctionsAttended}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Bids Placed</p>
+                        <p className="font-medium text-gray-900">{bidderAnalytics.bidsPlaced}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Items Won</p>
+                        <p className="font-medium text-gray-900">{bidderAnalytics.itemsWon}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Payment Rate</p>
+                      <div className="flex items-center">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
+                          <div 
+                            className="bg-green-500 h-2 rounded-full" 
+                            style={{ width: `${Math.min(bidderAnalytics.paymentRate, 100)}%` }}
+                          ></div>
+                        </div>
+                        <span className="font-medium text-gray-900">{bidderAnalytics.paymentRate}%</span>
+                      </div>
+                    </div>
+                    {(bidderAnalytics.avgHammerPriceLow > 0 || bidderAnalytics.avgHammerPriceHigh > 0) && (
+                      <div>
+                        <p className="text-sm text-gray-600">Avg Hammer Price Range</p>
+                        <p className="font-medium text-gray-900">
+                          £{bidderAnalytics.avgHammerPriceLow.toLocaleString()} - £{bidderAnalytics.avgHammerPriceHigh.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Dispute History</p>
+                      <p className="font-medium text-gray-900">
+                        {bidderAnalytics.disputesOpen} open, {bidderAnalytics.disputesClosed} closed
+                      </p>
+                    </div>
+                    {bidderAnalytics.bidderNotes && (
+                      <div>
+                        <p className="text-sm text-gray-600">Bidder Notes</p>
+                        <p className="font-medium text-gray-900 text-sm bg-gray-50 p-2 rounded">{bidderAnalytics.bidderNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Location Information */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -478,24 +605,30 @@ export default function ClientViewPage() {
                   {overview?.consignments?.length ? (
                     <div className="space-y-3">
                       {overview.consignments.slice(0, 5).map((consignment: any) => (
-                        <div key={consignment.id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900 text-sm">
-                              {consignment.consignment_number || `Consignment #${consignment.id}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {consignment.created_at ? new Date(consignment.created_at).toLocaleDateString() : ''}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {consignment.items_count || 0} items
-                            </p>
+                        <Link 
+                          key={consignment.id} 
+                          href={`/consignments/view/${consignment.id}`}
+                          className="block"
+                        >
+                          <div className="flex justify-between items-start p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900 text-sm hover:text-blue-600">
+                                {consignment.consignment_number || `Consignment #${consignment.id}`}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {consignment.created_at ? new Date(consignment.created_at).toLocaleDateString() : ''}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {consignment.items_count || 0} items
+                              </p>
+                            </div>
+                            {consignment.total_estimated_value && (
+                              <span className="text-sm font-medium text-blue-600">
+                                £{consignment.total_estimated_value.toLocaleString()}
+                              </span>
+                            )}
                           </div>
-                          {consignment.total_estimated_value && (
-                            <span className="text-sm font-medium text-blue-600">
-                              £{consignment.total_estimated_value.toLocaleString()}
-                            </span>
-                          )}
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   ) : (

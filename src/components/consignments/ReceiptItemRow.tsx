@@ -13,6 +13,8 @@ export interface ReceiptItemRowItemOption {
   high_est?: number
   reserve?: number
   artist_id?: string
+  image_file_1?: string
+  image_file_2?: string
 }
 
 export interface ReceiptItemRowArtistOption {
@@ -33,6 +35,8 @@ export interface ReceiptItem {
   reserve?: number
   is_returned: boolean
   return_date?: string
+  return_reason?: string
+  return_location?: string
   returned_by_user_id?: string
   returned_by_user_name?: string
 }
@@ -45,9 +49,10 @@ interface Props {
   onChange: (id: string, field: keyof ReceiptItem, value: any) => void
   onRemove?: (id: string) => void
   onAddArtist?: () => void
+  onEditArtwork?: (artworkId: string) => void
 }
 
-export default function ReceiptItemRow({ receiptItem, items, artists, users, onChange, onRemove, onAddArtist }: Props) {
+export default function ReceiptItemRow({ receiptItem, items, artists, users, onChange, onRemove, onAddArtist, onEditArtwork }: Props) {
   const handleArtworkChange = (artworkId: string) => {
     // Handle "Create New" option
     if (artworkId === 'create_new') {
@@ -218,27 +223,108 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
         {receiptItem.artwork_id && receiptItem.artwork_id !== 'new' && (
           <div className="lg:col-span-3">
             <div className="bg-gray-50 p-3 rounded-md mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Artwork Details</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Title:</span>
-                  <div className="font-medium">{receiptItem.artwork_title || '—'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Artist:</span>
-                  <div className="font-medium">{receiptItem.artist_name || '—'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Dimensions:</span>
-                  <div className="font-medium">{receiptItem.dimensions || '—'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Estimate:</span>
-                  <div className="font-medium">
-                    {receiptItem.low_estimate || receiptItem.high_estimate 
-                      ? `£${receiptItem.low_estimate || 0} - £${receiptItem.high_estimate || 0}`
-                      : '—'
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-700">Selected Artwork Details</h4>
+                {onEditArtwork && (
+                  <button
+                    type="button"
+                    onClick={() => onEditArtwork(receiptItem.artwork_id!)}
+                    className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                  >
+                    Edit Artwork
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex gap-4">
+                {/* Artwork Images */}
+                <div className="flex gap-2">
+                  {(() => {
+                    const selectedArtwork = items.find(item => String(item.id) === String(receiptItem.artwork_id))
+                    
+                    // Helper function to get proper image URL
+                    const getImageUrl = (imageFile: string | undefined) => {
+                      if (!imageFile) return null
+                      
+                      // If it's already a full URL, return as is
+                      if (imageFile.startsWith('http')) return imageFile
+                      
+                      // If it's a relative path, construct the full URL
+                      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                      if (imageFile.startsWith('/')) {
+                        return `${baseUrl}${imageFile}`
+                      }
+                      
+                      // If it's just a filename, assume it's in the storage bucket
+                      return `${baseUrl}/storage/v1/object/public/artwork-images/${imageFile}`
                     }
+                    
+                    const image1 = getImageUrl(selectedArtwork?.image_file_1)
+                    const image2 = getImageUrl(selectedArtwork?.image_file_2)
+                    
+                    if (!image1 && !image2) {
+                      return (
+                        <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                          No Image
+                        </div>
+                      )
+                    }
+                    
+                    return (
+                      <>
+                        {image1 && (
+                          <img
+                            src={image1}
+                            alt="Artwork 1"
+                            className="w-20 h-20 object-cover rounded border"
+                            onError={(e) => {
+                              // Fallback for broken images
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                            }}
+                          />
+                        )}
+                        {image2 && (
+                          <img
+                            src={image2}
+                            alt="Artwork 2"
+                            className="w-20 h-20 object-cover rounded border"
+                            onError={(e) => {
+                              // Fallback for broken images
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                            }}
+                          />
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+                
+                {/* Artwork Details */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Title:</span>
+                      <div className="font-medium">{receiptItem.artwork_title || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Artist:</span>
+                      <div className="font-medium">{receiptItem.artist_name || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Dimensions:</span>
+                      <div className="font-medium">{receiptItem.dimensions || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Estimate:</span>
+                      <div className="font-medium">
+                        {receiptItem.low_estimate || receiptItem.high_estimate 
+                          ? `£${receiptItem.low_estimate || 0} - £${receiptItem.high_estimate || 0}`
+                          : '—'
+                        }
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -280,6 +366,26 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                   }}
                   options={users.map((u)=>({ value: u.id.toString(), label: `${u.first_name} ${u.last_name}`, description: u.role }))}
                   placeholder="Select staff member"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Return Reason</label>
+                <input
+                  type="text"
+                  value={receiptItem.return_reason || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'return_reason', e.target.value)}
+                  placeholder="e.g., Unsold, Withdrawn, etc."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Return Location</label>
+                <input
+                  type="text"
+                  value={receiptItem.return_location || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'return_location', e.target.value)}
+                  placeholder="e.g., Client address, Warehouse, etc."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>

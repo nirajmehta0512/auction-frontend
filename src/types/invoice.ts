@@ -85,6 +85,8 @@ export interface LogisticsInfo {
   }>
   shipping_cost: number
   insurance_cost: number
+  handling_charge: number
+  international_surcharge: number
   total_cost: number
 }
 

@@ -3,19 +3,22 @@
 
 import React, { useState, useEffect } from 'react'
 import { createConsignment, updateConsignment } from '@/lib/consignments-api'
-import { fetchClients, searchClients, type Client } from '@/lib/clients-api'
+import { fetchClients, searchClients, type Client, createClient } from '@/lib/clients-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import { ArtistsAPI } from '@/lib/artists-api'
 import type { Consignment } from '@/lib/consignments-api'
 import type { Artwork } from '@/lib/items-api'
 import type { Artist } from '@/lib/artists-api'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, UserPlus, ImageIcon } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import ReceiptItemRow, { type ReceiptItem as ReceiptItemRowType } from '@/components/consignments/ReceiptItemRow'
 const LoadScript = dynamic(() => import('@react-google-maps/api').then(m => m.LoadScript), { ssr: false })
 const StandaloneSearchBox = dynamic(() => import('@react-google-maps/api').then(m => m.StandaloneSearchBox), { ssr: false })
 import ArtistForm from '@/components/artists/ArtistForm'
+import ClientForm from '@/components/clients/ClientForm'
+import ArtworkCreationDialog from '@/components/consignments/ArtworkCreationDialog'
+import ItemForm from '@/components/items/ItemForm'
 
 // User interface for app staff dropdown
 interface User {
@@ -139,6 +142,10 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [showArtistModal, setShowArtistModal] = useState(false)
+  const [showClientModal, setShowClientModal] = useState(false)
+  const [showArtworkModal, setShowArtworkModal] = useState(false)
+  const [showEditArtworkModal, setShowEditArtworkModal] = useState(false)
+  const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null)
   const [warehouseSearchBoxRef, setWarehouseSearchBoxRef] = useState<any>(null)
   const [formData, setFormData] = useState({
     receipt_no: consignment?.id?.toString() || '',
@@ -164,12 +171,8 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
     released_by_staff: (consignment as any)?.released_by_staff || ''
   })
 
-  // Receipt items state
-  const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([{
-    id: '1',
-    item_no: 1,
-    is_returned: false
-  }])
+  // Receipt items state - start with empty array to allow proper numbering
+  const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -191,9 +194,29 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         // If editing an existing consignment, load its items
         if (consignment?.id) {
           try {
-            // TODO: Implement API endpoint to fetch consignment items
-            // For now, we'll use mock data to show how it should work
-            // setReceiptItems(mockConsignmentItems)
+            // Load consignment items
+            const consignmentItemsResponse = await ArtworksAPI.getArtworks({ 
+              consignment_id: consignment.id.toString(), 
+              limit: 1000 
+            })
+            
+            if (consignmentItemsResponse.success && consignmentItemsResponse.data.length > 0) {
+              const loadedReceiptItems = consignmentItemsResponse.data.map((item, index) => ({
+                id: item.id?.toString() || `item_${index}`,
+                item_no: index + 1,
+                artwork_id: item.id?.toString(),
+                artwork_title: item.title,
+                artist_id: item.artist_id?.toString(),
+                artist_name: item.artist_maker,
+                dimensions: item.dimensions,
+                low_estimate: item.low_est,
+                high_estimate: item.high_est,
+                reserve: item.reserve,
+                is_returned: false // Default to false, can be updated later
+              }))
+              
+              setReceiptItems(loadedReceiptItems)
+            }
           } catch (error) {
             console.error('Error loading consignment items:', error)
           }
@@ -222,6 +245,13 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (!formData.client_id || formData.client_id === 0) {
+      alert('Please select a client. Client selection is required.')
+      return
+    }
+    
     try {
       setLoading(true)
       const dataToSubmit: Partial<Consignment> = {
@@ -293,12 +323,13 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
     }))
   }
 
-  const handleClientChange = (clientId: string) => {
-    const selectedClient = clients.find(c => c.id?.toString() === clientId)
+  const handleClientChange = (clientId: string | number) => {
+    const clientIdStr = clientId.toString()
+    const selectedClient = clients.find(c => c.id?.toString() === clientIdStr)
     if (selectedClient) {
       setFormData(prev => ({
         ...prev,
-        client_id: parseInt(clientId, 10), // Convert string to number
+        client_id: parseInt(clientIdStr, 10), // Convert string to number
         client_name: `${selectedClient.first_name} ${selectedClient.last_name}`,
         client_email: selectedClient.email || '',
         client_company: selectedClient.company_name || ''
@@ -308,16 +339,25 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
 
   // Receipt Items functions
   const addReceiptItem = () => {
-    const newItemNo = Math.max(...receiptItems.map(item => item.item_no)) + 1
-    setReceiptItems(prev => [...prev, {
-      id: Date.now().toString(),
-      item_no: newItemNo,
-      is_returned: false
-    }])
+    setReceiptItems(prev => {
+      const newItems = [...prev, {
+        id: Date.now().toString(),
+        item_no: prev.length + 1, // Sequential numbering
+        is_returned: false
+      }]
+      return newItems
+    })
   }
 
   const removeReceiptItem = (id: string) => {
-    setReceiptItems(prev => prev.filter(item => item.id !== id))
+    setReceiptItems(prev => {
+      const filtered = prev.filter(item => item.id !== id)
+      // Renumber all items sequentially after removal
+      return filtered.map((item, index) => ({
+        ...item,
+        item_no: index + 1
+      }))
+    })
   }
 
   const updateReceiptItem = (id: string, field: keyof ReceiptItem, value: any) => {
@@ -327,6 +367,40 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   }
 
   // Artwork change handled within ReceiptItemRow
+  
+  // Handle artwork editing
+  const handleEditArtwork = (artworkId: string) => {
+    const artwork = items.find(item => item.id?.toString() === artworkId)
+    if (artwork) {
+      setEditingArtwork(artwork)
+      setShowEditArtworkModal(true)
+    }
+  }
+
+  const handleArtworkUpdated = (updatedArtwork: Artwork) => {
+    // Update the items list
+    setItems(prev => prev.map(item => 
+      item.id?.toString() === updatedArtwork.id?.toString() ? updatedArtwork : item
+    ))
+    
+    // Update any receipt items that reference this artwork
+    setReceiptItems(prev => prev.map(item => 
+      item.artwork_id === updatedArtwork.id?.toString() 
+        ? {
+            ...item,
+            artwork_title: updatedArtwork.title,
+            artist_name: updatedArtwork.artist_maker,
+            dimensions: updatedArtwork.dimensions,
+            low_estimate: updatedArtwork.low_est,
+            high_estimate: updatedArtwork.high_est,
+            reserve: updatedArtwork.reserve
+          }
+        : item
+    ))
+    
+    setShowEditArtworkModal(false)
+    setEditingArtwork(null)
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow">
@@ -340,12 +414,22 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
           {/* Consignment number is now auto-generated using the ID */}
 
           <div>
-            <Label htmlFor="client_id" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Client *
-            </Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="client_id" className="block text-sm font-medium text-gray-700">
+                Select Client *
+              </Label>
+              <Button
+                type="button"
+                onClick={() => setShowClientModal(true)}
+                className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 flex items-center space-x-1"
+              >
+                <UserPlus className="w-3 h-3" />
+                <span>New Client</span>
+              </Button>
+            </div>
             <SearchableSelect
               value={formData.client_id || 0}
-              onChange={(val) => handleClientChange(String(val))}
+              onChange={(val) => handleClientChange(val)}
               options={clients.map((c) => ({
                 value: c.id as number,
                 label: `${(c as any).brand ? ((c as any).brand as string).toUpperCase().slice(0,3) : 'MSA'}-${(c.id||0).toString().padStart(3,'0')} - ${c.first_name} ${c.last_name}${c.company_name ? ` (${c.company_name})` : ''}`
@@ -357,26 +441,39 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 Selected: {formData.client_name} {formData.client_email && `(${formData.client_email})`}
               </div>
             )}
+            {(!formData.client_id || formData.client_id === 0) && (
+              <div className="text-xs text-red-600 mt-1">
+                ⚠️ Client selection is required
+              </div>
+            )}
           </div>
 
           {/* Removed redundant client fields: title/salutation/name/email/company */}
 
           <div>
-            <Label htmlFor="specialist_name" className="block text-sm font-medium text-gray-700 mb-2">
+            <Label htmlFor="specialist_id" className="block text-sm font-medium text-gray-700 mb-2">
               Specialist
             </Label>
-            <Input
-              id="specialist_name"
-              value={formData.specialist_name}
-              onChange={(e) => handleInputChange('specialist_name', e.target.value)}
-              placeholder="Enter specialist name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <SearchableSelect
+              value={formData.specialist_id || 0}
+              onChange={(val) => {
+                const selectedUser = users.find(u => u.id === val)
+                if (selectedUser) {
+                  handleInputChange('specialist_id', val)
+                  handleInputChange('specialist_name', `${selectedUser.first_name} ${selectedUser.last_name}`)
+                }
+              }}
+              options={users.map((user) => ({
+                value: user.id,
+                label: `${user.first_name} ${user.last_name} (${user.role})`
+              }))}
+              placeholder="Type to search specialists"
             />
           </div>
 
           <div>
             <Label htmlFor="released_by_staff" className="block text-sm font-medium text-gray-700 mb-2">
-              Released by Staff
+              By Staff
             </Label>
             <Select
               value={formData.released_by_staff}
@@ -542,23 +639,37 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                   disabled
                 />
               </div>
-              <Button
-                type="button"
-                onClick={addReceiptItem}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Artwork</span>
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="button"
+                  onClick={addReceiptItem}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Artwork</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setShowArtworkModal(true)}
+                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>New Artwork</span>
+                </Button>
+              </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            {receiptItems.map((receiptItem) => (
-              <div key={receiptItem.id}>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-md font-medium text-gray-800">Item #{receiptItem.item_no}</h4>
-                  {receiptItems.length > 1 && (
+            {receiptItems.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="mb-4">No items added yet. Click "Add Artwork" or "New Artwork" to add items to this consignment.</p>
+              </div>
+            ) : (
+              receiptItems.map((receiptItem) => (
+                <div key={receiptItem.id}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-md font-medium text-gray-800">Item #{receiptItem.item_no}</h4>
                     <Button
                       type="button"
                       onClick={() => removeReceiptItem(receiptItem.id)}
@@ -566,19 +677,20 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                     >
                       <X className="w-4 h-4" />
                     </Button>
-                  )}
+                  </div>
+                  <ReceiptItemRow
+                    receiptItem={receiptItem}
+                    items={items.filter(item => !item.consignment_id) as any}
+                    artists={artists as any}
+                    users={users}
+                    onChange={updateReceiptItem}
+                    onRemove={removeReceiptItem}
+                    onAddArtist={() => setShowArtistModal(true)}
+                    onEditArtwork={handleEditArtwork}
+                  />
                 </div>
-                <ReceiptItemRow
-                  receiptItem={receiptItem}
-                  items={items as any}
-                  artists={artists as any}
-                  users={users}
-                  onChange={updateReceiptItem}
-                  onRemove={receiptItems.length > 1 ? removeReceiptItem : undefined}
-                  onAddArtist={() => setShowArtistModal(true)}
-                />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -601,17 +713,183 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
       </form>
 
       {showArtistModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-4">
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowArtistModal(false)
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-lg font-semibold">Create Artist</h4>
-              <button onClick={()=>setShowArtistModal(false)} className="text-gray-600 hover:text-gray-800">✕</button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowArtistModal(false)
+                }} 
+                className="text-gray-600 hover:text-gray-800"
+              >
+                ✕
+              </button>
             </div>
             <ArtistForm isEditing={false} onSaved={(a)=>{
               // Close, add to list, preselect in current focused receipt line if any
               setArtists((prev)=> [...prev, a as any])
               setShowArtistModal(false)
             }} />
+          </div>
+        </div>
+      )}
+
+      {showClientModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowClientModal(false)
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-lg w-full max-w-4xl p-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold">Create Client</h4>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowClientModal(false)
+                }} 
+                className="text-gray-600 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+            <ClientForm mode="create" onSuccess={(newClient) => {
+              // Refresh clients list and close modal
+              fetchClients({ limit: 1000 }).then(response => {
+                setClients(response.data)
+                // Auto-select the newly created client
+                if (newClient?.id) {
+                  handleClientChange(newClient.id.toString())
+                }
+              })
+              setShowClientModal(false)
+            }} />
+          </div>
+        </div>
+      )}
+
+      {showArtworkModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowArtworkModal(false)
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-lg w-full max-w-5xl p-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold">Create Artwork</h4>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowArtworkModal(false)
+                }} 
+                className="text-gray-600 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+            <ArtworkCreationDialog
+              artists={artists}
+              onSave={(artworkOrArtworks) => {
+                // Handle both single artwork and bulk artworks (array)
+                const artworks = Array.isArray(artworkOrArtworks) ? artworkOrArtworks : [artworkOrArtworks]
+                
+                // Add all artworks to items list
+                setItems((prev) => [...prev, ...artworks as any])
+                
+                // Auto-add all artworks to consignment receipt items
+                const newReceiptItems = artworks.map((artwork, index) => {
+                  return {
+                    id: `${Date.now()}_${index}`,
+                    item_no: receiptItems.length + index + 1, // Start from current length + 1
+                    artwork_id: artwork?.id?.toString(),
+                    artwork_title: artwork?.title,
+                    artist_id: artwork?.artist_id?.toString(),
+                    artist_name: artwork?.artist_maker,
+                    dimensions: artwork?.dimensions,
+                    low_estimate: artwork?.low_est,
+                    high_estimate: artwork?.high_est,
+                    reserve: artwork?.reserve,
+                    is_returned: false
+                  }
+                }).filter(item => item.artwork_id) // Only add items with valid artwork_id
+                
+                setReceiptItems(prev => {
+                  const combined = [...prev, ...newReceiptItems]
+                  // Renumber all items sequentially
+                  return combined.map((item, index) => ({
+                    ...item,
+                    item_no: index + 1
+                  }))
+                })
+                setShowArtworkModal(false)
+              }} 
+              onCancel={() => setShowArtworkModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {showEditArtworkModal && editingArtwork && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditArtworkModal(false)
+              setEditingArtwork(null)
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-lg w-full max-w-6xl p-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold">Edit Artwork</h4>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowEditArtworkModal(false)
+                  setEditingArtwork(null)
+                }} 
+                className="text-gray-600 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+            <ItemForm
+              itemId={editingArtwork.id?.toString()}
+              initialData={editingArtwork}
+              mode="edit"
+              onSave={handleArtworkUpdated}
+              onCancel={() => {
+                setShowEditArtworkModal(false)
+                setEditingArtwork(null)
+              }}
+            />
           </div>
         </div>
       )}

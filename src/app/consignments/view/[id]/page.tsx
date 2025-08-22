@@ -657,6 +657,51 @@ export default function ConsignmentViewPage() {
                     {items.map((item) => (
                       <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex justify-between items-start mb-3">
+                          {/* Image section */}
+                          <div className="flex-shrink-0 mr-4">
+                            {(() => {
+                              // Helper function to get proper image URL
+                              const getImageUrl = (imageFile: string | undefined) => {
+                                if (!imageFile) return null
+                                
+                                // If it's already a full URL, return as is
+                                if (imageFile.startsWith('http')) return imageFile
+                                
+                                // If it's a relative path, construct the full URL
+                                const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                                if (imageFile.startsWith('/')) {
+                                  return `${baseUrl}${imageFile}`
+                                }
+                                
+                                // If it's just a filename, assume it's in the storage bucket
+                                return `${baseUrl}/storage/v1/object/public/artwork-images/${imageFile}`
+                              }
+                              
+                              const image1 = getImageUrl(item.image_file_1)
+                              
+                              if (image1) {
+                                return (
+                                  <img
+                                    src={image1}
+                                    alt={item.title}
+                                    className="w-24 h-24 object-cover rounded border"
+                                    onError={(e) => {
+                                      // Fallback for broken images
+                                      const target = e.target as HTMLImageElement
+                                      target.style.display = 'none'
+                                    }}
+                                  />
+                                )
+                              } else {
+                                return (
+                                  <div className="w-24 h-24 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                                    No Image
+                                  </div>
+                                )
+                              }
+                            })()}
+                          </div>
+                          
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
                               <h4 className="font-semibold text-gray-900">{item.title}</h4>

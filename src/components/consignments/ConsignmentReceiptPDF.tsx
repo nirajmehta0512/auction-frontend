@@ -336,7 +336,7 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
         // First try to get brand compliance data
-        const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
+        const complianceResponse = await fetch(`${API_BASE_URL}/api/brands`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
@@ -346,6 +346,10 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
           const complianceData = await complianceResponse.json()
           if (complianceData.success) {
             const compliance = complianceData.data
+            // console.log('compliance', compliance)
+            // console.log('compliance.company_name', compliance.company_name)
+            // console.log('brandDetails.name', compliance.logo_url)
+            // console.log('brandDetails.name', compliance.vat_number)
 
             // Update brand details with compliance data
             setBrandDetails({
@@ -493,13 +497,10 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
               <Text style={styles.referenceLabel}>REFERENCE:</Text>
               <Text style={styles.referenceValue}></Text>
             </View>
-            <View style={styles.referenceItem}>
-              <Text style={styles.referenceLabel}>Client Id</Text>
-              <Text style={styles.referenceValue}>{client.id.toString().padStart(6, '0')}</Text>
-            </View>
+            
             <View style={styles.referenceItem}>
               <Text style={styles.referenceLabel}>COMMISSION</Text>
-              <Text style={styles.referenceValue}>15% of hammer price. Minimum £15 per lot.</Text>
+              <Text style={styles.referenceValue}>{items[0].vendor_commission || '15'}% of hammer price. Minimum £15 per lot.</Text>
             </View>
           </View>
         </View>

@@ -2,69 +2,84 @@
 "use client"
 
 import React, { useState } from 'react'
-import { LogisticsInfo, Invoice } from '../../types/invoice'
+import { LogisticsInfo, Invoice, InvoiceItem } from '../../types/invoice'
+import type { Invoice as ApiInvoice } from '../../types/api'
 import { countries } from '../../data/countries'
 import { calculateShippingInvoiceCost, inchesToCm, ItemDimensions, getBillableWeight, calculateVolumetricWeight } from '../../lib/shipping-calculator'
 import { calculateInsuranceCost, parseDimensions } from '../../lib/invoice-utils'
 
 interface LogisticsFormProps {
-  invoice: Invoice
+  invoice: ApiInvoice & {
+    items: InvoiceItem[]
+  }
   onSubmit: (logisticsInfo: LogisticsInfo) => void
   onCancel: () => void
 }
 
 export default function LogisticsForm({ invoice, onSubmit, onCancel }: LogisticsFormProps) {
-  const [formData, setFormData] = useState<Partial<LogisticsInfo>>({
-    status: 'pending',
-    destination: 'within_uk',
-    country: 'United Kingdom',
-    postal_code: '',
-    description: '',
-    tracking_number: '',
-    artworks: [],
-    shipping_cost: 0,
-    insurance_cost: 0,
-    total_cost: 0
+  const [formData, setFormData] = useState<Partial<LogisticsInfo>>(() => {
+    // Pre-populate with existing logistics data if available
+    const existingLogistics = invoice.logistics as LogisticsInfo | undefined
+    
+    return {
+      status: existingLogistics?.status || 'pending',
+      destination: existingLogistics?.destination || 'within_uk',
+      country: existingLogistics?.country || 'United Kingdom',
+      postal_code: existingLogistics?.postal_code || '',
+      description: existingLogistics?.description || '',
+      tracking_number: existingLogistics?.tracking_number || '',
+      artworks: existingLogistics?.artworks || [],
+      shipping_cost: existingLogistics?.shipping_cost || invoice.shipping_charge || 0,
+      insurance_cost: existingLogistics?.insurance_cost || invoice.insurance_charge || 0,
+      handling_charge: existingLogistics?.handling_charge || invoice.handling_charge || 0,
+      international_surcharge: existingLogistics?.international_surcharge || invoice.international_surcharge || 0,
+      total_cost: existingLogistics?.total_cost || invoice.total_shipping_amount || 0
+    }
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   React.useEffect(() => {
-    // Initialize artworks from invoice items
-    const artworks: LogisticsInfo['artworks'] = invoice.items.map(item => {
-      const dimensions = parseDimensions(item.dimensions)
-      const artwork: LogisticsInfo['artworks'][0] = {
-        id: item.id,
-        title: item.title,
-        lot_num: item.lot_num,
-        height: dimensions?.height || 12,
-        width: dimensions?.width || 8,
-        length: 16, // Default length
-        logistics_height: (dimensions?.height || 12) + 2,
-        logistics_width: (dimensions?.width || 8) + 2,
-        logistics_length: 18, // Default length + 2
-        weight: 1.0, // Default 1kg actual weight
-        actualWeight: 1.0,
-        volumetricWeight: 0,
-        billableWeight: 0
-      }
+    // Initialize artworks from existing logistics data or invoice items
+    const existingLogistics = invoice.logistics as LogisticsInfo | undefined
+    
+    // Only initialize artworks if they're not already set from existing logistics
+    if (!formData.artworks || formData.artworks.length === 0) {
+      const artworks: LogisticsInfo['artworks'] = invoice.items.map((item: InvoiceItem) => {
+        const dimensions = parseDimensions(item.dimensions)
+        const artwork: LogisticsInfo['artworks'][0] = {
+          id: item.id,
+          title: item.title,
+          lot_num: item.lot_num,
+          height: dimensions?.height || 12,
+          width: dimensions?.width || 8,
+          length: 16, // Default length
+          logistics_height: (dimensions?.height || 12) + 2,
+          logistics_width: (dimensions?.width || 8) + 2,
+          logistics_length: 18, // Default length + 2
+          weight: 1.0, // Default 1kg actual weight
+          actualWeight: 1.0,
+          volumetricWeight: 0,
+          billableWeight: 0
+        }
 
-      // Calculate volumetric and billable weights
-      const itemDims: ItemDimensions = {
-        length: inchesToCm(artwork.length + 2), // Add packaging
-        width: inchesToCm(artwork.width + 2),
-        height: inchesToCm(artwork.height + 2),
-        weight: artwork.weight
-      }
-      
-      artwork.volumetricWeight = calculateVolumetricWeight(itemDims)
-      artwork.billableWeight = getBillableWeight(itemDims)
+        // Calculate volumetric and billable weights
+        const itemDims: ItemDimensions = {
+          length: inchesToCm(artwork.length + 2), // Add packaging
+          width: inchesToCm(artwork.width + 2),
+          height: inchesToCm(artwork.height + 2),
+          weight: artwork.weight
+        }
+        
+        artwork.volumetricWeight = calculateVolumetricWeight(itemDims)
+        artwork.billableWeight = getBillableWeight(itemDims)
 
-      return artwork
-    })
+        return artwork
+      })
 
-    setFormData(prev => ({ ...prev, artworks }))
-  }, [invoice.items])
+      setFormData(prev => ({ ...prev, artworks }))
+    }
+  }, [invoice.items, formData.artworks])
 
   React.useEffect(() => {
     // Recalculate costs when destination, country, or artworks change
@@ -82,18 +97,24 @@ export default function LogisticsForm({ invoice, onSubmit, onCancel }: Logistics
         formData.country
       )
 
-      const totalPrice = invoice.items.reduce((sum, item) => sum + item.hammer_price, 0)
+      const totalPrice = invoice.items.reduce((sum: number, item: InvoiceItem) => sum + item.hammer_price, 0)
       const insuranceCost = calculateInsuranceCost(
         totalPrice,
         formData.destination === 'within_uk' ? 'UK' : 'International'
       )
 
-      const totalCost = shippingCost + insuranceCost
+      // Calculate additional charges
+      const handlingCharge = formData.destination === 'international' ? 25 : 15 // Default handling charges
+      const internationalSurcharge = formData.destination === 'international' ? 35 : 0 // International surcharge
+      
+      const totalCost = shippingCost + insuranceCost + handlingCharge + internationalSurcharge
 
       setFormData(prev => ({
         ...prev,
         shipping_cost: shippingCost,
         insurance_cost: insuranceCost,
+        handling_charge: handlingCharge,
+        international_surcharge: internationalSurcharge,
         total_cost: totalCost
       }))
     }
@@ -185,6 +206,8 @@ export default function LogisticsForm({ invoice, onSubmit, onCancel }: Logistics
       artworks: formData.artworks || [],
       shipping_cost: formData.shipping_cost || 0,
       insurance_cost: formData.insurance_cost || 0,
+      handling_charge: formData.handling_charge || 0,
+      international_surcharge: formData.international_surcharge || 0,
       total_cost: formData.total_cost || 0
     }
 
@@ -411,6 +434,16 @@ export default function LogisticsForm({ invoice, onSubmit, onCancel }: Logistics
               <span>Insurance Cost:</span>
               <span>£{formData.insurance_cost?.toFixed(2)}</span>
             </div>
+            <div className="flex justify-between text-gray-900 mb-3">
+              <span>Handling Charge:</span>
+              <span>£{formData.handling_charge?.toFixed(2)}</span>
+            </div>
+            {formData.destination === 'international' && (
+              <div className="flex justify-between text-gray-900 mb-3">
+                <span>International Surcharge:</span>
+                <span>£{formData.international_surcharge?.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-medium border-t border-gray-300 pt-2 text-gray-900">
               <span>Total Cost:</span>
               <span>£{formData.total_cost?.toFixed(2)}</span>

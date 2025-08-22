@@ -19,6 +19,8 @@ interface ItemFormProps {
   itemId?: string
   initialData?: Partial<Artwork>
   mode: 'create' | 'edit'
+  onSave?: (artwork: Artwork) => void
+  onCancel?: () => void
 }
 
 interface FormData {
@@ -204,7 +206,7 @@ const statuses = [
   { value: 'passed', label: 'Passed', color: 'bg-gray-100 text-gray-800' }
 ]
 
-export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
+export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }: ItemFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { brand } = useBrand()
@@ -917,13 +919,20 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         }
       }
 
+      let savedArtwork
       if (mode === 'create') {
-        await ArtworksAPI.createArtwork(artworkData as Omit<Artwork, 'id' | 'created_at' | 'updated_at'>, brand)
+        const result = await ArtworksAPI.createArtwork(artworkData as Omit<Artwork, 'id' | 'created_at' | 'updated_at'>, brand)
+        savedArtwork = result.data
       } else if (itemId) {
-        await ArtworksAPI.updateArtwork(itemId, artworkData, brand)
+        const result = await ArtworksAPI.updateArtwork(itemId, artworkData, brand)
+        savedArtwork = result.data
       }
 
-      router.push('/items')
+      if (onSave && savedArtwork) {
+        onSave(savedArtwork)
+      } else {
+        router.push('/items')
+      }
     } catch (err: any) {
       setError(err.message || `Failed to ${mode} item`)
     } finally {
@@ -970,7 +979,7 @@ export default function ItemForm({ itemId, initialData, mode }: ItemFormProps) {
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            onClick={() => router.push('/items')}
+            onClick={() => onCancel ? onCancel() : router.push('/items')}
             className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900"
           >
             <X className="h-4 w-4 mr-2" />

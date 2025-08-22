@@ -229,6 +229,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: '#555555',
     lineHeight: 1.2,
+    maxLines: 2,
   },
   returnReason: {
     fontSize: 7,
@@ -325,7 +326,7 @@ const CollectionReceiptDocument: React.FC<CollectionReceiptProps> = ({
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         
         // First try to get brand compliance data
-        const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
+        const complianceResponse = await fetch(`${API_BASE_URL}/api/brands`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
@@ -471,8 +472,11 @@ const CollectionReceiptDocument: React.FC<CollectionReceiptProps> = ({
         {/* Reference Information */}
         <View style={styles.referenceSection}>
           <View style={styles.referenceRow}>
-            <Text style={styles.referenceLabel}>Client Id</Text>
-            <Text style={styles.referenceValue}>{client.id.toString().padStart(6, '0')}</Text>
+            <Text style={styles.referenceLabel}>Client ID</Text>
+            <Text style={styles.referenceValue}>{(() => {
+              const prefix = brand_code?.slice(0, 3) || 'MSA';
+              return `${prefix}-${client.id.toString().padStart(3, '0')}`;
+            })()}</Text>
           </View>
           <View style={styles.referenceRow}>
             <Text style={styles.referenceLabel}>Receipt</Text>

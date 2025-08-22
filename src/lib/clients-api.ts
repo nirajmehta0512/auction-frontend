@@ -52,6 +52,18 @@ export interface Client {
   paddle_no?: string;
   identity_cert?: string;
   platform?: 'Liveauctioneer' | 'The saleroom' | 'Invaluable' | 'Easylive auctions' | 'Private' | 'Others';
+  // Bidder Analytics fields
+  card_on_file?: boolean;
+  auctions_attended?: number;
+  bids_placed?: number;
+  items_won?: number;
+  tax_exemption?: boolean;
+  payment_rate?: number;
+  avg_hammer_price_low?: number;
+  avg_hammer_price_high?: number;
+  disputes_open?: number;
+  disputes_closed?: number;
+  bidder_notes?: string;
   created_at?: string;
   updated_at?: string;
 }

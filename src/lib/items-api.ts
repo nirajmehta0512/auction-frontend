@@ -24,6 +24,7 @@ export interface Artwork {
   weight?: string;
   materials?: string;
   artist_id?: number;                 // Reference to artist in database
+  artist_maker?: string;              // Artist name/maker
   school_id?: string;
   period_age?: string;
   provenance?: string;

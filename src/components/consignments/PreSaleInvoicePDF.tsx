@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   
-  // Header styles
+  // Header stylesx
   header: {
     flexDirection: 'row',
     marginBottom: 25,
@@ -241,6 +241,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: '#555555',
     lineHeight: 1.2,
+    maxLines: 2,
   },
   
   // Summary section
@@ -329,17 +330,22 @@ const PreSaleInvoiceDocument: React.FC<PreSaleInvoiceProps> = ({
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         
         // First try to get brand compliance data
-        const complianceResponse = await fetch(`${API_BASE_URL}/api/settings/compliance`, {
+        const complianceResponse = await fetch(`${API_BASE_URL}/api/brands`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         })
-        
+
+        console.log('complianceResponse', complianceResponse)
+
         if (complianceResponse.ok) {
           const complianceData = await complianceResponse.json()
+          console.log('complianceData', complianceData)
           if (complianceData.success) {
             const compliance = complianceData.data
-            
+            console.log('compliance', compliance)
+            console.log('compliance.company_name', compliance.company_name)
+            console.log('brandDetails.name', compliance.logo_url)
             // Update brand details with compliance data
             setBrandDetails({
               code: brand_code,
@@ -462,6 +468,12 @@ const PreSaleInvoiceDocument: React.FC<PreSaleInvoiceProps> = ({
           <Text style={styles.clientName}>
             {client.first_name} {client.last_name}
           </Text>
+          <View style={styles.clientDetails}>
+            <Text style={styles.clientDetailItem}>Client ID: {(() => {
+              const prefix = brand_code?.slice(0, 3) || 'MSA';
+              return `${prefix}-${client.id.toString().padStart(3, '0')}`;
+            })()}</Text>
+          </View>
           {client.company_name && (
             <Text style={[styles.clientName, { fontSize: 10, fontWeight: 400 }]}>
               {client.company_name}

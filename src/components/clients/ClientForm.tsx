@@ -15,7 +15,7 @@ interface ClientFormProps {
   mode: 'create' | 'edit'
   clientId?: number
   initialData?: Partial<Client>
-  onSuccess?: () => void
+  onSuccess?: (client?: Client) => void
 }
 
 // Simple validation function for client data
@@ -78,7 +78,19 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     paddle_no: '',
     identity_cert: 'Uncertified',
     platform: 'Private',
-    brand_id: '' as any
+    brand_id: '' as any,
+    // Bidder Analytics fields
+    card_on_file: false,
+    auctions_attended: 0,
+    bids_placed: 0,
+    items_won: 0,
+    tax_exemption: false,
+    payment_rate: 0,
+    avg_hammer_price_low: 0,
+    avg_hammer_price_high: 0,
+    disputes_open: 0,
+    disputes_closed: 0,
+    bidder_notes: ''
   })
   const [brands, setBrands] = useState<Brand[]>([])
   useEffect(() => {
@@ -235,7 +247,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     }
   }
 
-  const handleInputChange = (field: keyof Client, value: string | boolean) => {
+  const handleInputChange = (field: keyof Client, value: string | boolean | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -279,6 +291,8 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
       }
 
       // Step 2: Save the client
+      let createdClient: Client | undefined = undefined
+      
       if (mode === 'create') {
         const payload = { ...formData }
         // Convert empty strings to undefined for optional fields
@@ -305,6 +319,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
 
         const response = await createClient(payload as Omit<Client, 'id' | 'created_at' | 'updated_at'>)
         if (!response.success) throw new Error('Failed to create client')
+        createdClient = response.data
       } else if (mode === 'edit' && clientId) {
         const payload = { ...formData }
         // Convert empty strings to undefined for optional fields
@@ -338,7 +353,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
 
       setSuccess(true)
       setTimeout(() => {
-        if (onSuccess) onSuccess()
+        if (onSuccess) onSuccess(createdClient)
       }, 800)
     } catch (err: any) {
       setError(err?.message || 'Failed to submit client')
@@ -563,6 +578,80 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
               </div>
             </div>
           </div>
+
+          {/* Bidder Analytics */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Bidder Analytics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Card on File</label>
+                <select value={formData.card_on_file ? 'true' : 'false'} onChange={(e) => handleInputChange('card_on_file', e.target.value === 'true')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tax Exemption</label>
+                <select value={formData.tax_exemption ? 'true' : 'false'} onChange={(e) => handleInputChange('tax_exemption', e.target.value === 'true')} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Auctions Attended</label>
+                <input type="number" min="0" value={formData.auctions_attended || 0} onChange={(e) => handleInputChange('auctions_attended', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bids Placed</label>
+                <input type="number" min="0" value={formData.bids_placed || 0} onChange={(e) => handleInputChange('bids_placed', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Items Won</label>
+                <input type="number" min="0" value={formData.items_won || 0} onChange={(e) => handleInputChange('items_won', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Rate (%)</label>
+                <input type="number" min="0" max="100" step="0.01" value={formData.payment_rate || 0} onChange={(e) => handleInputChange('payment_rate', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Avg Hammer Price Low (£)</label>
+                <input type="number" min="0" step="0.01" value={formData.avg_hammer_price_low || 0} onChange={(e) => handleInputChange('avg_hammer_price_low', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Avg Hammer Price High (£)</label>
+                <input type="number" min="0" step="0.01" value={formData.avg_hammer_price_high || 0} onChange={(e) => handleInputChange('avg_hammer_price_high', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Disputes Open</label>
+                <input type="number" min="0" value={formData.disputes_open || 0} onChange={(e) => handleInputChange('disputes_open', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Disputes Closed</label>
+                <input type="number" min="0" value={formData.disputes_closed || 0} onChange={(e) => handleInputChange('disputes_closed', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bidder Notes</label>
+              <textarea 
+                value={formData.bidder_notes || ''} 
+                onChange={(e) => handleInputChange('bidder_notes', e.target.value)} 
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" 
+                placeholder="Enter any additional notes about the client's bidding behavior, preferences, or history..."
+              />
+            </div>
+          </div>
+
           {/* Addresses */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Addresses</h2>

@@ -76,11 +76,18 @@ export default function InvoicesPage() {
     if (!selectedInvoice) return
 
     try {
+      // Calculate new total amount including logistics costs
+      const baseAmount = (selectedInvoice.hammer_price || 0) + (selectedInvoice.buyers_premium || 0) + (selectedInvoice.vat_amount || 0)
+      const newTotalAmount = baseAmount + (logisticsInfo.total_cost || 0)
+
       const updatedInvoice = await InvoicesAPI.updateInvoice(selectedInvoice.id!, {
         logistics: logisticsInfo,
         shipping_charge: logisticsInfo.shipping_cost,
         insurance_charge: logisticsInfo.insurance_cost,
+        handling_charge: logisticsInfo.handling_charge || 0,
+        international_surcharge: logisticsInfo.international_surcharge || 0,
         total_shipping_amount: logisticsInfo.total_cost,
+        total_amount: newTotalAmount,
       })
       
       setInvoices(prev => prev.map(inv => 
@@ -249,6 +256,9 @@ export default function InvoicesPage() {
                       Auction
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Client
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -273,6 +283,12 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {invoice.auction_id ? `Auction #${invoice.auction_id}` : 'N/A'}
+                        </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {invoice.client ? 
+                          `${invoice.client.first_name} ${invoice.client.last_name}` : 
+                          invoice.client_id ? `Client #${invoice.client_id}` : 'N/A'
+                        }
                         </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(invoice.invoice_date)}

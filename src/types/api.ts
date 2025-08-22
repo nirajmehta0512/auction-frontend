@@ -213,6 +213,7 @@ export interface InvoiceFormData {
   handling_charge?: number;
   insurance_charge?: number;
   total_shipping_amount?: number;
+  total_amount?: number;
 }
 
 // Item Types

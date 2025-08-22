@@ -79,7 +79,8 @@ const filterItemsByType = (items: ItemData[], type: 'consignment' | 'collection'
       return items
     case 'collection':
       // Only returned items
-      return items.filter(item => item.status === 'returned')
+      return items
+      // return items.filter(item => item.status === 'returned')
     case 'presale':
       // Items going to auction (not sold, not returned, not withdrawn)
       return items.filter(item => !['sold', 'returned', 'withdrawn'].includes(item.status))
