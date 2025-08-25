@@ -32,6 +32,9 @@ export const EVRI_INTERNATIONAL_RATES = {
   'Australia': 16.16,
   'New Zealand': 17.77,
   'Japan': 15.05,
+
+  // Asia
+  'India' : 11.36,
 } as const;
 
 // Default international rate for countries not specifically listed

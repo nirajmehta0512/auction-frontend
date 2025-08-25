@@ -39,6 +39,10 @@ export interface Client {
   billing_post_code?: string;
   billing_country?: string;
   billing_region?: string;
+  bank_account_details?: string;
+  bank_address?: string;
+  buyer_premium?: number;
+  vendor_premium?: number;
   shipping_same_as_billing?: boolean;
   shipping_address1?: string;
   shipping_address2?: string;

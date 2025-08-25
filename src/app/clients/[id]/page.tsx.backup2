@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  fetchClient, 
-  fetchClientOverview, 
-  type Client, 
-  formatClientDisplay, 
-  getClientTypeDisplay, 
-  getClientTypeColor 
+import {
+  fetchClient,
+  fetchClientOverview,
+  type Client,
+  formatClientDisplay,
+  getClientTypeDisplay,
+  getClientTypeColor
 } from '@/lib/clients-api'
 import {
   User,
@@ -119,12 +119,12 @@ export default function ClientViewPage() {
         ])
         setClient(clientResp.data)
         setOverview(overviewResp.data)
-        
+
         // Calculate stats from overview data
         const purchases = overviewResp.data.purchases || []
         const consignments = overviewResp.data.consignments || []
         const invoices = overviewResp.data.invoices || []
-        
+
         const calculatedStats: ClientStats = {
           totalPurchases: purchases.length,
           totalSpent: purchases.reduce((sum: number, p: any) => {
@@ -151,16 +151,16 @@ export default function ClientViewPage() {
           })(),
           lastActivity: getLastActivity([...purchases, ...consignments, ...invoices])
         }
-        
+
         setStats(calculatedStats)
 
         // Set bidder analytics
         const clientData = clientResp.data
         setBidderAnalytics({
-          memberSince: clientData.created_at ? new Date(clientData.created_at).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
+          memberSince: clientData.created_at ? new Date(clientData.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
           }) : 'Unknown',
           cardOnFile: clientData.card_on_file || false,
           auctionsAttended: clientData.auctions_attended || 0,
@@ -189,50 +189,44 @@ export default function ClientViewPage() {
     return new Date(sorted[0].created_at || sorted[0].updated_at).toLocaleDateString()
   }
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading client information...</p>
-      </div>
-    </div>
-  )
-  
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-red-500 mb-4">
-          <FileText className="h-16 w-16 mx-auto" />
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading client information...</p>
         </div>
-        <p className="text-red-600 text-lg">{error}</p>
-        <button 
-          onClick={() => router.back()} 
-          className="mt-4 px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
-        >
-          Go Back
-        </button>
       </div>
-    </div>
-  )
-  
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <FileText className="h-16 w-16 mx-auto" />
+          </div>
+          <p className="text-red-600 text-lg">{error}</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!client) return null
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-6 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="bg-white bg-opacity-20 rounded-full p-3">
-              <User className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                {client.first_name} {client.last_name}
-              </h1>
-              <div className="flex items-center space-x-4 mt-1">
-                <span className="text-slate-200 text-sm">{formatClientDisplay(client)}</span>
-                {client.company_name && (
+      <div>Test</div>
+    </div>
+  )
+}
                   <>
                     <span className="text-slate-400">•</span>
                     <span className="text-slate-200 text-sm">{client.company_name}</span>
@@ -333,23 +327,25 @@ export default function ClientViewPage() {
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Client Details */}
-            <div className="lg:col-span-1 space-y-8">
+            <div className="lg:col-span-1 space-y-6">
               {/* Contact Information */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <User className="h-5 w-5 mr-2 text-gray-600" />
-                  Contact Information
-                </h3>
-                <div className="space-y-4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <User className="h-5 w-5 mr-2 text-blue-600" />
+                    Contact Information
+                  </h3>
+                </div>
+                <div className="p-6 space-y-4">
                   <div className="flex items-center">
-                    <Mail className="h-4 w-4 text-gray-400 mr-3" />
+                    <Mail className="h-4 w-4 text-blue-500 mr-3" />
                     <div>
                       <p className="text-sm text-gray-600">Email</p>
                       <p className="font-medium text-gray-900">{client.email || 'Not provided'}</p>
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <Phone className="h-4 w-4 text-gray-400 mr-3" />
+                    <Phone className="h-4 w-4 text-blue-500 mr-3" />
                     <div>
                       <p className="text-sm text-gray-600">Phone</p>
                       <p className="font-medium text-gray-900">{client.phone_number || 'Not provided'}</p>
@@ -357,7 +353,7 @@ export default function ClientViewPage() {
                   </div>
                   {client.secondary_email && (
                     <div className="flex items-center">
-                      <Mail className="h-4 w-4 text-gray-400 mr-3" />
+                      <Mail className="h-4 w-4 text-blue-500 mr-3" />
                       <div>
                         <p className="text-sm text-gray-600">Secondary Email</p>
                         <p className="font-medium text-gray-900">{client.secondary_email}</p>
@@ -366,7 +362,7 @@ export default function ClientViewPage() {
                   )}
                   {client.secondary_phone_number && (
                     <div className="flex items-center">
-                      <Phone className="h-4 w-4 text-gray-400 mr-3" />
+                      <Phone className="h-4 w-4 text-blue-500 mr-3" />
                       <div>
                         <p className="text-sm text-gray-600">Secondary Phone</p>
                         <p className="font-medium text-gray-900">{client.secondary_phone_number}</p>
@@ -376,59 +372,110 @@ export default function ClientViewPage() {
                 </div>
               </div>
 
-              {/* Client Configuration */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Tag className="h-5 w-5 mr-2 text-gray-600" />
-                  Client Configuration
-                </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+              {/* Client Type & Premium Settings */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Tag className="h-5 w-5 mr-2 text-purple-600" />
+                    Client Configuration
+                  </h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Client Type</p>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getClientTypeColor(client)}`}>
+                      <p className="text-sm text-gray-600 mb-1">Client Type</p>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getClientTypeColor(client)}`}>
                         {getClientTypeDisplay(client)}
                       </span>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</p>
-                      <p className="text-sm text-gray-700 mt-1">{client.platform || 'Not specified'}</p>
+                      <p className="text-sm text-gray-600 mb-1">Platform</p>
+                      <p className="font-medium text-gray-900">{client.platform || 'Not specified'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                      <div>
+                        <p className="text-sm text-gray-600">Buyer's Premium</p>
+                        <div className="flex items-center mt-1">
+                          {client.buyer_premium !== undefined && client.buyer_premium !== null ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-sm font-medium">
+                              {client.buyer_premium}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-sm">Not set</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Vendor's Premium</p>
+                        <div className="flex items-center mt-1">
+                          {client.vendor_premium !== undefined && client.vendor_premium !== null ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-sm font-medium">
+                              {client.vendor_premium}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-sm">Not set</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Buyer's Premium</p>
-                      {client.buyer_premium !== undefined && client.buyer_premium !== null ? (
-                        <p className="text-sm text-gray-700 mt-1">{client.buyer_premium}%</p>
-                      ) : (
-                        <p className="text-gray-400 italic text-sm mt-1">Not set</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Vendor's Premium</p>
-                      {client.vendor_premium !== undefined && client.vendor_premium !== null ? (
-                        <p className="text-sm text-gray-700 mt-1">{client.vendor_premium}%</p>
-                      ) : (
-                        <p className="text-gray-400 italic text-sm mt-1">Not set</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">VAT Number</p>
-                      <p className="text-sm text-gray-700 mt-1">{client.vat_number || 'Not applicable'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Paddle Number</p>
-                      <p className="text-sm text-gray-700 mt-1">{client.paddle_no || 'Not assigned'}</p>
-                    </div>
-                  </div>
-
+              {/* Bank Information */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Building2 className="h-5 w-5 mr-2 text-emerald-600" />
+                    Bank Information
+                  </h3>
+                </div>
+                <div className="p-6 space-y-4">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</p>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${
+                    <p className="text-sm font-medium text-gray-700 mb-2">Account Details</p>
+                    {client.bank_account_details ? (
+                      <div className="bg-gray-50 p-3 rounded-md">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{client.bank_account_details}</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 italic text-sm">No bank account details provided</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Bank Address</p>
+                    {client.bank_address ? (
+                      <div className="bg-gray-50 p-3 rounded-md">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{client.bank_address}</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 italic text-sm">No bank address provided</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-amber-600" />
+                    Additional Details
+                  </h3>
+                </div>
+                <div className="p-6 space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">VAT Number</p>
+                      <p className="font-medium text-gray-900">{client.vat_number || 'Not applicable'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Paddle Number</p>
+                      <p className="font-medium text-gray-900">{client.paddle_no || 'Not assigned'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Status</p>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       client.status === 'active' ? 'bg-green-100 text-green-800' :
                       client.status === 'suspended' ? 'bg-red-100 text-red-800' :
                       client.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -437,11 +484,10 @@ export default function ClientViewPage() {
                       {client.status || 'active'}
                     </span>
                   </div>
-
                   {client.tags && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tags</p>
-                      <p className="text-sm text-gray-700 mt-1">{client.tags}</p>
+                      <p className="text-sm text-gray-600">Tags</p>
+                      <p className="font-medium text-gray-900">{client.tags}</p>
                     </div>
                   )}
                 </div>
@@ -449,20 +495,37 @@ export default function ClientViewPage() {
 
               {/* Bidder Analytics */}
               {bidderAnalytics && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Activity className="h-5 w-5 mr-2 text-gray-600" />
-                    Bidder Analytics
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Member Since</p>
-                      <p className="font-medium text-gray-900">{bidderAnalytics.memberSince}</p>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <Activity className="h-5 w-5 mr-2 text-indigo-600" />
+                      Bidder Analytics
+                    </h3>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Member Since</p>
+                        <p className="font-medium text-gray-900">{bidderAnalytics.memberSince}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Payment Rate</p>
+                        <div className="flex items-center mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
+                            <div
+                              className="bg-green-500 h-2 rounded-full"
+                              style={{ width: `${Math.min(bidderAnalytics.paymentRate, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="font-medium text-gray-900 text-sm">{bidderAnalytics.paymentRate}%</span>
+                        </div>
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Card on File</p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mt-1 ${
                           bidderAnalytics.cardOnFile ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
                           {bidderAnalytics.cardOnFile ? 'Yes' : 'No'}
@@ -470,107 +533,71 @@ export default function ClientViewPage() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Tax Exemption</p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mt-1 ${
                           bidderAnalytics.taxExemption ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {bidderAnalytics.taxExemption ? 'Yes' : 'No'}
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <p className="text-sm text-gray-600">Auctions Attended</p>
-                        <p className="font-medium text-gray-900">{bidderAnalytics.auctionsAttended}</p>
+
+                    <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <p className="text-2xl font-bold text-blue-600">{bidderAnalytics.auctionsAttended}</p>
+                        <p className="text-xs text-gray-600">Auctions Attended</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Bids Placed</p>
-                        <p className="font-medium text-gray-900">{bidderAnalytics.bidsPlaced}</p>
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-2xl font-bold text-green-600">{bidderAnalytics.bidsPlaced}</p>
+                        <p className="text-xs text-gray-600">Bids Placed</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Items Won</p>
-                        <p className="font-medium text-gray-900">{bidderAnalytics.itemsWon}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Payment Rate</p>
-                      <div className="flex items-center">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full" 
-                            style={{ width: `${Math.min(bidderAnalytics.paymentRate, 100)}%` }}
-                          ></div>
-                        </div>
-                        <span className="font-medium text-gray-900">{bidderAnalytics.paymentRate}%</span>
+                      <div className="text-center p-3 bg-purple-50 rounded-lg">
+                        <p className="text-2xl font-bold text-purple-600">{bidderAnalytics.itemsWon}</p>
+                        <p className="text-xs text-gray-600">Items Won</p>
                       </div>
                     </div>
+
                     {(bidderAnalytics.avgHammerPriceLow > 0 || bidderAnalytics.avgHammerPriceHigh > 0) && (
-                      <div>
-                        <p className="text-sm text-gray-600">Avg Hammer Price Range</p>
-                        <p className="font-medium text-gray-900">
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-sm text-gray-600 mb-2">Avg Hammer Price Range</p>
+                        <p className="font-medium text-gray-900 text-lg">
                           £{bidderAnalytics.avgHammerPriceLow.toLocaleString()} - £{bidderAnalytics.avgHammerPriceHigh.toLocaleString()}
                         </p>
                       </div>
                     )}
-                    <div>
-                      <p className="text-sm text-gray-600">Dispute History</p>
-                      <p className="font-medium text-gray-900">
-                        {bidderAnalytics.disputesOpen} open, {bidderAnalytics.disputesClosed} closed
-                      </p>
-                    </div>
-                    {bidderAnalytics.bidderNotes && (
+
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                       <div>
-                        <p className="text-sm text-gray-600">Bidder Notes</p>
-                        <p className="font-medium text-gray-900 text-sm bg-gray-50 p-2 rounded">{bidderAnalytics.bidderNotes}</p>
+                        <p className="text-sm text-gray-600">Dispute History</p>
+                        <p className="font-medium text-gray-900">
+                          <span className="text-red-600">{bidderAnalytics.disputesOpen} open</span>, {bidderAnalytics.disputesClosed} closed
+                        </p>
+                      </div>
+                    </div>
+
+                    {bidderAnalytics.bidderNotes && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-sm text-gray-600 mb-2">Bidder Notes</p>
+                        <div className="bg-amber-50 p-3 rounded-md">
+                          <p className="text-sm text-gray-700 italic">"{bidderAnalytics.bidderNotes}"</p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Bank Information */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Building2 className="h-5 w-5 mr-2 text-gray-600" />
-                  Bank Information
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account Details</p>
-                    <div className="mt-1">
-                      {client.bank_account_details ? (
-                        <div className="bg-gray-50 p-3 rounded-md">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{client.bank_account_details}</p>
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 italic text-sm">No bank account details provided</p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Bank Address</p>
-                    <div className="mt-1">
-                      {client.bank_address ? (
-                        <div className="bg-gray-50 p-3 rounded-md">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{client.bank_address}</p>
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 italic text-sm">No bank address provided</p>
-                      )}
-                    </div>
-                  </div>
+              {/* Addresses */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-rose-50 to-pink-50 px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <MapPin className="h-5 w-5 mr-2 text-rose-600" />
+                    Addresses
+                  </h3>
                 </div>
-              </div>
-
-              {/* Location Information */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-gray-600" />
-                  Addresses
-                </h3>
-                <div className="space-y-6">
+                <div className="p-6 space-y-6">
                   <div>
                     <h4 className="font-medium text-gray-800 mb-3 flex items-center">
-                      <Building2 className="h-4 w-4 mr-2 text-gray-500" />
+                      <Building2 className="h-4 w-4 mr-2 text-rose-500" />
                       Billing Address
                     </h4>
                     <div className="bg-gray-50 p-4 rounded-lg">
@@ -591,16 +618,16 @@ export default function ClientViewPage() {
 
                   <div>
                     <h4 className="font-medium text-gray-800 mb-3 flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-gray-500" />
+                      <MapPin className="h-4 w-4 mr-2 text-rose-500" />
                       Shipping Address
                     </h4>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="text-sm text-gray-700 space-y-1">
                         {client.shipping_same_as_billing ? (
-                          <div className="flex items-center">
+                          <p className="text-gray-500 italic flex items-center">
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            <p className="text-gray-600 italic">Same as billing address</p>
-                          </div>
+                            Same as billing address
+                          </p>
                         ) : (
                           <>
                             {client.shipping_address1 && <p className="font-medium">{client.shipping_address1}</p>}
@@ -623,28 +650,31 @@ export default function ClientViewPage() {
             </div>
 
             {/* Right Column - Activity & Relationships */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-6">
               {/* Activity Overview */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Purchases */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <DollarSign className="h-5 w-5 mr-2 text-green-600" />
-                      Recent Purchases
-                    </h3>
-                    <Link
-                      href={`/items?buyer_id=${clientId}`}
-                      className="text-sm text-teal-600 hover:text-teal-700 flex items-center transition-colors"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View All
-                    </Link>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <DollarSign className="h-5 w-5 mr-2 text-green-600" />
+                        Recent Purchases
+                      </h3>
+                      <Link
+                        href={`/items?buyer_id=${clientId}`}
+                        className="text-sm text-teal-600 hover:text-teal-700 flex items-center transition-colors"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View All
+                      </Link>
+                    </div>
                   </div>
+                  <div className="p-6">
                   {overview?.purchases?.length ? (
                     <div className="space-y-3">
                       {overview.purchases.slice(0, 5).map((purchase: any) => (
-                        <div key={purchase.id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div key={purchase.id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
                           <div className="flex-1">
                             <p className="font-medium text-gray-900 text-sm">{purchase.title || `Lot #${purchase.lot_num || purchase.id}`}</p>
                             <p className="text-xs text-gray-500">{purchase.created_at ? new Date(purchase.created_at).toLocaleDateString() : ''}</p>
@@ -667,27 +697,32 @@ export default function ClientViewPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
 
-                {/* Consignments */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <Package className="h-5 w-5 mr-2 text-blue-600" />
-                      Consignments
-                    </h3>
-                    <Link
-                      href={`/consignments?client_id=${clientId}`}
-                      className="text-sm text-teal-600 hover:text-teal-700 flex items-center transition-colors"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View All
-                    </Link>
-                  </div>
+            {/* Consignments */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Package className="h-5 w-5 mr-2 text-blue-600" />
+                    Consignments
+                  </h3>
+                  <Link
+                    href={`/consignments?client_id=${clientId}`}
+                    className="text-sm text-teal-600 hover:text-teal-700 flex items-center transition-colors"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View All
+                  </Link>
+                </div>
+              </div>
+              <div className="p-6">
                   {overview?.consignments?.length ? (
                     <div className="space-y-3">
                       {overview.consignments.slice(0, 5).map((consignment: any) => (
-                        <Link
-                          key={consignment.id}
+                        <Link 
+                          key={consignment.id} 
                           href={`/consignments/view/${consignment.id}`}
                           className="block"
                         >
@@ -722,22 +757,25 @@ export default function ClientViewPage() {
               </div>
 
               {/* Invoices */}
-              <div className="grid grid-cols-1 gap-8">
+              <div className="grid grid-cols-1 gap-6">
                 {/* Invoices */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-purple-600" />
-                      Invoices
-                    </h3>
-                    <Link 
-                      href={`/invoices?client_id=${clientId}`} 
-                      className="text-sm text-teal-600 hover:text-teal-700 flex items-center"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View All
-                    </Link>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-50 to-violet-50 px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-purple-600" />
+                        Invoices
+                      </h3>
+                      <Link
+                        href={`/invoices?client_id=${clientId}`}
+                        className="text-sm text-teal-600 hover:text-teal-700 flex items-center transition-colors"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View All
+                      </Link>
+                    </div>
                   </div>
+                  <div className="p-6">
                   {overview?.invoices?.length ? (
                     <div className="space-y-3">
                       {overview.invoices.slice(0, 5).map((invoice: any) => (

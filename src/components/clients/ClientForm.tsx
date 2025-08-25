@@ -65,6 +65,10 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     billing_post_code: '',
     billing_country: '',
     billing_region: '',
+    bank_account_details: '',
+    bank_address: '',
+    buyer_premium: 0,
+    vendor_premium: 0,
     shipping_same_as_billing: true,
     shipping_address1: '',
     shipping_address2: '',
@@ -556,7 +560,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Default VAT Scheme</label>
                 <select value={formData.default_vat_scheme || 'Margin scheme'} onChange={(e) => handleInputChange('default_vat_scheme', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent">
@@ -575,6 +579,78 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                 <input type="text" value={formData.role || ''} onChange={(e) => handleInputChange('role', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" placeholder='Assistant, Director, etc.' />
+              </div>
+            </div>
+
+            {/* Premium Settings within Client Type section */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-md font-medium text-gray-800 mb-4">Premium Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Buyer's Premium (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.buyer_premium || 0}
+                    onChange={(e) => handleInputChange('buyer_premium', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Percentage charged to buyers on top of hammer price
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vendor's Premium (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.vendor_premium || 0}
+                    onChange={(e) => handleInputChange('vendor_premium', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Percentage deducted from hammer price for vendors
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bank Information */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Bank Information</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account Details</label>
+                <textarea
+                  value={formData.bank_account_details || ''}
+                  onChange={(e) => handleInputChange('bank_account_details', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  placeholder="Enter bank account details (account number, sort code, IBAN, etc.)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Address</label>
+                <textarea
+                  value={formData.bank_address || ''}
+                  onChange={(e) => handleInputChange('bank_address', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  placeholder="Enter the bank's full address"
+                />
               </div>
             </div>
           </div>
@@ -674,8 +750,12 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
                     <input type="text" placeholder="Country" value={formData.billing_country || ''} onChange={(e) => handleInputChange('billing_country', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                     <input type="text" placeholder="Region/State" value={formData.billing_region || ''} onChange={(e) => handleInputChange('billing_region', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+
+
                 </div>
               </div>
+
+
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-gray-700">Shipping address</h3>

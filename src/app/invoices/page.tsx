@@ -2,471 +2,323 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Plus, MoreVertical, Download, Edit, Trash2, FileText, Eye, Package } from 'lucide-react'
-import { InvoicesAPI } from '@/lib/invoices-api'
-import { getAuctions } from '@/lib/auctions-api'
-import InvoiceTemplate from '@/components/invoices/InvoiceTemplate'
-import InvoicePDF from '@/components/invoices/InvoicePDF'
-import LogisticsForm from '@/components/invoices/LogisticsForm'
-import type { Invoice } from '@/types/api'
-import type { Auction } from '@/lib/auctions-api'
+import { FileText, Import, Plus, Download } from 'lucide-react'
+import { getAuctions, getAuctionInvoices, exportEOACsv, type Auction, type Invoice } from '@/lib/auctions-api'
+import SearchableSelect from '@/components/ui/SearchableSelect'
+import { useBrand } from '@/lib/brand-context'
+import EOAImportDialog from '@/components/auctions/EOAImportDialog'
+import InvoiceTable from '@/components/invoices/InvoiceTable'
+
+interface InvoicesPageState {
+  auctions: Auction[]
+  selectedAuctionId: number | null
+  selectedAuction: Auction | null
+  invoices: Invoice[]
+  loading: boolean
+  auctionsLoading: boolean
+  page: number
+  totalPages: number
+  showEOADialog: boolean
+}
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [auctions, setAuctions] = useState<Auction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [showLogisticsModal, setShowLogisticsModal] = useState(false)
-  const [showInvoicePreview, setShowInvoicePreview] = useState(false)
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null)
-  const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
-  const [includeShipping, setIncludeShipping] = useState(false)
+  const { brand } = useBrand()
+  const [state, setState] = useState<InvoicesPageState>({
+    auctions: [],
+    selectedAuctionId: null,
+    selectedAuction: null,
+    invoices: [],
+    loading: false,
+    auctionsLoading: true,
+    page: 1,
+    totalPages: 1,
+    showEOADialog: false
+  })
 
+  // Separate state for buyer and vendor invoices
+  const [buyerInvoices, setBuyerInvoices] = useState<Invoice[]>([])
+  const [vendorInvoices, setVendorInvoices] = useState<Invoice[]>([])
+  const [buyerLoading, setBuyerLoading] = useState(false)
+  const [vendorLoading, setVendorLoading] = useState(false)
+
+  // Load auctions on component mount
   useEffect(() => {
-    loadInvoices()
     loadAuctions()
-  }, [])
+  }, [brand])
 
-  const loadInvoices = async () => {
-    try {
-      setLoading(true)
-      const response = await InvoicesAPI.getInvoices()
-      setInvoices(response.data || [])
-    } catch (error) {
-      console.error('Error loading invoices:', error)
-    } finally {
-      setLoading(false)
+  // Load invoices when auction is selected
+  useEffect(() => {
+    if (state.selectedAuctionId) {
+      loadBuyerInvoices(state.selectedAuctionId, 1)
+      loadVendorInvoices(state.selectedAuctionId, 1)
+    } else {
+      setBuyerInvoices([])
+      setVendorInvoices([])
     }
-  }
+  }, [state.selectedAuctionId, brand])
 
   const loadAuctions = async () => {
     try {
-      const auctionsData = await getAuctions()
-      setAuctions(auctionsData.auctions || [])
-    } catch (error) {
-      console.error('Error loading auctions:', error)
-    }
-  }
-
-  const handleGenerateInvoice = async () => {
-    if (!selectedAuction) return
-
-    try {
-      const newInvoice = await InvoicesAPI.generateFromAuction({
-        auction_id: selectedAuction.id,
+      setState(prev => ({ ...prev, auctionsLoading: true }))
+      const response = await getAuctions({
+        page: 1,
+        limit: 100,
+        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code
       })
-      setInvoices(prev => [newInvoice, ...prev])
-      setShowGenerateModal(false)
-      setSelectedAuction(null)
-      alert('Invoice generated successfully!')
+      setState(prev => ({
+        ...prev,
+        auctions: response.auctions || [],
+        auctionsLoading: false
+      }))
     } catch (error) {
-      console.error('Error generating invoice:', error)
-      alert('Failed to generate invoice. Please try again.')
+      console.error('Failed to load auctions:', error)
+      setState(prev => ({ ...prev, auctionsLoading: false }))
     }
   }
 
-  const handleEditLogistics = (invoice: Invoice) => {
-    setSelectedInvoice(invoice)
-    setShowLogisticsModal(true)
-    setActionMenuOpen(null)
-  }
-
-  const handleLogisticsSubmit = async (logisticsInfo: any) => {
-    if (!selectedInvoice) return
-
+  const loadBuyerInvoices = async (auctionId: number, page: number = 1) => {
     try {
-      // Calculate new total amount including logistics costs
-      const baseAmount = (selectedInvoice.hammer_price || 0) + (selectedInvoice.buyers_premium || 0) + (selectedInvoice.vat_amount || 0)
-      const newTotalAmount = baseAmount + (logisticsInfo.total_cost || 0)
-
-      const updatedInvoice = await InvoicesAPI.updateInvoice(selectedInvoice.id!, {
-        logistics: logisticsInfo,
-        shipping_charge: logisticsInfo.shipping_cost,
-        insurance_charge: logisticsInfo.insurance_cost,
-        handling_charge: logisticsInfo.handling_charge || 0,
-        international_surcharge: logisticsInfo.international_surcharge || 0,
-        total_shipping_amount: logisticsInfo.total_cost,
-        total_amount: newTotalAmount,
+      setBuyerLoading(true)
+      const response = await getAuctionInvoices(auctionId.toString(), {
+        page,
+        limit: 50,
+        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code,
+        type: 'buyer'
       })
-      
-      setInvoices(prev => prev.map(inv => 
-        inv.id === selectedInvoice.id ? updatedInvoice : inv
-      ))
-      setShowLogisticsModal(false)
-      setSelectedInvoice(null)
-      alert('Logistics information updated successfully!')
+
+      setBuyerInvoices(response.data.invoices || [])
+      setBuyerLoading(false)
     } catch (error) {
-      console.error('Error updating logistics:', error)
-      alert('Failed to update logistics. Please try again.')
+      console.error('Failed to load buyer invoices:', error)
+      setBuyerInvoices([])
+      setBuyerLoading(false)
     }
   }
 
-  const handleViewInvoice = async (invoice: Invoice, withShipping = false) => {
-    // Load invoice with items from backend (which computes items using auction.artwork_ids)
+  const loadVendorInvoices = async (auctionId: number, page: number = 1) => {
     try {
-      const token = localStorage.getItem('token')
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const resp = await fetch(`${base}/api/invoices/${invoice.id}`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      setVendorLoading(true)
+      const response = await getAuctionInvoices(auctionId.toString(), {
+        page,
+        limit: 50,
+        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code,
+        type: 'vendor'
       })
-      const full = await resp.json()
-      const formattedInvoice = {
-        ...invoice,
-        ...full,
-        items: full.items || [],
-        due_date: invoice.invoice_date ? new Date(Date.parse(invoice.invoice_date) + 30 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString(),
-        subtotal: invoice.hammer_price || 0,
-        total_buyers_premium: invoice.buyers_premium || 0,
-        total_vat: invoice.vat_amount || 0,
-        shipping_cost: invoice.shipping_charge || 0,
-        insurance_cost: invoice.insurance_charge || 0,
-        brand_code: (invoice as any).brand_code || undefined
-      }
-      setSelectedInvoice(formattedInvoice as any)
-    } catch (e) {
-      // Fallback to current invoice without items
-      setSelectedInvoice(invoice as any)
+
+      setVendorInvoices(response.data.invoices || [])
+      setVendorLoading(false)
+    } catch (error) {
+      console.error('Failed to load vendor invoices:', error)
+      setVendorInvoices([])
+      setVendorLoading(false)
     }
-    setIncludeShipping(withShipping)
-    setShowInvoicePreview(true)
-    setActionMenuOpen(null)
   }
 
-  const handleDeleteInvoice = async (invoice: Invoice) => {
-    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+  const handleAuctionSelect = (auctionId: string | null) => {
+    const selectedId = auctionId ? parseInt(auctionId) : null
+    const auction = selectedId ? state.auctions.find(a => a.id === selectedId) : null
+    
+    setState(prev => ({
+      ...prev,
+      selectedAuctionId: selectedId,
+      selectedAuction: auction || null
+    }))
+  }
+
+
+
+  const handleImportEOA = () => {
+    if (!state.selectedAuctionId) {
+      alert('Please select an auction first')
+      return
+    }
+    setState(prev => ({ ...prev, showEOADialog: true }))
+  }
+
+  const handleExportEOA = async () => {
+    if (!state.selectedAuctionId) {
+      alert('Please select an auction first')
       return
     }
 
     try {
-      await InvoicesAPI.deleteInvoice(invoice.id!)
-      setInvoices(prev => prev.filter(inv => inv.id !== invoice.id))
-      setActionMenuOpen(null)
-      alert('Invoice deleted successfully!')
+      const csvBlob = await exportEOACsv(state.selectedAuctionId.toString())
+
+      // Create download link
+      const url = window.URL.createObjectURL(csvBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `eoa-export-${state.selectedAuctionId}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Error deleting invoice:', error)
-      alert('Failed to delete invoice. Please try again.')
+      console.error('Failed to export EOA CSV:', error)
+      alert('Failed to export CSV. Please try again.')
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-GB')
-  }
-
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return '£0.00'
-    return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`
-  }
-
-  const getStatusBadge = (status?: string) => {
-    const statusClasses = {
-      draft: 'bg-gray-100 text-gray-800',
-      generated: 'bg-blue-100 text-blue-800',
-      sent: 'bg-yellow-100 text-yellow-800',
-      paid: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+  const handleEOAImportSuccess = () => {
+    setState(prev => ({ ...prev, showEOADialog: false }))
+    if (state.selectedAuctionId) {
+      loadBuyerInvoices(state.selectedAuctionId, 1)
+      loadVendorInvoices(state.selectedAuctionId, 1)
     }
-    const className = statusClasses[status as keyof typeof statusClasses] || statusClasses.draft
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
-        {status || 'draft'}
-      </span>
-    )
   }
 
-  if (showInvoicePreview && selectedInvoice) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-6 flex items-center justify-between">
-            <button
-              onClick={() => setShowInvoicePreview(false)}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              ← Back to Invoices
-            </button>
-            <div className="text-sm text-gray-500">
-              Invoice #{selectedInvoice.invoice_number} 
-              {includeShipping && ' (With Logistics)'}
-            </div>
-          </div>
-          <InvoicePDF 
-            invoice={selectedInvoice as any} 
-            includeShipping={includeShipping} 
-          />
-        </div>
-      </div>
-    )
+  const handleRefreshBuyer = () => {
+    if (state.selectedAuctionId) {
+      loadBuyerInvoices(state.selectedAuctionId, 1)
+    }
   }
+
+  const handleRefreshVendor = () => {
+    if (state.selectedAuctionId) {
+      loadVendorInvoices(state.selectedAuctionId, 1)
+    }
+  }
+
+  const handleBuyerPageChange = (newPage: number) => {
+    if (state.selectedAuctionId) {
+      loadBuyerInvoices(state.selectedAuctionId, newPage)
+    }
+  }
+
+  const handleVendorPageChange = (newPage: number) => {
+    if (state.selectedAuctionId) {
+      loadVendorInvoices(state.selectedAuctionId, newPage)
+    }
+  }
+
+  // Convert auctions to SearchableSelect format
+  const auctionOptions = state.auctions.map(auction => ({
+    value: auction.id.toString(),
+    label: `${auction.short_name} - ${auction.long_name}`,
+    searchableText: `${auction.short_name} ${auction.long_name} ${auction.description || ''}`.toLowerCase()
+  }))
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Internal Invoices</h1>
-              <p className="text-gray-600 mt-2">Manage and generate invoices for auction sales</p>
-            </div>
-            <button
-              onClick={() => setShowGenerateModal(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Generate Invoice
-            </button>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Management</h1>
+          <p className="text-gray-600">
+            Select an auction to view and manage its invoices. Import EOA data or generate PDFs for individual invoices.
+          </p>
         </div>
 
-        {/* Invoices Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">All Saved Invoices</h2>
-          </div>
-          
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-500 mt-4">Loading invoices...</p>
-                  </div>
-          ) : invoices.length === 0 ? (
-            <div className="p-12 text-center">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No invoices yet</h3>
-              <p className="text-gray-500 mb-6">Get started by generating your first invoice from an auction.</p>
-                    <button
-                onClick={() => setShowGenerateModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                          Generate Invoice
-                    </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Invoice #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Auction
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Logistics
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                    </tr>
-                  </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {invoices.map((invoice) => (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {invoice.invoice_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {invoice.auction_id ? `Auction #${invoice.auction_id}` : 'N/A'}
-                        </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {invoice.client ? 
-                          `${invoice.client.first_name} ${invoice.client.last_name}` : 
-                          invoice.client_id ? `Client #${invoice.client_id}` : 'N/A'
-                        }
-                        </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(invoice.invoice_date)}
-                        </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(invoice.status)}
-                          </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(invoice.total_amount)}
-                          </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {invoice.logistics ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <Package className="h-3 w-3 mr-1" />
-                            Added
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Not Added
-                            </span>
-                        )}
-                          </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative">
-                          <button
-                            onClick={() => setActionMenuOpen(actionMenuOpen === invoice.id ? null : invoice.id!)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <MoreVertical className="h-5 w-5" />
-                          </button>
-                          
-                          {actionMenuOpen === invoice.id && (
-                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
-                              <div className="py-1">
-                              <button
-                                  onClick={() => handleEditLogistics(invoice)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Edit className="h-4 w-4 mr-3" />
-                                  Edit Logistics
-                              </button>
-                                <button
-                                  onClick={() => handleViewInvoice(invoice, false)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Download className="h-4 w-4 mr-3" />
-                                  Generate Invoice PDF
-                                </button>
-                                    <button
-                                  onClick={() => handleViewInvoice(invoice, true)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Package className="h-4 w-4 mr-3" />
-                                  Generate Final Invoice PDF
-                                </button>
-                                    <button
-                                  onClick={() => handleDeleteInvoice(invoice)}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-3" />
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {/* Auction Selection */}
+        <div className="bg-white rounded-lg shadow-sm border mb-6 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Select Auction</h2>
+            {state.selectedAuctionId && (
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleImportEOA}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Import className="h-4 w-4 mr-2" />
+                  Import EOA Data
+                </button>
+                <button
+                  onClick={handleExportEOA}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </button>
               </div>
             )}
-                  </div>
+          </div>
+          
+          <div className="max-w-md">
+            <SearchableSelect
+              options={auctionOptions}
+              value={state.selectedAuctionId?.toString() || null}
+              onChange={handleAuctionSelect}
+              placeholder="Search and select an auction..."
+              isLoading={state.auctionsLoading}
+            />
+          </div>
 
-        {/* Generate Invoice Modal */}
-        {showGenerateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          {state.selectedAuction && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-900">{state.selectedAuction.long_name}</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Status: <span className="capitalize">{state.selectedAuction.status}</span>
+                {state.selectedAuction.settlement_date && (
+                  <span className="ml-4">
+                    Settlement: {new Date(state.selectedAuction.settlement_date).toLocaleDateString()}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Buyer Invoices Section */}
+        {state.selectedAuctionId && (
+          <div className="space-y-6">
+            {/* Buyer Invoices */}
+            <div className="bg-white rounded-lg shadow-sm border">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Generate Invoice from Auction</h3>
-              </div>
-              <div className="p-6">
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Select Auction
-                  </label>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {auctions.map((auction) => (
-                      <div
-                        key={auction.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedAuction?.id === auction.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedAuction(auction)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium text-gray-900">{auction.short_name}</h4>
-                            <p className="text-sm text-gray-500">{auction.long_name}</p>
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                              <span>Status: {auction.status}</span>
-                              <span>Lots: {auction.lots_count}</span>
-                              <span>Brand ID: {auction.brand_id}</span>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            auction.status === 'ended' ? 'bg-green-100 text-green-800' :
-                            auction.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {auction.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Buyer Invoices - {state.selectedAuction?.short_name}
+                  </h3>
+                  <div className="text-sm text-gray-500">
+                    {buyerInvoices.length} invoice{buyerInvoices.length !== 1 ? 's' : ''} found
                   </div>
                 </div>
-                <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => {
-                      setShowGenerateModal(false)
-                      setSelectedAuction(null)
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleGenerateInvoice}
-                    disabled={!selectedAuction}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Generate Invoice
-                    </button>
+              </div>
+
+              <InvoiceTable
+                invoices={buyerInvoices}
+                loading={buyerLoading}
+                onRefresh={handleRefreshBuyer}
+                invoiceType="buyer"
+              />
+            </div>
+
+            {/* Vendor Invoices */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Vendor Invoices - {state.selectedAuction?.short_name}
+                  </h3>
+                  <div className="text-sm text-gray-500">
+                    {vendorInvoices.length} invoice{vendorInvoices.length !== 1 ? 's' : ''} found
+                  </div>
                 </div>
               </div>
+
+              <InvoiceTable
+                invoices={vendorInvoices}
+                loading={vendorLoading}
+                onRefresh={handleRefreshVendor}
+                invoiceType="vendor"
+              />
             </div>
           </div>
         )}
 
-        {/* Logistics Modal */}
-        {showLogisticsModal && selectedInvoice && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Edit Logistics - Invoice #{selectedInvoice.invoice_number}
-              </h3>
-            </div>
-              <div className="p-6">
-                <LogisticsForm
-                  invoice={{
-                    ...selectedInvoice,
-                    items: [], // Will be loaded from auction data
-                    due_date: selectedInvoice.invoice_date ? new Date(Date.parse(selectedInvoice.invoice_date) + 30 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString(),
-                    subtotal: selectedInvoice.hammer_price || 0,
-                    total_buyers_premium: selectedInvoice.buyers_premium || 0,
-                    total_vat: selectedInvoice.vat_amount || 0,
-                    shipping_cost: selectedInvoice.shipping_charge || 0,
-                    insurance_cost: selectedInvoice.insurance_charge || 0,
-                    client: selectedInvoice.client || null,
-                    auction: selectedInvoice.auction || null,
-                    brand_code: selectedInvoice.brand_id?.toString() || null
-                  } as any}
-                  onSubmit={handleLogisticsSubmit}
-                  onCancel={() => {
-                    setShowLogisticsModal(false)
-                    setSelectedInvoice(null)
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+        {/* EOA Import Dialog */}
+        {state.showEOADialog && state.selectedAuctionId && (
+          <EOAImportDialog
+            auctionId={state.selectedAuctionId}
+            onClose={() => setState(prev => ({ ...prev, showEOADialog: false }))}
+            onImportComplete={(count) => {
+              console.log(`Imported ${count} invoices`)
+              handleEOAImportSuccess()
+            }}
+          />
         )}
+
+
       </div>
     </div>
   )
-} 
+}

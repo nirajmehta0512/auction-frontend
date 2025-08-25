@@ -1,9 +1,11 @@
 "use client"
 
 import React, { useState } from 'react'
-import { ChevronUp, ChevronDown, Edit, Trash2, Eye } from 'lucide-react'
+import { ChevronUp, ChevronDown, Edit, Trash2, Eye, FileText, Upload, MoreVertical, Plus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { AUCTION_SUBTYPES } from '@/lib/constants'
+import { generatePassedAuction } from '@/lib/auctions-api'
 
 interface Auction {
   id: number
@@ -23,6 +25,9 @@ interface AuctionsTableProps {
   onView?: (auctionId: number) => void
   onEdit?: (auctionId: number) => void
   onDelete?: (auctionId: number) => void
+  onImportEOA?: (auctionId: number) => void
+  onGenerateInvoice?: (auctionId: number) => void
+  onGeneratePassedAuction?: (auctionId: number, subtype: string) => void
 }
 
 type SortField = keyof Auction
@@ -50,18 +55,26 @@ interface AuctionsTablePropsExtended extends AuctionsTableProps {
   currentSortDirection?: 'asc' | 'desc'
 }
 
-export default function AuctionsTable({ 
-  auctions, 
-  selectedAuctions, 
-  onSelectionChange, 
-  onView, 
-  onEdit, 
+export default function AuctionsTable({
+  auctions,
+  selectedAuctions,
+  onSelectionChange,
+  onView,
+  onEdit,
   onDelete,
+  onImportEOA,
+  onGenerateInvoice,
+  onGeneratePassedAuction,
   onSort,
   currentSortField = 'id',
   currentSortDirection = 'asc'
 }: AuctionsTablePropsExtended) {
   const router = useRouter()
+  const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
+  const [passedAuctionDialogOpen, setPassedAuctionDialogOpen] = useState<number | null>(null)
+  const [selectedAuctionForPassed, setSelectedAuctionForPassed] = useState<Auction | null>(null)
+  const [generatingPassedAuction, setGeneratingPassedAuction] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
 
   const handleView = (auctionId: number) => {
     if (onView) {
@@ -90,6 +103,60 @@ export default function AuctionsTable({
         // TODO: Implement default delete logic
         console.log('Delete auction:', auctionId)
       }
+    }
+  }
+
+  const handleImportEOA = (auctionId: number) => {
+    if (onImportEOA) {
+      onImportEOA(auctionId)
+    } else {
+      console.log('Import EOA for auction:', auctionId)
+    }
+  }
+
+  const handleGenerateInvoice = (auctionId: number) => {
+    if (onGenerateInvoice) {
+      onGenerateInvoice(auctionId)
+    } else {
+      // Default navigation to invoice view
+      router.push(`/auctions/${auctionId}/invoices`)
+    }
+  }
+
+  const handleGeneratePassedAuction = (auctionId: number) => {
+    const auction = auctions.find(a => a.id === auctionId)
+    if (auction) {
+      setSelectedAuctionForPassed(auction)
+      setPassedAuctionDialogOpen(auctionId)
+    }
+  }
+
+  const handlePassedAuctionSubtypeSelect = async (subtype: string) => {
+    if (!selectedAuctionForPassed) return
+
+    setGeneratingPassedAuction(true)
+    setGenerateError(null)
+
+    try {
+      const newAuction = await generatePassedAuction(selectedAuctionForPassed.id.toString(), subtype as any)
+
+      // Call the parent handler if provided
+      if (onGeneratePassedAuction) {
+        onGeneratePassedAuction(selectedAuctionForPassed.id, subtype)
+      }
+
+      // Close the dialog
+      setPassedAuctionDialogOpen(null)
+      setSelectedAuctionForPassed(null)
+
+      // Show success message (you might want to add a toast notification here)
+      console.log('Successfully created passed auction:', newAuction)
+
+    } catch (error) {
+      console.error('Error generating passed auction:', error)
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate passed auction')
+    } finally {
+      setGeneratingPassedAuction(false)
     }
   }
 
@@ -265,28 +332,81 @@ export default function AuctionsTable({
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => handleView(auction.id)}
-                      className="text-green-600 hover:text-green-800" 
-                      title="View auction"
+                  <div className="relative">
+                    <button
+                      onClick={() => setActionMenuOpen(actionMenuOpen === auction.id ? null : auction.id)}
+                      className="text-gray-400 hover:text-gray-600"
+                      title="More actions"
                     >
-                      <Eye className="h-4 w-4" />
+                      <MoreVertical className="h-5 w-5" />
                     </button>
-                    <button 
-                      onClick={() => handleEdit(auction.id)}
-                      className="text-blue-600 hover:text-blue-800" 
-                      title="Edit auction"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(auction.id)}
-                      className="text-red-600 hover:text-red-800" 
-                      title="Delete auction"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    
+                    {actionMenuOpen === auction.id && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
+                        <div className="py-1">
+                          <button
+                            onClick={() => {
+                              handleView(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Eye className="h-4 w-4 mr-3" />
+                            View Auction
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleEdit(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Edit className="h-4 w-4 mr-3" />
+                            Edit Auction
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleImportEOA(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-purple-700 hover:bg-purple-50"
+                          >
+                            <Upload className="h-4 w-4 mr-3" />
+                            Import EOA Data
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleGenerateInvoice(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
+                          >
+                            <FileText className="h-4 w-4 mr-3" />
+                            View Auction Invoices
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleGeneratePassedAuction(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
+                          >
+                            <Plus className="h-4 w-4 mr-3" />
+                            Generate Passed Auction
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDelete(auction.id)
+                              setActionMenuOpen(null)
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-3" />
+                            Delete Auction
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -300,6 +420,62 @@ export default function AuctionsTable({
           </div>
         )}
       </div>
+
+      {/* Passed Auction Dialog */}
+      {passedAuctionDialogOpen && selectedAuctionForPassed && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Generate Passed Auction</h3>
+              <button
+                onClick={() => {
+                  setPassedAuctionDialogOpen(null)
+                  setSelectedAuctionForPassed(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Create a new auction with unsold items from "{selectedAuctionForPassed.name}".
+                The new auction will be named "{selectedAuctionForPassed.name} - Passed".
+              </p>
+
+              {generateError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">{generateError}</p>
+                </div>
+              )}
+
+              <p className="text-sm font-medium text-gray-700 mb-4">Select Auction Subtype:</p>
+
+              <div className="space-y-3">
+                {AUCTION_SUBTYPES.map((subtype) => (
+                  <button
+                    key={subtype.value}
+                    onClick={() => handlePassedAuctionSubtypeSelect(subtype.value)}
+                    disabled={generatingPassedAuction}
+                    className="w-full p-3 text-left border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="font-medium text-sm text-gray-900">{subtype.label}</div>
+                    <div className="text-xs text-gray-500 mt-1">{subtype.description}</div>
+                  </button>
+                ))}
+              </div>
+
+              {generatingPassedAuction && (
+                <div className="mt-4 text-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-gray-600 mt-2">Creating passed auction...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

@@ -52,6 +52,8 @@ const columns: TableColumn[] = [
   { key: 'email', label: 'Email', sortable: true, width: 'w-48' },
   { key: 'phone_number', label: 'Phone', sortable: false, width: 'w-32' },
   { key: 'client_type', label: 'Type', sortable: false, width: 'w-32' },
+  { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-28' },
+  { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-28' },
   { key: 'status', label: 'Status', sortable: true, width: 'w-24' },
   { key: 'created_at', label: 'Created', sortable: true, width: 'w-32' },
   { key: 'actions', label: 'Actions', sortable: false, width: 'w-32' }
@@ -467,6 +469,22 @@ export default function ClientsTable({
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClientTypeColor(client)}`}>
                           {getClientTypeDisplay(client)}
                         </span>
+                      </td>
+
+                      {/* Buyer Premium */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {client.buyer_premium !== undefined && client.buyer_premium !== null
+                          ? `${client.buyer_premium}%`
+                          : '-'
+                        }
+                      </td>
+
+                      {/* Vendor Premium */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {client.vendor_premium !== undefined && client.vendor_premium !== null
+                          ? `${client.vendor_premium}%`
+                          : '-'
+                        }
                       </td>
 
                       {/* Status */}

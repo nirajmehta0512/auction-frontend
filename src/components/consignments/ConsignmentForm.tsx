@@ -207,7 +207,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 artwork_id: item.id?.toString(),
                 artwork_title: item.title,
                 artist_id: item.artist_id?.toString(),
-                artist_name: item.artist_maker,
+                artist_name: item.artist_id ? 'Artist selected' : '',
                 dimensions: item.dimensions,
                 low_estimate: item.low_est,
                 high_estimate: item.high_est,
@@ -389,7 +389,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         ? {
             ...item,
             artwork_title: updatedArtwork.title,
-            artist_name: updatedArtwork.artist_maker,
+            artist_name: updatedArtwork.artist_id ? 'Artist selected' : '',
             dimensions: updatedArtwork.dimensions,
             low_estimate: updatedArtwork.low_est,
             high_estimate: updatedArtwork.high_est,

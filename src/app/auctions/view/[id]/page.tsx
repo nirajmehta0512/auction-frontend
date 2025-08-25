@@ -3,11 +3,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Calendar, Clock, MapPin, Users, Trophy, ExternalLink, Download } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, MapPin, Users, Trophy, ExternalLink, Download, Upload, FileText } from 'lucide-react'
 import { getAuctions } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/artworks-api'
 import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
+import EOAImportDialog from '@/components/auctions/EOAImportDialog'
 import { getAuctionStatusColor } from '@/lib/constants'
 import type { Auction } from '@/lib/auctions-api'
 
@@ -35,6 +36,7 @@ export default function AuctionViewPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [showEOADialog, setShowEOADialog] = useState(false)
 
   useEffect(() => {
     if (auctionId) {
@@ -126,6 +128,15 @@ export default function AuctionViewPage() {
   // Using the constants helper function
   const getStatusColor = getAuctionStatusColor
 
+  const handleImportEOA = () => {
+    setShowEOADialog(true)
+  }
+
+  const handleGenerateInvoice = () => {
+    // Navigate to auction invoice view page
+    router.push(`/auctions/${auctionId}/invoices`)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -174,6 +185,20 @@ export default function AuctionViewPage() {
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(auction.status || 'unknown')}`}>
                 {auction.status ? auction.status.charAt(0).toUpperCase() + auction.status.slice(1) : 'Unknown'}
               </span>
+              <button
+                onClick={handleImportEOA}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import EOA
+              </button>
+              <button
+                onClick={handleGenerateInvoice}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Invoice
+              </button>
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
@@ -352,6 +377,20 @@ export default function AuctionViewPage() {
                 </button>
                 
                 <button
+                  onClick={handleImportEOA}
+                  className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Import EOA
+                </button>
+                
+                <button
+                  onClick={handleGenerateInvoice}
+                  className="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  Generate Invoice
+                </button>
+                
+                <button
                   onClick={() => setShowExportDialog(true)}
                   className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -379,6 +418,18 @@ export default function AuctionViewPage() {
             brand={brand}
           />
         </div>
+      )}
+
+      {/* EOA Import Dialog */}
+      {showEOADialog && (
+        <EOAImportDialog
+          auctionId={parseInt(auctionId)}
+          onClose={() => setShowEOADialog(false)}
+          onImportComplete={(importedCount) => {
+            console.log(`Imported ${importedCount} EOA records`)
+            // Optionally show success message or refresh data
+          }}
+        />
       )}
     </div>
   )

@@ -139,7 +139,7 @@ export default function ItemsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                 <button
                   onClick={() => handleSort('category')}
                   className="flex items-center space-x-1 hover:text-gray-700"
@@ -189,7 +189,7 @@ export default function ItemsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Condition
               </th>
 
@@ -287,7 +287,7 @@ export default function ItemsTable({
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 text-sm text-gray-500 truncate" title={item.category || '-'}>
                     {item.category || '-'}
                   </td>
 
@@ -309,8 +309,8 @@ export default function ItemsTable({
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="max-w-xs break-words">
+                  <td className="px-3 py-4 text-sm text-gray-500">
+                    <div className="max-w-32 break-words line-clamp-3" title={item.condition || '-'}>
                       {item.condition || '-'}
                     </div>
                   </td>
@@ -320,41 +320,41 @@ export default function ItemsTable({
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="relative">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id!)}
-                        className="inline-flex items-center p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
+                    <div className="flex items-center justify-end space-x-2">
+                      {/* More Actions Dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id!)}
+                          className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
 
-                      {openMenuId === item.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-                          <div className="py-1">
-                            <button
-                              onClick={() => handlePreview(item.id!)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-purple-600 hover:bg-gray-100"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Preview Item
-                            </button>
-                            <button
-                              onClick={() => handleEdit(item)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Item
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item.id!)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Withdraw Item
-                            </button>
+                        {openMenuId === item.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                            <div className="py-1">
+                              <button
+                                onClick={() => handlePreview(item.id!)}
+                                className="flex items-center w-full px-4 py-2 text-sm text-purple-600 hover:bg-gray-100"
+                              >
+                                Preview
+                              </button>
+                              <button
+                                onClick={() => handleEdit(item)}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(item.id!)}
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

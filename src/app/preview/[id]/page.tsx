@@ -295,8 +295,8 @@ export default function ArtworkPreviewPage() {
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(item.status!)}`}>
                   {getStatusLabel(item.status!)}
                 </span>
-                {item.lot_num && (
-                  <span className="text-sm text-gray-500">Lot #{item.lot_num}</span>
+                {item.id && (
+                  <span className="text-sm text-gray-500">ID #{item.id}</span>
                 )}
               </div>
 

@@ -17,6 +17,20 @@ interface AIUploadResult {
   low_est: number;
   high_est: number;
   artist_id?: number;
+  // New dimension fields from AI analysis
+  dimensions_inches?: string;
+  dimensions_cm?: string;
+  dimensions_with_frame_inches?: string;
+  dimensions_with_frame_cm?: string;
+  // Artist information inclusion flags
+  include_artist_description?: boolean;
+  include_artist_key_description?: boolean;
+  include_artist_biography?: boolean;
+  include_artist_notable_works?: boolean;
+  include_artist_major_exhibitions?: boolean;
+  include_artist_awards_honors?: boolean;
+  include_artist_market_value_range?: boolean;
+  include_artist_signature_style?: boolean;
 }
 
 interface AIImageUploadProps {

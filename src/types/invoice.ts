@@ -45,7 +45,7 @@ export interface Invoice {
   invoice_number: string
   invoice_date: string
   due_date: string
-  brand_code?: 'MSABER' | 'AURUM' | 'METSAB'
+  brand_code?: string
   client: InvoiceClient
   auction: InvoiceAuction
   items: InvoiceItem[]
@@ -57,7 +57,8 @@ export interface Invoice {
   total_amount: number
   amount_due: number
   total_net_payments: number
-  status: 'draft' | 'sent' | 'paid' | 'overdue'
+  tracking_number?: string
+  status: 'paid' | 'unpaid' | 'cancelled'
   logistics_added: boolean
 }
 
@@ -68,6 +69,7 @@ export interface LogisticsInfo {
   destination: 'within_uk' | 'international'
   postal_code: string
   country: string
+  logistics_method: 'metsab_courier' | 'customer_collection' | 'customer_courier'
   artworks: Array<{
     id: number
     title: string
@@ -85,8 +87,6 @@ export interface LogisticsInfo {
   }>
   shipping_cost: number
   insurance_cost: number
-  handling_charge: number
-  international_surcharge: number
   total_cost: number
 }
 

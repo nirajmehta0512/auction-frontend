@@ -31,14 +31,13 @@ interface FormData {
   high_est: string
   start_price: string
 
-  // LiveAuctioneers optional fields  
+  // LiveAuctioneers optional fields
   condition: string
   reserve: string
-  consignor: string
 
-  // Enhanced client fields
-  consigner_client_id: string
-  buyer_client_id: string
+  // Enhanced client fields (using database field names)
+  vendor_id: string
+  buyer_id: string
 
   // Consignment field
   consignment_id: string
@@ -54,7 +53,6 @@ interface FormData {
   school_id: string
   period_age: string
   provenance: string
-  auction_id: string
 
   // Enhanced artwork fields
   artwork_subject: string
@@ -62,10 +60,14 @@ interface FormData {
   medium: string
 
   // Description enhancement fields
-  include_artist_biography: boolean
   include_artist_description: boolean
   include_artist_key_description: boolean
-  include_artist_extra_info: boolean
+  include_artist_biography: boolean
+  include_artist_notable_works: boolean
+  include_artist_major_exhibitions: boolean
+  include_artist_awards_honors: boolean
+  include_artist_market_value_range: boolean
+  include_artist_signature_style: boolean
 
   // New dimension fields with unit conversion
   dimensions_inches: string
@@ -104,9 +106,8 @@ const initialFormData: FormData = {
   start_price: '',
   condition: '',
   reserve: '',
-  consignor: '',
-  consigner_client_id: '',
-  buyer_client_id: '',
+  vendor_id: '',
+  buyer_id: '',
   consignment_id: '',
   status: 'draft',
   category: '',
@@ -118,14 +119,17 @@ const initialFormData: FormData = {
   school_id: '',
   period_age: '',
   provenance: '',
-  auction_id: '',
   artwork_subject: '',
   signature_placement: '',
   medium: '',
+  include_artist_description: true,
+  include_artist_key_description: true,
   include_artist_biography: false,
-  include_artist_description: false,
-  include_artist_key_description: false,
-  include_artist_extra_info: false,
+  include_artist_notable_works: false,
+  include_artist_major_exhibitions: false,
+  include_artist_awards_honors: false,
+  include_artist_market_value_range: false,
+  include_artist_signature_style: false,
   dimensions_inches: '',
   dimensions_cm: '',
   dimensions_with_frame_inches: '',
@@ -295,6 +299,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     loadAllData()
   }, [brand])
 
+
+
   // Debug effect to track artist selection and client loading
   useEffect(() => {
     console.log('Debug - Artists loaded:', artists.length, artists.map(a => ({ id: a.id, name: a.name })))
@@ -367,20 +373,20 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const previewDescription = useMemo(() => {
     const parts: string[] = []
 
-    // Artwork description
+    // Title (always first)
+    const currentTitle = formData.title || generateAutoTitle() || 'Untitled Artwork'
+    parts.push(currentTitle)
+
+    // Artwork description (double line break after title)
     if (formData.description?.trim()) {
       parts.push(formData.description.trim())
     }
 
     // Artist info (if checkboxes are selected)
     if (formData.artist_id) {
-      const artist = artists.find(a => a.id === formData.artist_id)
+      const artist = artists.find(a => a.id?.toString() === formData.artist_id)
       if (artist) {
         const artistParts: string[] = []
-
-        if (formData.include_artist_biography && artist.birth_year) {
-          artistParts.push(`Born: ${artist.birth_year}${artist.death_year ? `, Died: ${artist.death_year}` : ''}`)
-        }
 
         if (formData.include_artist_description && artist.description) {
           artistParts.push(artist.description)
@@ -390,18 +396,38 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           artistParts.push(artist.key_description)
         }
 
-        if (formData.include_artist_extra_info) {
-          if (artist.nationality) artistParts.push(`Nationality: ${artist.nationality}`)
-          if (artist.art_movement) artistParts.push(`Movement: ${artist.art_movement}`)
+        if (formData.include_artist_biography && artist.biography) {
+          artistParts.push(artist.biography)
+        }
+
+        if (formData.include_artist_notable_works && artist.notable_works) {
+          artistParts.push(`Notable Works: ${artist.notable_works}`)
+        }
+
+        if (formData.include_artist_major_exhibitions && artist.exhibitions) {
+          artistParts.push(`Major Exhibitions: ${artist.exhibitions}`)
+        }
+
+        if (formData.include_artist_awards_honors && artist.awards) {
+          artistParts.push(`Awards and Honors: ${artist.awards}`)
+        }
+
+        if (formData.include_artist_market_value_range && artist.market_value_range) {
+          artistParts.push(`Market Value Range: ${artist.market_value_range}`)
+        }
+
+        if (formData.include_artist_signature_style && artist.signature_style) {
+          artistParts.push(`Signature Style: ${artist.signature_style}`)
         }
 
         if (artistParts.length > 0) {
-          parts.push(artistParts.join('. '))
+          // Join artist parts with line breaks for better readability
+          parts.push(artistParts.join('<br>'))
         }
       }
     }
 
-    // Dimensions
+    // Dimensions (single line break before dimensions)
     if (formData.dimensions_inches || formData.dimensions_cm) {
       let dimensionText = 'Dimensions: '
       if (formData.dimensions_inches) {
@@ -415,14 +441,39 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       parts.push(dimensionText)
     }
 
-    return parts.join('<br><br>')
+    // Join parts with specific formatting:
+    // Title + Description + Artist Info use double line breaks
+    // Artist Info + Dimensions use single line break
+    if (parts.length > 2) {
+      // We have title, description, and potentially artist info and dimensions
+      const result = [
+        parts[0], // title
+        parts[1], // description
+        ...parts.slice(2, -1), // artist info parts
+        parts[parts.length - 1] // dimensions (if exists)
+      ].join('<br><br>')
+
+      // Replace the last double break with single break for dimensions
+      return result.replace(/<br><br>Dimensions:/, '<br>Dimensions:')
+    } else if (parts.length === 2) {
+      // Just title and description, or title and artist info
+      return parts.join('<br><br>')
+    } else {
+      // Just title or empty
+      return parts[0] || 'Untitled Artwork'
+    }
   }, [
+    formData.title,
     formData.description,
     formData.artist_id,
-    formData.include_artist_biography,
     formData.include_artist_description,
     formData.include_artist_key_description,
-    formData.include_artist_extra_info,
+    formData.include_artist_biography,
+    formData.include_artist_notable_works,
+    formData.include_artist_major_exhibitions,
+    formData.include_artist_awards_honors,
+    formData.include_artist_market_value_range,
+    formData.include_artist_signature_style,
     formData.dimensions_inches,
     formData.dimensions_cm,
     artists
@@ -479,7 +530,20 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       }))
   }
 
-  // Helper function to create buyer client options (buyers only, only if sold)
+  // Helper function to create vendor client options (vendors only)
+  const createVendorOptions = (): SearchableOption[] => {
+    return clients
+      .filter(client =>
+        client.id &&
+        (client.client_type === 'vendor' || client.client_type === 'buyer' || client.client_type === 'buyer_vendor')
+      )
+      .map(client => ({
+        value: client.id!.toString(),
+        label: getClientDisplayName(client),
+        description: `${formatClientDisplay(client)} - Vendor`
+      }))
+  }
+
   const createBuyerOptions = (): SearchableOption[] => {
     return clients
       .filter(client =>
@@ -551,9 +615,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       start_price: data.start_price?.toString() || '',
       condition: data.condition || '',
       reserve: data.reserve?.toString() || '',
-      consignor: data.consignor || '',
-      consigner_client_id: (data as any).consigner_client_id || '',
-      buyer_client_id: (data as any).buyer_client_id || '',
+      vendor_id: (data as any).vendor_id?.toString() || '',
+      buyer_id: (data as any).buyer_id?.toString() || '',
       consignment_id: data.consignment_id?.toString() || '',
       status: data.status || 'draft',
       category: data.category || '',
@@ -562,17 +625,20 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       weight: data.weight || '',
       materials: data.materials || '',
       artist_id: data.artist_id?.toString() || '',
-      school_id: data.school_id?.toString() || '',
+      school_id: data.school_id || '',
       period_age: data.period_age || '',
       provenance: data.provenance || '',
-      auction_id: data.auction_id || '',
       artwork_subject: (data as any).artwork_subject || '',
       signature_placement: (data as any).signature_placement || '',
       medium: (data as any).medium || '',
-      include_artist_biography: (data as any).include_artist_biography || false,
-      include_artist_description: (data as any).include_artist_description || false,
-      include_artist_key_description: (data as any).include_artist_key_description || false,
-      include_artist_extra_info: (data as any).include_artist_extra_info || false,
+      include_artist_description: (data as any).include_artist_description !== undefined ? Boolean((data as any).include_artist_description) : true,
+      include_artist_key_description: (data as any).include_artist_key_description !== undefined ? Boolean((data as any).include_artist_key_description) : true,
+      include_artist_biography: Boolean((data as any).include_artist_biography) || false,
+      include_artist_notable_works: Boolean((data as any).include_artist_notable_works) || false,
+      include_artist_major_exhibitions: Boolean((data as any).include_artist_major_exhibitions) || false,
+      include_artist_awards_honors: Boolean((data as any).include_artist_awards_honors) || false,
+      include_artist_market_value_range: Boolean((data as any).include_artist_market_value_range) || false,
+      include_artist_signature_style: Boolean((data as any).include_artist_signature_style) || false,
       dimensions_inches: (data as any).dimensions_inches || '',
       dimensions_cm: (data as any).dimensions_cm || '',
       dimensions_with_frame_inches: (data as any).dimensions_with_frame_inches || '',
@@ -607,9 +673,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       start_price: '', // Will be auto-calculated
       condition: aiData.condition || '',
       reserve: '',
-      consignor: '',
-      consigner_client_id: '',
-      buyer_client_id: '',
+      vendor_id: '',
+      buyer_id: '',
       consignment_id: '',
       status: 'draft',
       category: aiData.category || '',
@@ -621,14 +686,17 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       school_id: '',
       period_age: aiData.period_age || '',
       provenance: '',
-      auction_id: '',
       artwork_subject: aiData.artwork_subject || '',
       signature_placement: aiData.signature_placement || '',
       medium: aiData.materials || '', // Use materials as medium initially
+      include_artist_description: true,
+      include_artist_key_description: true,
       include_artist_biography: false,
-      include_artist_description: false,
-      include_artist_key_description: false,
-      include_artist_extra_info: false,
+      include_artist_notable_works: false,
+      include_artist_major_exhibitions: false,
+      include_artist_awards_honors: false,
+      include_artist_market_value_range: false,
+      include_artist_signature_style: false,
       dimensions_inches: aiData.dimensions_inches || '',
       dimensions_cm: aiData.dimensions_cm || '',
       dimensions_with_frame_inches: aiData.dimensions_with_frame_inches || '',
@@ -852,7 +920,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       start_price: formData.start_price ? parseFloat(formData.start_price) : undefined,
       condition: formData.condition || undefined,
       reserve: formData.reserve ? parseFloat(formData.reserve) : undefined,
-      consignor: formData.consignor || undefined,
+      vendor_id: formData.vendor_id ? parseInt(formData.vendor_id) : undefined,
+      buyer_id: formData.buyer_id ? parseInt(formData.buyer_id) : undefined,
       status: formData.status,
       category: formData.category || undefined,
       subcategory: formData.subcategory || undefined,
@@ -863,8 +932,12 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       school_id: formData.school_id || undefined,
       period_age: formData.period_age || undefined,
       provenance: formData.provenance || undefined,
-      auction_id: formData.auction_id || undefined,
       consignment_id: formData.consignment_id ? parseInt(formData.consignment_id) : undefined,
+      // New dimension fields
+      dimensions_inches: formData.dimensions_inches || undefined,
+      dimensions_cm: formData.dimensions_cm || undefined,
+      dimensions_with_frame_inches: formData.dimensions_with_frame_inches || undefined,
+      dimensions_with_frame_cm: formData.dimensions_with_frame_cm || undefined,
       image_file_1: formData.image_file_1 || undefined,
       image_file_2: formData.image_file_2 || undefined,
       image_file_3: formData.image_file_3 || undefined,
@@ -1060,7 +1133,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         if (consignmentId) {
                           const selectedConsignment = consignments.find(c => c.id?.toString() === consignmentId)
                           if (selectedConsignment?.client_id) {
-                            handleInputChange('consigner_client_id', selectedConsignment.client_id.toString())
+                            handleInputChange('vendor_id', selectedConsignment.client_id.toString())
                           }
                         }
                       }}
@@ -1077,25 +1150,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Consignor (Vendor) *
+                      Vendor (Consignor) *
                     </label>
                     <SearchableSelect
-                      value={formData.consigner_client_id}
-                      options={createConsignerOptions()}
-                      placeholder={loadingClients ? "Loading consignors..." : "Select consignor..."}
-                      onChange={(value) => handleInputChange('consigner_client_id', value?.toString() || '')}
+                      value={formData.vendor_id}
+                      options={clients.length > 0 ? createVendorOptions() : []}
+                      placeholder={loadingClients ? "Loading vendors..." : "Select vendor..."}
+                      onChange={(value) => handleInputChange('vendor_id', value?.toString() || '')}
                       disabled={loadingClients}
-                      inputPlaceholder="Search consignors..."
+                      inputPlaceholder="Search vendors..."
                     />
-                    {loadingClients && (
-                      <p className="text-xs text-gray-500 mt-1">Loading clients...</p>
-                    )}
-                    {!loadingClients && createConsignerOptions().length === 0 && (
-                      <p className="text-xs text-orange-500 mt-1">No vendor clients found. Please create vendor clients first.</p>
-                    )}
                     {formData.consignment_id && (
                       <p className="text-xs text-green-600 mt-1">
-                        ✓ Consigner auto-filled from selected consignment
+                        ✓ Vendor auto-filled from selected consignment
                       </p>
                     )}
                   </div>
@@ -1103,19 +1170,17 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   {formData.status === 'sold' && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Buyer Client * <span className="text-xs text-gray-500">(required if sold)</span>
+                        Buyer *
+                        <span className="text-xs text-gray-500"> (required if sold)</span>
                       </label>
                       <SearchableSelect
-                        value={formData.buyer_client_id}
-                        options={createBuyerOptions()}
-                        placeholder="Select buyer..."
-                        onChange={(value) => handleInputChange('buyer_client_id', value?.toString() || '')}
+                        value={formData.buyer_id}
+                        options={clients.length > 0 ? createBuyerOptions() : []}
+                        placeholder={loadingClients ? "Loading buyers..." : "Select buyer..."}
+                        onChange={(value) => handleInputChange('buyer_id', value?.toString() || '')}
                         disabled={loadingClients}
                         inputPlaceholder="Search buyers..."
                       />
-                      {loadingClients && (
-                        <p className="text-xs text-gray-500 mt-1">Loading clients...</p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1249,32 +1314,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Auction {formData.status === 'sold' && <span className="text-red-500">*</span>}
-                    <span className="text-xs text-gray-500">(mandatory if sold)</span>
-                  </label>
-                  <select
-                    value={formData.auction_id}
-                    onChange={(e) => handleInputChange('auction_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required={formData.status === 'sold'}
-                    disabled={loadingAuctions}
-                  >
-                    <option value="">
-                      {loadingAuctions ? 'Loading auctions...' : 'Select auction...'}
-                    </option>
-                    {auctions.map((auction) => (
-                      <option key={auction.id} value={auction.id}>
-                        {auction.short_name} - {auction.long_name}
-                        {auction.settlement_date && ` (${new Date(auction.settlement_date).toLocaleDateString()})`}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingAuctions && (
-                    <p className="text-xs text-gray-500 mt-1">Loading auctions...</p>
-                  )}
-                </div>
+
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1337,20 +1377,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <h4 className="text-sm font-medium text-gray-700 mb-3">
                       Include Artist Information in Export Description:
                     </h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_biography"
-                          checked={formData.include_artist_biography}
-                          onChange={(e) => handleInputChange('include_artist_biography', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_biography" className="text-sm text-gray-700">
-                          Include Artist Biography (birth/death years)
-                        </label>
-                      </div>
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="flex items-center space-x-3">
                         <input
                           type="checkbox"
@@ -1360,7 +1387,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
                         <label htmlFor="include_artist_description" className="text-sm text-gray-700">
-                          Include Artist Description
+                          Include Artist Description <span className="text-xs text-green-600">(default on)</span>
                         </label>
                       </div>
 
@@ -1373,26 +1400,91 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
                         <label htmlFor="include_artist_key_description" className="text-sm text-gray-700">
-                          Include Artist Key Description
+                          Include Artist Key Description <span className="text-xs text-green-600">(default on)</span>
                         </label>
                       </div>
 
                       <div className="flex items-center space-x-3">
                         <input
                           type="checkbox"
-                          id="include_artist_extra_info"
-                          checked={formData.include_artist_extra_info}
-                          onChange={(e) => handleInputChange('include_artist_extra_info', e.target.checked)}
+                          id="include_artist_biography"
+                          checked={formData.include_artist_biography}
+                          onChange={(e) => handleInputChange('include_artist_biography', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
-                        <label htmlFor="include_artist_extra_info" className="text-sm text-gray-700">
-                          Include Extra Artist Info (nationality, movement)
+                        <label htmlFor="include_artist_biography" className="text-sm text-gray-700">
+                          Include Biography
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_notable_works"
+                          checked={formData.include_artist_notable_works}
+                          onChange={(e) => handleInputChange('include_artist_notable_works', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_notable_works" className="text-sm text-gray-700">
+                          Include Notable Works
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_major_exhibitions"
+                          checked={formData.include_artist_major_exhibitions}
+                          onChange={(e) => handleInputChange('include_artist_major_exhibitions', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_major_exhibitions" className="text-sm text-gray-700">
+                          Include Major Exhibitions
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_awards_honors"
+                          checked={formData.include_artist_awards_honors}
+                          onChange={(e) => handleInputChange('include_artist_awards_honors', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_awards_honors" className="text-sm text-gray-700">
+                          Include Awards and Honors
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_market_value_range"
+                          checked={formData.include_artist_market_value_range}
+                          onChange={(e) => handleInputChange('include_artist_market_value_range', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_market_value_range" className="text-sm text-gray-700">
+                          Include Market Value Range
+                        </label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="include_artist_signature_style"
+                          checked={formData.include_artist_signature_style}
+                          onChange={(e) => handleInputChange('include_artist_signature_style', e.target.checked)}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="include_artist_signature_style" className="text-sm text-gray-700">
+                          Include Signature Style
                         </label>
                       </div>
                     </div>
 
                     <div className="mt-3 text-xs text-purple-600">
-                      ℹ️ These options control what artist information appears in the exported description for auction platforms.
+                      ℹ️ These options control what artist information appears in the exported description for auction platforms and CSV exports.
                     </div>
                   </div>
                 )}
@@ -1879,41 +1971,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   This is how your artwork information will appear when exported to auction platforms.
                 </p>
 
-                {/* Title Preview */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Title:</h4>
-                  <div className="bg-white border border-gray-200 rounded-md p-3">
-                    <p className="text-gray-900 font-medium">
-                      {formData.title || generateAutoTitle() || 'Enter title information...'}
-                    </p>
-                  </div>
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const autoTitle = generateAutoTitle()
-                        if (autoTitle) {
-                          handleInputChange('title', autoTitle)
-                        }
-                      }}
-                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
-                    >
-                      🔄 Auto-generate title from current fields
-                    </button>
-                  </div>
-                </div>
+
 
                 {/* Description Preview */}
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Description Preview:</h4>
                   <div
                     className="bg-white border border-gray-200 rounded-md p-4"
-                    key={`${formData.include_artist_biography}-${formData.include_artist_description}-${formData.include_artist_key_description}-${formData.include_artist_extra_info}`}
+                    key={`${formData.include_artist_description}-${formData.include_artist_key_description}-${formData.include_artist_biography}-${formData.include_artist_notable_works}-${formData.include_artist_major_exhibitions}-${formData.include_artist_awards_honors}-${formData.include_artist_market_value_range}-${formData.include_artist_signature_style}`}
                   >
                     <div
                       className="text-gray-900 leading-relaxed"
                       dangerouslySetInnerHTML={{
-                        __html: previewDescription.replace(/<br>/g, '<br>') || 'Enter artwork description...'
+                        __html: previewDescription || 'Enter artwork description...'
                       }}
                     />
                   </div>
@@ -1925,16 +1995,16 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• Description includes selected artist information</li>
                     <li>• Dimensions will be formatted appropriately for each platform</li>
-                    {formData.consigner_client_id && (
-                      <li>• Consigner: {(() => {
-                        const client = clients.find(c => c.id?.toString() === formData.consigner_client_id)
-                        return client ? getClientDisplayName(client) : 'Unknown'
+                    {formData.vendor_id && (
+                      <li>• Vendor: {(() => {
+                        const client = clients.find(c => c.id?.toString() === formData.vendor_id)
+                        return client ? getClientDisplayName(client) : `ID: ${formData.vendor_id}`
                       })()}</li>
                     )}
-                    {formData.buyer_client_id && formData.status === 'sold' && (
+                    {formData.buyer_id && formData.status === 'sold' && (
                       <li>• Buyer: {(() => {
-                        const client = clients.find(c => c.id?.toString() === formData.buyer_client_id)
-                        return client ? getClientDisplayName(client) : 'Unknown'
+                        const client = clients.find(c => c.id?.toString() === formData.buyer_id)
+                        return client ? getClientDisplayName(client) : `ID: ${formData.buyer_id}`
                       })()}</li>
                     )}
                   </ul>

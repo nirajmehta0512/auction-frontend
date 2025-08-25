@@ -12,6 +12,7 @@ const getAuthToken = (): string | null => {
 export interface Auction {
   id: number;
   type: 'timed' | 'live' | 'sealed_bid';
+  subtype?: 'actual' | 'post_sale_platform' | 'post_sale_private' | 'free_timed';
   short_name: string;
   long_name: string;
   target_reserve?: number;
@@ -257,5 +258,195 @@ export async function importAuctionsCSV(csvData: any[]): Promise<any> {
     throw new Error(`Error importing auctions: ${response.statusText}`);
   }
   
+  return response.json();
+}
+
+// Invoice-related interfaces and functions
+export interface Invoice {
+  id: number
+  invoice_number: string
+  title: string
+  hammer_price?: number
+  buyers_premium?: number
+  buyer_first_name: string
+  buyer_last_name: string
+  buyer_email: string
+  buyer_phone: string
+  ship_to_first_name?: string
+  ship_to_last_name?: string
+  ship_to_address?: string
+  ship_to_city?: string
+  ship_to_state?: string
+  ship_to_country?: string
+  ship_to_postal_code?: string
+  platform: string
+  status: 'paid' | 'unpaid' | 'cancelled'
+  paid_amount?: number
+  domestic_flat_shipping?: number
+  paddle_number?: string
+  type?: 'buyer' | 'vendor'
+  created_at: string
+  client?: {
+    id: number
+    first_name: string
+    last_name: string
+    email: string
+    phone_number?: string
+  }
+  item?: {
+    id: number
+    title: string
+    dimensions?: string
+    dimensions_cm?: string
+    dimensions_inches?: string
+    weight?: string
+    artist_maker?: string
+  }
+}
+
+export interface InvoicesResponse {
+  success: boolean
+  message: string
+  data: {
+    invoices: Invoice[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      pages: number
+    }
+  }
+}
+
+export interface EOAImportResponse {
+  success: boolean
+  message: string
+  data: {
+    imported_count: number
+    inserted_count: number
+    updated_count: number
+    buyer_invoices_count: number
+    vendor_invoices_count: number
+    invoices: Invoice[]
+  }
+}
+
+// Get invoices for an auction
+export async function getAuctionInvoices(
+  auctionId: string,
+  options: { page?: number; limit?: number; brand_code?: string; type?: 'buyer' | 'vendor' } = {}
+): Promise<InvoicesResponse> {
+  const token = getAuthToken();
+
+  const params = new URLSearchParams();
+  if (options.page) params.append('page', options.page.toString());
+  if (options.limit) params.append('limit', options.limit.toString());
+  if (options.type) params.append('type', options.type);
+
+  const response = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}/invoices?${params}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error fetching invoices: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+
+// Import EOA data
+export async function importEOA(formData: FormData): Promise<EOAImportResponse> {
+  const token = getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/auctions/import-eoa`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // Don't set Content-Type header, let browser set it for FormData
+    },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error importing EOA: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+
+// Export EOA CSV
+export async function exportEOACsv(auctionId: string): Promise<Blob> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/api/invoices/export-eoa-csv/${auctionId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error exporting EOA CSV: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+// Generate invoice PDF
+export async function generateInvoicePdf(
+  invoiceId: number,
+  type: 'internal' | 'final',
+  brandCode?: string
+): Promise<Blob> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/pdf`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      type,
+      brand_code: brandCode
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error generating PDF: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+// Generate passed auction with unsold items
+export async function generatePassedAuction(
+  originalAuctionId: string,
+  subtype: 'actual' | 'post_sale_platform' | 'post_sale_private' | 'free_timed'
+): Promise<Auction> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/api/auctions/${originalAuctionId}/generate-passed`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ subtype })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error generating passed auction: ${response.statusText}`);
+  }
+
   return response.json();
 } 

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Download, Upload, Filter, MoreVertical, Eye, Sparkles, RefreshCw, FileText, Share2, Printer, Check, Trophy } from 'lucide-react'
+import { Plus, Download, Upload, Filter, MoreVertical, Eye, Sparkles, RefreshCw, FileText, Share2, Printer, Check, Trophy, Trash2 } from 'lucide-react'
 import { Artwork, ArtworksAPI, ArtworksResponse } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import ItemsTable from '@/components/items/ItemsTable'
@@ -142,7 +142,7 @@ export default function ItemsPage() {
       let confirmMessage = ''
       switch (action) {
         case 'delete':
-          confirmMessage = `Are you sure you want to withdraw ${selectedItems.length} artwork(s)?`
+          confirmMessage = `Are you sure you want to delete ${selectedItems.length} artwork(s)?`
           break
         case 'activate':
           confirmMessage = `Are you sure you want to activate ${selectedItems.length} artwork(s)?`
@@ -441,19 +441,30 @@ export default function ItemsPage() {
             </div>
 
             {selectedItems.length > 0 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">
                   {selectedItems.length} selected
                 </span>
+
+                {/* Quick Bulk Delete Button */}
+                <button
+                  onClick={() => handleBulkAction('delete')}
+                  className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  title="Withdraw Selected Items"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedItems.length} Items
+                </button>
+
                 <div className="relative">
                   <button
                     onClick={() => setShowBulkActions(!showBulkActions)}
                     className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                   >
                     <MoreVertical className="h-4 w-4 mr-2" />
-                    Actions
+                    More Actions
                   </button>
-                  
+
                   {showBulkActions && (
                     <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                       <button
@@ -470,9 +481,9 @@ export default function ItemsPage() {
                       </button>
                       <button
                         onClick={() => handleBulkAction('delete')}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600"
+                        className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm text-red-600"
                       >
-                        Withdraw Items
+                        Delete Items
                       </button>
                     </div>
                   )}
@@ -548,7 +559,7 @@ export default function ItemsPage() {
                 const pageNum = Math.max(1, Math.min(totalPages, page - 2 + index))
                 return (
                   <button
-                    key={pageNum}
+                    key={`page-${index}-${pageNum}`}
                     onClick={() => setPage(pageNum)}
                     className={`px-3 py-2 rounded-lg text-sm font-medium ${
                       page === pageNum

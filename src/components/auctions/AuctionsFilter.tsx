@@ -40,7 +40,7 @@ const auctionTypes = [
   { value: 'all', label: 'All Types' },
   { value: 'timed', label: 'Timed Auction' },
   { value: 'live', label: 'Live Auction' },
-  { value: 'sealed_bid', label: 'Sealed Bid' }
+  { value: 'sealed_bid', label: 'Private Sale' }
 ]
 
 const dateRanges = [
@@ -63,7 +63,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const { brand } = useBrand()
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState(filters.search || '')
-  const [specialists, setSpecialists] = useState<Array<{id: string, name: string}>>([])
+  const [specialists, setSpecialists] = useState<Array<{ id: string, name: string }>>([])
   const [auctionSuggestions, setAuctionSuggestions] = useState<AuctionSuggestion[]>([])
   const [loadingAuctions, setLoadingAuctions] = useState(false)
 
@@ -81,7 +81,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
           'Authorization': token ? `Bearer ${token}` : ''
         }
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
@@ -106,37 +106,23 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
         sort_direction: 'desc',
         brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
-      
+
       // Create suggestions from real auctions
       const suggestions: AuctionSuggestion[] = [
         { value: '', label: 'All Auctions', description: 'Show all auctions' }
       ]
-      
-      response.auctions.forEach(auction => {
-        // Add short name suggestion
-        if (auction.short_name) {
-          suggestions.push({
-            value: auction.short_name,
-            label: auction.short_name,
-            description: `Search for "${auction.short_name}" auctions`
-          })
-        }
-        
-        // Add long name suggestion if different
-        if (auction.long_name && auction.long_name !== auction.short_name) {
-          suggestions.push({
-            value: auction.long_name,
-            label: auction.long_name,
-            description: `Search for "${auction.long_name}" auctions`
-          })
-        }
-      })
-      
+
+      response.auctions.map(auction => suggestions.push({
+        value: auction.id.toString(),
+        label: `${auction.short_name} - ${auction.long_name}`,
+        description: `${auction.short_name} ${auction.long_name} ${auction.description || ''}`.toLowerCase()
+      }))
+
       // Remove duplicates based on value
-      const uniqueSuggestions = suggestions.filter((suggestion, index, self) => 
+      const uniqueSuggestions = suggestions.filter((suggestion, index, self) =>
         index === self.findIndex(s => s.value === suggestion.value)
       )
-      
+
       setAuctionSuggestions(uniqueSuggestions)
     } catch (error) {
       console.error('Error loading auction suggestions:', error)
@@ -152,12 +138,12 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSearchTerm(value)
-    
+
     // Debounce the search
     const timeoutId = setTimeout(() => {
       onFilterChange({ search: value })
     }, 300)
-    
+
     return () => clearTimeout(timeoutId)
   }
 
@@ -247,11 +233,10 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
             <button
               key={status.value}
               onClick={() => handleFilterChange('status', status.value)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                filters.status === status.value
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === status.value
                   ? status.color
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {status.label}
               {statusCounts && status.value !== 'all' && (
@@ -268,7 +253,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
       {isExpanded && (
         <div className="px-6 pb-4 border-t border-gray-100">
           <div className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
+
             {/* Auction Type Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

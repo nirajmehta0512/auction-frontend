@@ -92,7 +92,7 @@ export default function PDFCatalogGenerator({
       const enriched: ArtworkPreviewData[] = []
 
       for (const artwork of selectedArtworks) {
-        const enrichedArtwork: ArtworkPreviewData = { ...artwork }
+        const enrichedArtwork: ArtworkPreviewData = { ...artwork, lot_num: artwork.id || '' }
 
         // Load artist data
         if (artwork.artist_id) {
@@ -106,15 +106,15 @@ export default function PDFCatalogGenerator({
           }
         }
 
-        // Load consigner client data
-        if (artwork.consignor) {
+        // Load vendor client data
+        if (artwork.vendor_id) {
           try {
-            const clientResponse = await fetchClient(parseInt(artwork.consignor))
+            const clientResponse = await fetchClient(artwork.vendor_id)
             if (clientResponse.success) {
               enrichedArtwork.consigner_client = clientResponse.data
             }
           } catch (error) {
-            console.error('Error loading consigner:', error)
+            console.error('Error loading vendor:', error)
           }
         }
 

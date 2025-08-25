@@ -209,9 +209,8 @@ export interface InvoiceFormData {
   status?: 'draft' | 'generated' | 'sent' | 'paid' | 'cancelled';
   logistics?: any;
   shipping_charge?: number;
-  international_surcharge?: number;
-  handling_charge?: number;
   insurance_charge?: number;
+  tracking_number?: string;
   total_shipping_amount?: number;
   total_amount?: number;
 }
@@ -548,9 +547,8 @@ export interface Invoice {
   total_amount?: number;
   logistics?: any;
   shipping_charge?: number;
-  international_surcharge?: number;
-  handling_charge?: number;
   insurance_charge?: number;
+  tracking_number?: string;
   total_shipping_amount?: number;
   is_international?: boolean;
   brand_id?: number;

@@ -13,6 +13,7 @@ import { getGoogleSheetsUrlForModule } from '@/lib/app-settings-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import AuctionGoogleSheetsSync from '@/components/auctions/AuctionGoogleSheetsSync'
 import AuctionsFilter from '@/components/auctions/AuctionsFilter'
+import EOAImportDialog from '@/components/auctions/EOAImportDialog'
 
 // Convert API auction to component auction format
 const convertAuctionFormat = (auction: Auction) => ({
@@ -20,7 +21,7 @@ const convertAuctionFormat = (auction: Auction) => ({
   number: auction.id.toString().slice(-3),
   status: auction.status as 'planned' | 'inProgress' | 'ended' | 'aftersale' | 'archived',
   name: auction.short_name,
-  type: auction.type === 'timed' ? 'Timed' : auction.type === 'live' ? 'Live' : 'Sealed Bid',
+  type: auction.type === 'timed' ? 'Timed' : auction.type === 'live' ? 'Live' : 'Private Sale',
   lots: auction.lots_count || 0,
   regs: auction.registrations_count || 0,
   endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : ''
@@ -54,6 +55,8 @@ export default function AuctionsPage() {
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
+  const [showEOADialog, setShowEOADialog] = useState(false)
+  const [selectedAuctionForEOA, setSelectedAuctionForEOA] = useState<number | null>(null)
   
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
@@ -277,6 +280,16 @@ export default function AuctionsPage() {
     }
   }
 
+  const handleImportEOA = (auctionId: number) => {
+    setSelectedAuctionForEOA(auctionId)
+    setShowEOADialog(true)
+  }
+
+  const handleGenerateInvoice = (auctionId: number) => {
+    // Navigate to auction invoice view page
+    router.push(`/auctions/${auctionId}/invoices`)
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Page Header */}
@@ -370,6 +383,8 @@ export default function AuctionsPage() {
             onView={handleViewAuction}
             onEdit={handleEditAuction}
             onDelete={handleDeleteAuction}
+            onImportEOA={handleImportEOA}
+            onGenerateInvoice={handleGenerateInvoice}
             onSort={handleSort}
             currentSortField={sortField}
             currentSortDirection={sortDirection}
@@ -539,6 +554,21 @@ export default function AuctionsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* EOA Import Dialog */}
+      {showEOADialog && selectedAuctionForEOA && (
+        <EOAImportDialog
+          auctionId={selectedAuctionForEOA}
+          onClose={() => {
+            setShowEOADialog(false)
+            setSelectedAuctionForEOA(null)
+          }}
+          onImportComplete={(importedCount) => {
+            console.log(`Imported ${importedCount} EOA records`)
+            // Optionally refresh the auctions list or show a success message
+          }}
+        />
       )}
     </div>
   )

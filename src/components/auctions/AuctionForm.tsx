@@ -10,6 +10,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect'
 import {
   AUCTION_PLATFORMS,
   AUCTION_TYPES,
+  AUCTION_SUBTYPES,
   SORTING_MODES,
   ESTIMATES_VISIBILITY,
   TIME_ZONES
@@ -145,6 +146,7 @@ interface AuctionFormProps {
 export default function AuctionForm({ auction, onSave, onCancel, initialSelectedArtworks = [] }: AuctionFormProps) {
   const [formData, setFormData] = useState<{
     type: string;
+    subtype: string;
     short_name: string;
     long_name: string;
     target_reserve: number;
@@ -167,6 +169,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     brand_code: string;
   }>({
     type: auction?.type || 'sealed_bid',
+    subtype: auction?.subtype || 'actual',
     short_name: auction?.short_name || '',
     long_name: auction?.long_name || '',
     target_reserve: auction?.target_reserve || 0,
@@ -291,6 +294,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
         ...formData,
         artwork_ids: selectedArtworks,
         type: formData.type as 'timed' | 'live' | 'sealed_bid',
+        subtype: formData.subtype as 'actual' | 'post_sale_platform' | 'post_sale_private' | 'free_timed',
         sorting_mode: formData.sorting_mode as 'standard' | 'automatic' | 'manual',
         estimates_visibility: formData.estimates_visibility as 'use_global' | 'show_always' | 'do_not_show'
       }
@@ -419,6 +423,30 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                   ))}
                 </div>
               </div>
+
+              {/* Auction Subtype - Only show for timed and live auctions */}
+              {(formData.type === 'timed' || formData.type === 'live') && (
+                <div>
+                  <Label required>Auction Subtype</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {AUCTION_SUBTYPES.map((subtype) => (
+                      <button
+                        key={subtype.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, subtype: subtype.value }))}
+                        className={`p-3 rounded-lg border-2 text-left transition-all duration-200 ${
+                          formData.subtype === subtype.value
+                            ? 'border-blue-500 bg-blue-50 text-blue-900'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="font-semibold text-sm">{subtype.label}</div>
+                        <div className="text-xs text-gray-500 mt-1">{subtype.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Names */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

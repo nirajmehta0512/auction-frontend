@@ -17,6 +17,7 @@ interface SearchableSelectProps<T = string | number> {
   disabled?: boolean
   className?: string
   inputPlaceholder?: string
+  isLoading?: boolean
 }
 
 // Purpose: Reusable dropdown with type-to-search and clickable options
@@ -27,7 +28,8 @@ export default function SearchableSelect<T = string | number>({
   onChange,
   disabled,
   className,
-  inputPlaceholder = 'Type to search...'
+  inputPlaceholder = 'Type to search...',
+  isLoading = false
 }: SearchableSelectProps<T>) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -65,9 +67,9 @@ export default function SearchableSelect<T = string | number>({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full px-3 py-2 border rounded-md text-left ${disabled ? 'opacity-50 cursor-not-allowed' : ''} border-gray-300 bg-white`}
+        className={`w-full px-3 py-2 border rounded-md text-left overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : ''} border-gray-300 bg-white`}
       >
-        <span className="truncate text-gray-900">
+        <span className="truncate block min-w-0 text-gray-900">
           {currentLabel || placeholder}
           {!currentLabel && value && ` (Value: ${value})`}
         </span>

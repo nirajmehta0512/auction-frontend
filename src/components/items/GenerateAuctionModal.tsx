@@ -491,7 +491,7 @@ export default function GenerateAuctionModal({
           >
             <option value="timed">Timed Auction</option>
             <option value="live">Live Auction</option>
-            <option value="sealed_bid">Sealed Bid</option>
+            <option value="sealed_bid">Private Sale</option>
           </select>
         </div>
 

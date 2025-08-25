@@ -11,8 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Save, FileText, Calculator } from 'lucide-react'
 import Link from 'next/link'
 import { createRefund } from '@/lib/refunds-api'
-import { Invoice } from '@/types/api'
-import { getInvoicesForRefund } from '@/lib/invoices-api'
+import { getInvoicesForRefund, Invoice } from '@/lib/invoices-api'
 import StaffDropdown from '@/components/ui/staff-dropdown'
 
 export default function NewInvoiceRefundPage() {
@@ -82,9 +81,9 @@ export default function NewInvoiceRefundPage() {
       ...prev,
       hammer_price: String(invoice.hammer_price || 0),
       buyers_premium: String(invoice.buyers_premium || 0),
-      international_shipping_cost: String(invoice.international_surcharge || 0),
+      international_shipping_cost: String(invoice.total_shipping_amount || 0),
       local_shipping_cost: String(invoice.shipping_charge || 0),
-      handling_insurance_cost: String((invoice.handling_charge || 0) + (invoice.insurance_charge || 0))
+      handling_insurance_cost: String (invoice.insurance_charge || 0)
     }))
   }
 
@@ -195,7 +194,7 @@ export default function NewInvoiceRefundPage() {
                 <option value="">Select an invoice...</option>
                 {invoices.map((invoice) => (
                   <option key={invoice.id} value={invoice.id}>
-                    {invoice.invoice_number} - {invoice.client_name || 'Client'} - £{Number(invoice.total_amount || 0).toFixed(2)}
+                    {invoice.invoice_number} - {invoice.buyer_first_name && invoice.buyer_last_name ? `${invoice.buyer_first_name} ${invoice.buyer_last_name}` : invoice.buyer_email || 'Client'} - £{Number(invoice.total_amount || 0).toFixed(2)}
                   </option>
                 ))}
               </select>
@@ -206,7 +205,7 @@ export default function NewInvoiceRefundPage() {
                 <h4 className="font-medium text-blue-900 mb-2">Invoice Details</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Client:</span> {selectedInvoice.client_name}
+                    <span className="font-medium">Client:</span> {selectedInvoice.buyer_first_name && selectedInvoice.buyer_last_name ? `${selectedInvoice.buyer_first_name} ${selectedInvoice.buyer_last_name}` : selectedInvoice.buyer_email || 'Unknown Client'}
                   </div>
                   <div>
                     <span className="font-medium">Total Amount:</span> £{Number(selectedInvoice.total_amount || 0).toFixed(2)}
@@ -221,7 +220,7 @@ export default function NewInvoiceRefundPage() {
                     <span className="font-medium">Shipping:</span> £{Number(selectedInvoice.shipping_charge || 0).toFixed(2)}
                   </div>
                   <div>
-                    <span className="font-medium">International:</span> {selectedInvoice.is_international ? 'Yes' : 'No'}
+                    <span className="font-medium">Platform:</span> {selectedInvoice.platform || 'N/A'}
                   </div>
                 </div>
               </div>

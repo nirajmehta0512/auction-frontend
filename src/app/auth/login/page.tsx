@@ -119,23 +119,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Powered By MSABER */}
-        <div className="text-center mt-6">
-          <a
-            href="https://www.MSABER.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              src="/images/powered_by_msaber_logo.svg"
-              alt="powered-by-msaber"
-              width={150}
-              height={40}
-              className="mx-auto opacity-70 hover:opacity-100 transition-opacity"
-            />
-          </a>
-        </div>
-
         {/* Forgot Password UI (only if toggled) */}
         {showForgot && (
           <div className="w-full max-w-md mt-6">

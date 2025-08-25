@@ -119,7 +119,7 @@ export default function ArtworkSelection({
   // Get artworks by client
   const getArtworkIdsByClient = (clientId: string): string[] => {
     return artworks
-      .filter(a => a.consignor === clientId)
+      .filter(a => a.vendor_id?.toString() === clientId)
       .map(a => a.id!)
       .filter(id => id)
   }

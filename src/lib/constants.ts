@@ -13,7 +13,14 @@ export const AUCTION_PLATFORMS = [
 export const AUCTION_TYPES = [
   { value: 'timed', label: 'Timed Auction', description: 'Online bidding with time limits' },
   { value: 'live', label: 'Live Auction', description: 'Real-time bidding event' },
-  { value: 'sealed_bid', label: 'Sealed Bid', description: 'Private bid submissions' }
+  { value: 'sealed_bid', label: 'Private Sale', description: 'Private bid submissions' }
+] as const;
+
+export const AUCTION_SUBTYPES = [
+  { value: 'actual', label: 'Actual', description: 'Regular auction with bidding' },
+  { value: 'post_sale_platform', label: 'Post Sale (Platform)', description: 'Post-auction sales through platform' },
+  { value: 'post_sale_private', label: 'Post Sale (Private)', description: 'Private post-auction sales' },
+  { value: 'free_timed', label: 'Free Timed', description: 'Timed auction with no fees' }
 ] as const;
 
 export const AUCTION_STATUSES = [
@@ -79,4 +86,8 @@ export const getEstimatesVisibilityLabel = (value: string): string => {
 
 export const getTimeZoneLabel = (value: string): string => {
   return TIME_ZONES.find(tz => tz.value === value)?.label || value;
+};
+
+export const getAuctionSubtypeLabel = (value: string): string => {
+  return AUCTION_SUBTYPES.find(subtype => subtype.value === value)?.label || value;
 };

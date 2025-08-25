@@ -3,19 +3,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 
-// Artwork interface matching the database schema and LiveAuctioneers requirements
+// Artwork interface matching the actual database schema
 export interface Artwork {
   id?: string;
-  lot_num: string;                    // Required: LotNum (up to 10 chars)
-  title: string;                      // Required: Title (max 49 chars)
-  description: string;                // Required: Description (unlimited)
+  title: string;                      // Required: Title
+  description: string;                // Required: Description
   low_est: number;                    // Required: Low Estimate
-  high_est: number;                   // Required: High Estimate  
-  start_price?: number;               // Optional: Start Price (defaults to 50% of low_est)
+  high_est: number;                   // Required: High Estimate
+  start_price?: number;               // Optional: Start Price
   condition?: string;                 // Optional: Condition
-  reserve?: number;                   // Optional: Reserve price (internal use)
-  consignor?: string;                 // Optional: Consignor (internal use)
-  
+  reserve?: number;                   // Optional: Reserve price
+  vendor_id?: number;                 // Optional: Vendor ID (foreign key to clients)
+  buyer_id?: number;                  // Optional: Buyer ID (foreign key to clients)
+
   // Additional auction management fields
   status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed';
   category?: string;
@@ -24,13 +24,27 @@ export interface Artwork {
   weight?: string;
   materials?: string;
   artist_id?: number;                 // Reference to artist in database
-  artist_maker?: string;              // Artist name/maker
-  school_id?: string;
+  school_id?: string;                 // School ID (string in database)
   period_age?: string;
   provenance?: string;
-  auction_id?: string;
-  consignment_id?: number;
-  
+  consignment_id?: number;            // Reference to consignment
+
+  // Dimension fields (matching database schema)
+  dimensions_inches?: string;
+  dimensions_cm?: string;
+  dimensions_with_frame_inches?: string;
+  dimensions_with_frame_cm?: string;
+
+  // Certification fields
+  artist_certification?: boolean;
+  artist_family_certification?: boolean;
+  gallery_certification?: boolean;
+  gallery_id?: string;
+  certified_artist_id?: string;
+  restoration_done?: boolean;
+  restoration_by?: string;
+  condition_report?: string;
+
   // Image fields (1-10 images)
   image_file_1?: string;
   image_file_2?: string;
@@ -42,10 +56,23 @@ export interface Artwork {
   image_file_8?: string;
   image_file_9?: string;
   image_file_10?: string;
-  
+
+  // Artist information inclusion flags for export descriptions
+  include_artist_description?: boolean;
+  include_artist_key_description?: boolean;
+  include_artist_biography?: boolean;
+  include_artist_notable_works?: boolean;
+  include_artist_major_exhibitions?: boolean;
+  include_artist_awards_honors?: boolean;
+  include_artist_market_value_range?: boolean;
+  include_artist_signature_style?: boolean;
+
   // Audit fields
   created_at?: string;
   updated_at?: string;
+
+  // Brand field (for multi-tenant support)
+  brand_id?: number;
 }
 
 export interface ArtworksResponse {

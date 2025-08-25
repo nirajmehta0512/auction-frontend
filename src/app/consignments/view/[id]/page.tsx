@@ -705,9 +705,9 @@ export default function ConsignmentViewPage() {
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
                               <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                              {item.lot_num && (
+                              {item.id && (
                                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                                  Lot {item.lot_num}
+                                  ID {item.id}
                                 </span>
                               )}
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getItemStatusColor(item.status)}`}>
