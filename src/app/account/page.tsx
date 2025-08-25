@@ -21,7 +21,6 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
@@ -30,17 +29,51 @@ export default function AccountPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   useEffect(() => {
-    // Get current user from localStorage
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
+    const loadUserData = async () => {
       try {
-        const user = JSON.parse(userStr)
-        setCurrentUser(user)
+        // Get current user ID from localStorage
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          const user = JSON.parse(userStr)
+          if (user?.id) {
+            // Fetch fresh user data from API
+            const response = await fetch(`/api/users/${user.id}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              if (data.success && data.data) {
+                setCurrentUser(data.data)
+              } else {
+                // Fallback to localStorage if API fails
+                setCurrentUser(user)
+              }
+            } else {
+              // Fallback to localStorage if API fails
+              setCurrentUser(user)
+            }
+          }
+        }
       } catch (error) {
-        console.error('Error parsing user data:', error)
+        console.error('Error loading user data:', error)
+        // Fallback to localStorage
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          try {
+            setCurrentUser(JSON.parse(userStr))
+          } catch (fallbackError) {
+            console.error('Error parsing fallback user data:', fallbackError)
+          }
+        }
+      } finally {
+        setLoading(false)
       }
     }
-    setLoading(false)
+
+    loadUserData()
   }, [])
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -50,7 +83,7 @@ export default function AccountPage() {
     setPasswordSuccess(false)
 
     // Validation
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
       setPasswordError('All password fields are required')
       setPasswordLoading(false)
       return
@@ -68,12 +101,6 @@ export default function AccountPage() {
       return
     }
 
-    if (passwordForm.currentPassword === passwordForm.newPassword) {
-      setPasswordError('New password must be different from current password')
-      setPasswordLoading(false)
-      return
-    }
-
     try {
       // Call password change API (this would need to be implemented in the backend)
       const response = await fetch('/api/auth/change-password', {
@@ -83,7 +110,6 @@ export default function AccountPage() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword
         })
       })
@@ -91,7 +117,6 @@ export default function AccountPage() {
       if (response.ok) {
         setPasswordSuccess(true)
         setPasswordForm({
-          currentPassword: '',
           newPassword: '',
           confirmPassword: ''
         })
@@ -300,19 +325,6 @@ export default function AccountPage() {
                   <form onSubmit={handlePasswordChange} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Current Password
-                      </label>
-                      <input
-                        type="password"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         New Password
                       </label>
                       <input
@@ -344,7 +356,7 @@ export default function AccountPage() {
                         type="button"
                         onClick={() => {
                           setShowPasswordForm(false)
-                          setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+                          setPasswordForm({ newPassword: '', confirmPassword: '' })
                           setPasswordError(null)
                         }}
                         className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"

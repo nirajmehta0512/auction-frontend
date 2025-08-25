@@ -123,7 +123,6 @@ const settingsItems: SubNavItem[] = [
   { name: 'Appearance', href: '/settings/appearance' },
   { name: 'Integrations', href: '/settings/integrations' },
   { name: 'Platform Credentials', href: '/settings/platforms' },
-  { name: 'Brand Settings', href: '/settings/brand' },
   { name: 'Brands & Visibility', href: '/settings/brands' },
   // { name: 'DAR', href: '/settings/dar' },
   { name: 'Compliance', href: '/settings/compliance' },

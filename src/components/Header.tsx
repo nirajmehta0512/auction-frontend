@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, Bell, User, Mail, ChevronDown, Plus, UserPlus, FileText, Package, Gavel, HelpCircle, Search, Eye, Upload, Bug } from 'lucide-react'
+import { Calendar, Bell, User, Mail, ChevronDown, Plus, UserPlus, FileText, Package, Gavel, HelpCircle, Search, Eye, Upload } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -22,7 +22,6 @@ export default function Header() {
   const router = useRouter()
   const { brand, setBrand, details } = useBrand()
   const [brands, setBrands] = useState<{ code: string; name: string }[]>([])
-  const [debug, setDebug] = React.useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = React.useState(false)
 
   React.useEffect(() => {
@@ -33,9 +32,7 @@ export default function Header() {
         setIsSuperAdmin(u?.role === 'super_admin')
       } catch {}
     }
-    // fetch current debug flag
-    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/brands/debug', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-      .then(r => r.json()).then(d => setDebug(!!d.enabled)).catch(() => {})
+
   }, [])
 
   useEffect(() => {
@@ -98,36 +95,8 @@ export default function Header() {
         {/* Left Section - Logo + Brand */}
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold text-gray-900">{details.name}</h1>
-          <select
-            className="border rounded px-2 py-1 text-sm text-gray-700"
-            value={brand}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBrand(e.target.value as any)}
-            title="Active Brand"
-          >
-            <option value="ALL">All</option>
-            {brands.map(b => (
-              <option key={b.code} value={b.code}>{b.name}</option>
-            ))}
-          </select>
-          {isSuperAdmin && (
-            <button
-              className={`flex items-center px-2 py-1 rounded text-xs ${debug ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
-              title="Toggle debug options"
-              onClick={async () => {
-                try {
-                  const resp = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/brands/debug', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-                    body: JSON.stringify({ enabled: !debug })
-                  })
-                  if (resp.ok) setDebug(!debug)
-                } catch {}
-              }}
-            >
-              <Bug className="h-4 w-4 mr-1" />
-              Debug {debug ? 'ON' : 'OFF'}
-            </button>
-          )}
+
+
         </div>
 
         {/* Right Section */}
