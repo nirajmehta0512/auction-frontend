@@ -70,7 +70,7 @@ export default function ClientViewPage() {
   const [bidderAnalytics, setBidderAnalytics] = useState<BidderAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [userRole, setUserRole] = useState<string>('superadmin') // In real app, get from auth context
+  const [userRole, setUserRole] = useState<string>('admin') // In real app, get from auth context
 
   // Export/Share configuration
   const exportFields = [
@@ -239,7 +239,7 @@ export default function ClientViewPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            {userRole === 'superadmin' && (
+            {userRole === 'super_admin' && (
               <button
                 onClick={exportShare.openModal}
                 className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors"

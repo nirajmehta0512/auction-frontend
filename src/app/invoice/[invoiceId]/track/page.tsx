@@ -98,7 +98,6 @@ export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            {/* <img src="/images/powered_by_snoofa_logo.svg" alt="MetSab Auctions" className="h-16" /> */}
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Track Your Order</h1>
           <p className="text-gray-600">Invoice: {resolvedParams.invoiceId}</p>

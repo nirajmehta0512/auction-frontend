@@ -54,8 +54,8 @@ export default function ExportShareModal({
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'export' | 'share' | 'print'>('export')
 
-  // Only show this modal to superadmins
-  if (userRole !== 'superadmin') {
+  // Only show this modal to super_admins
+  if (userRole !== 'super_admin') {
     return null
   }
 

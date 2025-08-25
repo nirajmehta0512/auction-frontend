@@ -93,8 +93,8 @@ export const useExportShare = (options: UseExportShareOptions) => {
   }, [config])
 
   const openModal = useCallback(() => {
-    // Only allow superadmins to access this feature
-    if (options.userRole === 'superadmin') {
+    // Only allow super_admins to access this feature
+    if (options.userRole === 'super_admin') {
       setIsModalOpen(true)
     }
   }, [options.userRole])

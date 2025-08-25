@@ -41,8 +41,8 @@ export default function GalleriesPage() {
     libraries: placesLibraries,
   })
   
-  // Export/Share configuration for superadmin
-  const [userRole] = useState<string>('superadmin') // In real app, get from auth context
+  // Export/Share configuration for admin users
+  const [userRole] = useState<string>('admin') // In real app, get from auth context
   
   const galleryExportFields = [
     { key: 'name', label: 'Gallery Name', selected: true, required: true },
@@ -251,7 +251,7 @@ export default function GalleriesPage() {
             Export CSV
           </button>
           
-          {userRole === 'superadmin' && (
+          {userRole === 'super_admin' && (
             <button
               onClick={exportShare.openModal}
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
