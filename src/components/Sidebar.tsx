@@ -3,15 +3,15 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { 
-  Home, 
-  Users, 
-  Package, 
-  Layers, 
-  Gavel, 
-  Calculator, 
-  BarChart3, 
-  MessageSquare, 
+import {
+  Home,
+  Users,
+  Package,
+  Layers,
+  Gavel,
+  Calculator,
+  BarChart3,
+  MessageSquare,
   ClipboardList,
   Settings,
   Menu,
@@ -57,11 +57,11 @@ const navigationItems: NavItem[] = [
   { name: 'School of Art', href: '/schools', icon: GraduationCap },
   { name: 'Inventory', href: '/items', icon: Layers },
   { name: 'Auctions', href: '/auctions', icon: Gavel },
-  { name: 'Internal Invoices', href: '/invoices', icon: FileText },
+  { name: 'Auction Invoicing', href: '/invoices', icon: FileText },
   { name: 'Banking', href: '/banking', icon: Building2 },
-  { 
-    name: 'Internal Communication', 
-    href: '/internal-communication', 
+  {
+    name: 'Internal Communication',
+    href: '/internal-communication',
     icon: MessageSquare,
     subItems: [
       { name: 'Chat', href: '/internal-communication' },
@@ -94,9 +94,9 @@ const navigationItems: NavItem[] = [
   // },
 
   { name: 'Refunds', href: '/refunds', icon: RotateCcw },
-  { 
-    name: 'Reimbursements', 
-    href: '/reimbursements', 
+  {
+    name: 'Reimbursements',
+    href: '/reimbursements',
     icon: Receipt,
     subItems: [
       { name: 'Food', href: '/reimbursements?category=food' },
@@ -148,14 +148,14 @@ export default function Sidebar() {
 
   // Auto-navigate to first submenu item when parent is clicked
   useEffect(() => {
-    const currentItem = navigationItems.find(item => 
-      (item.name === 'Reports' || item.name === 'Valuations' || item.name === 'Reimbursements') && 
+    const currentItem = navigationItems.find(item =>
+      (item.name === 'Reports' || item.name === 'Valuations' || item.name === 'Reimbursements') &&
       pathname === item.href
     )
     if (currentItem && currentItem.subItems) {
       router.push(currentItem.subItems[0].href)
     }
-    
+
     // Handle settings auto-navigation
     if (pathname === '/settings') {
       router.push('/settings/users')
@@ -165,7 +165,7 @@ export default function Sidebar() {
   const handleMenuClick = (item: NavItem) => {
     if (item.subItems && item.subItems.length > 0) {
       const isCurrentlyExpanded = expandedMenus.includes(item.name)
-      
+
       if (isCurrentlyExpanded) {
         setExpandedMenus(prev => prev.filter(name => name !== item.name))
       } else {
@@ -179,7 +179,7 @@ export default function Sidebar() {
 
   const handleSettingsClick = () => {
     const isCurrentlyExpanded = expandedMenus.includes('Settings')
-    
+
     if (isCurrentlyExpanded) {
       setExpandedMenus(prev => prev.filter(name => name !== 'Settings'))
     } else {
@@ -227,15 +227,15 @@ export default function Sidebar() {
             </span>
           </div>
         )}
-        
+
         <nav className="px-3">
           <ul className="space-y-1">
             {navigationItems.map((item) => {
               const IconComponent = item.icon
-              const isActive = pathname === item.href || 
-                               (item.subItems && item.subItems.some(sub => pathname === sub.href))
+              const isActive = pathname === item.href ||
+                (item.subItems && item.subItems.some(sub => pathname === sub.href))
               const isExpanded = expandedMenus.includes(item.name)
-              
+
               return (
                 <li key={item.name}>
                   {item.subItems ? (
@@ -244,8 +244,8 @@ export default function Sidebar() {
                         onClick={() => handleMenuClick(item)}
                         className={cn(
                           "w-full flex items-center transition-all duration-200 group",
-                          isCollapsed 
-                            ? "justify-center p-3 mx-1 rounded-xl" 
+                          isCollapsed
+                            ? "justify-center p-3 mx-1 rounded-xl"
                             : "px-3 py-2.5 justify-between rounded-xl",
                           isActive
                             ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
@@ -273,7 +273,7 @@ export default function Sidebar() {
                           )} />
                         )}
                       </button>
-                      
+
                       {/* Submenu items when expanded and not collapsed */}
                       {!isCollapsed && isExpanded && item.subItems && (
                         <ul className="mt-2 space-y-1 ml-4 border-l border-gray-200 pl-4">
@@ -308,8 +308,8 @@ export default function Sidebar() {
                       onClick={() => handleMenuClick(item)}
                       className={cn(
                         "flex items-center transition-all duration-200 group",
-                        isCollapsed 
-                          ? "justify-center p-3 mx-1 rounded-xl" 
+                        isCollapsed
+                          ? "justify-center p-3 mx-1 rounded-xl"
                           : "px-3 py-2.5 rounded-xl",
                         pathname === item.href
                           ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
@@ -348,8 +348,8 @@ export default function Sidebar() {
                 onClick={handleSettingsClick}
                 className={cn(
                   "w-full flex items-center transition-all duration-200 group",
-                  isCollapsed 
-                    ? "justify-center p-3 mx-1 rounded-xl" 
+                  isCollapsed
+                    ? "justify-center p-3 mx-1 rounded-xl"
                     : "px-3 py-2.5 justify-between rounded-xl",
                   (pathname.startsWith('/settings'))
                     ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
@@ -372,7 +372,7 @@ export default function Sidebar() {
                   )} />
                 )}
               </button>
-              
+
               {/* Settings submenu */}
               {!isCollapsed && expandedMenus.includes('Settings') && (
                 <ul className="mt-2 space-y-1 ml-4 border-l border-gray-200 pl-4">

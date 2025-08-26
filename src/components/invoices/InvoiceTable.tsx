@@ -531,7 +531,7 @@ export default function InvoiceTable({ invoices, loading = false, onRefresh, inv
                                   className="group flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 w-full text-left whitespace-normal"
                                 >
                                   <FileText className="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 flex-shrink-0" />
-                                  <span className="leading-tight">Generate Internal Invoice</span>
+                                  <span className="leading-tight">Generate Invoice (Without Shipping)</span>
                                 </button>
                               </>
                             )}
@@ -540,7 +540,7 @@ export default function InvoiceTable({ invoices, loading = false, onRefresh, inv
                               className="group flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 w-full text-left whitespace-normal"
                             >
                               <Download className="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 flex-shrink-0" />
-                              <span className="leading-tight">Generate Final Invoice</span>
+                              <span className="leading-tight">Generate Invoice (With Shipping)</span>
                             </button>
                             <button
                               onClick={() => handleSendAcknowledgmentEmail(invoice)}

@@ -81,16 +81,26 @@ export default function LogisticsEditDialog({
 
       const artworks: LogisticsInfo['artworks'] = srcItems.map((item: any, index: number) => {
         const dimensions = parseDimensions(item.dimensions_inches || item.dimensions || item.dimensions_cm)
+
+        // Set default length based on artist or school selection
+        let defaultLength = 0; // Default to 0 to identify missing data
+        if (item.artist_id) {
+          defaultLength = 5; // 5 inches when artist is selected
+        } else if (item.school_id) {
+          // Convert 5 cm to inches for internal storage (since the UI works in inches)
+          defaultLength = 5 / 2.54; // 5 cm = approximately 1.97 inches
+        }
+
         const artwork: LogisticsInfo['artworks'][0] = {
           id: item.id,
           title: item.title,
           lot_num: invoice.lot_ids?.[index] || (index + 1).toString(),
-          height: dimensions?.height || 0,
-          width: dimensions?.width || 0,
-          length: 0, // Default length
+          height: dimensions?.height || 0, // Keep 0 to identify missing data
+          width: dimensions?.width || 0,   // Keep 0 to identify missing data
+          length: defaultLength, // Use calculated default based on artist/school
           logistics_height: (dimensions?.height || 0) + 2,
           logistics_width: (dimensions?.width || 0) + 2,
-          logistics_length: 0 + 2, // Default length + 2
+          logistics_length: defaultLength + 2, // Default length + 2
           weight: 1.0, // Default 1kg actual weight
           actualWeight: 1.0,
           volumetricWeight: 0,
@@ -148,7 +158,7 @@ export default function LogisticsEditDialog({
   useEffect(() => {
     if (formData.artworks && formData.artworks.length > 0 && autoCalculateEnabled) {
       const itemDimensions: ItemDimensions[] = formData.artworks.map(artwork => ({
-        length: inchesToCm((artwork.length || 16) + 2),
+        length: inchesToCm(artwork.length + 2),
         width: inchesToCm(artwork.width + 2),
         height: inchesToCm(artwork.height + 2),
         weight: artwork.weight || 1.0
@@ -239,9 +249,9 @@ export default function LogisticsEditDialog({
 
     // Recalculate weights when dimensions or weight change
     const itemDims: ItemDimensions = {
-      length: inchesToCm((updatedArtworks[index].length || 16) + 2),
-      width: inchesToCm((updatedArtworks[index].width || 8) + 2),
-      height: inchesToCm((updatedArtworks[index].height || 12) + 2),
+      length: inchesToCm(updatedArtworks[index].length + 2),
+      width: inchesToCm(updatedArtworks[index].width + 2),
+      height: inchesToCm(updatedArtworks[index].height + 2),
       weight: updatedArtworks[index].weight || 1.0
     }
     
@@ -269,9 +279,9 @@ export default function LogisticsEditDialog({
       }
 
       if (formData.artworks?.some(artwork =>
-        artwork.height <= 0 || artwork.width <= 0 || (artwork.length || 0) <= 0
+        artwork.height <= 0 || artwork.width <= 0 || artwork.length <= 0
       )) {
-        newErrors.artworks = 'All artworks must have valid dimensions'
+        newErrors.artworks = 'All artworks must have valid dimensions (height, width, and length must be greater than 0)'
       }
     }
 
@@ -592,7 +602,7 @@ export default function LogisticsEditDialog({
                             type="number"
                             step="0.1"
                             min="0.1"
-                            value={artwork.length || 16}
+                            value={artwork.length}
                             onChange={(e) => updateArtworkDimension(index, 'length', parseFloat(e.target.value) || 0)}
                             className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm"
                           />
