@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { ExternalLink, Save, Edit3, X, Check, Settings, Globe, Building, Database, Upload, MapPin, Camera } from 'lucide-react'
+import { Save, Edit3, X, Check, Settings, Globe, Building, Database, Camera, ExternalLink } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -23,8 +23,8 @@ function BrandDisplayCard({ brand, onEdit, onImageUpload, uploadingImage }: any)
           {/* Brand Logo */}
           <div className="relative">
             {brand.logo_url ? (
-              <img 
-                src={brand.logo_url} 
+              <img
+                src={brand.logo_url}
                 alt={`${brand.name} logo`}
                 className="w-16 h-16 rounded-lg object-cover border border-gray-200"
               />
@@ -33,7 +33,7 @@ function BrandDisplayCard({ brand, onEdit, onImageUpload, uploadingImage }: any)
                 <Building className="h-8 w-8 text-gray-400" />
               </div>
             )}
-            
+
             {/* Upload Button Overlay */}
             <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
               <input
@@ -55,20 +55,13 @@ function BrandDisplayCard({ brand, onEdit, onImageUpload, uploadingImage }: any)
           <div>
             <h4 className="text-lg font-semibold text-gray-900">{brand.name}</h4>
             <p className="text-sm text-gray-500 font-mono">{brand.code}</p>
-            {brand.website && (
-              <a href={brand.website} target="_blank" rel="noopener noreferrer" 
-                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center mt-1">
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Website
-              </a>
-            )}
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
           <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-            brand.is_active 
-              ? 'bg-green-100 text-green-800' 
+            brand.is_active
+              ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-600'
           }`}>
             {brand.is_active ? 'Active' : 'Inactive'}
@@ -82,29 +75,6 @@ function BrandDisplayCard({ brand, onEdit, onImageUpload, uploadingImage }: any)
           </button>
         </div>
       </div>
-
-      {/* Location Info */}
-      {(brand.address || brand.city || brand.country) && (
-        <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-start space-x-2">
-            <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
-            <div className="text-sm text-gray-600">
-              {brand.address && <div>{brand.address}</div>}
-              {(brand.city || brand.country) && (
-                <div>{[brand.city, brand.country].filter(Boolean).join(', ')}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Contact Info */}
-      {(brand.email || brand.phone) && (
-        <div className="border-t border-gray-100 pt-3 text-sm text-gray-600 space-y-1">
-          {brand.email && <div>📧 {brand.email}</div>}
-          {brand.phone && <div>📞 {brand.phone}</div>}
-        </div>
-      )}
     </div>
   )
 }
@@ -114,12 +84,6 @@ function BrandEditForm({ brand, onSave, onCancel }: any) {
   const [formData, setFormData] = useState({
     name: brand.name || '',
     code: brand.code || '',
-    website: brand.website || '',
-    email: brand.email || '',
-    phone: brand.phone || '',
-    address: brand.address || '',
-    city: brand.city || '',
-    country: brand.country || '',
     is_active: brand.is_active ?? true
   })
 
@@ -168,67 +132,6 @@ function BrandEditForm({ brand, onSave, onCancel }: any) {
             onChange={(e) => handleChange('code', e.target.value.toUpperCase())}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-          <input
-            type="url"
-            value={formData.website}
-            onChange={(e) => handleChange('website', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="https://..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleChange('email', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => handleChange('phone', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => handleChange('address', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-          <input
-            type="text"
-            value={formData.city}
-            onChange={(e) => handleChange('city', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-          <input
-            type="text"
-            value={formData.country}
-            onChange={(e) => handleChange('country', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
@@ -491,12 +394,19 @@ export default function BrandsAdminPage() {
 
   const updateBrandDetails = async (brandId: number, updates: any) => {
     try {
+      console.log('🔧 Frontend: Updating brand', { brandId, updates, token });
+      console.log('🔧 Frontend: Auth header will be:', `Bearer ${token}`);
+
       const response = await authedFetch(`/api/brands/${brandId}`, {
         method: 'PUT',
         body: JSON.stringify(updates)
       })
 
+      console.log('🔧 Frontend: Response status', response.status);
+      console.log('🔧 Frontend: Response headers', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
+        console.log('🔧 Frontend: Response is OK, parsing JSON...');
         const result = await response.json()
         // Update the brand in the local state
         setBrands(prevBrands => 
@@ -514,7 +424,10 @@ export default function BrandsAdminPage() {
         document.body.appendChild(successDiv)
         setTimeout(() => document.body.removeChild(successDiv), 3000)
       } else {
-        throw new Error('Failed to update brand')
+        console.log('🔧 Frontend: Response is NOT OK, getting error text...');
+        const errorText = await response.text();
+        console.log('🔧 Frontend: Error response:', errorText);
+        throw new Error(`Failed to update brand (${response.status}): ${errorText}`)
       }
     } catch (error: any) {
       console.error('Error updating brand:', error)

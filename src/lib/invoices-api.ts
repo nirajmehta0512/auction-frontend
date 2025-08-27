@@ -294,8 +294,219 @@ export const InvoicesAPI = {
       console.error('Error updating paid amount:', error)
       throw new Error(error.message || 'Failed to update paid amount')
     }
+  },
+
+  // Generate public invoice URL
+  async generatePublicUrl(invoiceId: number): Promise<{ success: boolean; url: string; message?: string }> {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/generate-public-url`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to generate public URL')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error generating public URL:', error)
+      throw new Error(error.message || 'Failed to generate public URL')
+    }
+  },
+
+  // Get public invoice with token verification (no auth required)
+  async getPublicInvoice(invoiceId: number, accessToken: string): Promise<InvoiceResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to fetch public invoice')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error fetching public invoice:', error)
+      throw new Error(error.message || 'Failed to fetch public invoice')
+    }
+  },
+
+  // Generate public invoice PDF with token verification
+  async generatePublicPdf(invoiceId: number, accessToken: string): Promise<Blob> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to generate public PDF')
+      }
+
+      return await response.blob()
+    } catch (error: any) {
+      console.error('Error generating public PDF:', error)
+      throw new Error(error.message || 'Failed to generate public PDF')
+    }
+  },
+
+  // Update shipping selection for public invoice with token verification
+  async updatePublicShipping(invoiceId: number, accessToken: string, shippingData: any): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/shipping`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(shippingData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to update shipping')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error updating shipping:', error)
+      throw new Error(error.message || 'Failed to update shipping')
+    }
+  },
+
+  // Create shipping payment link for public invoice with token verification
+  async createPublicShippingPaymentLink(invoiceId: number, accessToken: string, shippingAmount: number, customerEmail?: string): Promise<{ success: boolean; paymentLink: string; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/create-shipping-payment-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ shippingAmount, customerEmail })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to create shipping payment link')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error creating shipping payment link:', error)
+      throw new Error(error.message || 'Failed to create shipping payment link')
+    }
+  },
+
+  // Check payment status for public invoice with token verification
+  async checkPublicPaymentStatus(invoiceId: number, accessToken: string): Promise<{ success: boolean; status: string; totalAmount: number; paidAmount: number; dueAmount: number; lastChecked: string; message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/payment-status`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to check payment status')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error checking payment status:', error)
+      throw new Error(error.message || 'Failed to check payment status')
+    }
+  },
+
+  // Create shipping payment link (authenticated)
+  async createShippingPaymentLink(invoiceId: number, shippingAmount: number, customerEmail?: string): Promise<{ success: boolean; paymentLink: string; message: string }> {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/create-shipping-payment-link`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ shippingAmount, customerEmail })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to create shipping payment link')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error creating shipping payment link:', error)
+      throw new Error(error.message || 'Failed to create shipping payment link')
+    }
+  },
+
+  // Check payment status (authenticated)
+  async checkPaymentStatus(invoiceId: number): Promise<{ success: boolean; status: string; totalAmount: number; paidAmount: number; dueAmount: number; lastChecked: string; message?: string }> {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/payment-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to check payment status')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error checking payment status:', error)
+      throw new Error(error.message || 'Failed to check payment status')
+    }
+  },
+
+  // Send payment confirmation email
+  async sendPaymentConfirmationEmail(invoiceId: number, paymentType: 'invoice' | 'shipping' = 'invoice', amount?: number, paymentDate?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const token = getAuthToken()
+
+      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/send-payment-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ paymentType, amount, paymentDate })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to send payment confirmation email')
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      console.error('Error sending payment confirmation email:', error)
+      throw new Error(error.message || 'Failed to send payment confirmation email')
+    }
   }
 }
 
-  // Legacy export for compatibility
+// Legacy export for compatibility
 export const getInvoicesForRefund = InvoicesAPI.getInvoicesForRefund.bind(InvoicesAPI)

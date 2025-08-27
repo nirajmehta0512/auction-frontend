@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Trophy, ExternalLink, Download, Upload, FileText } from 'lucide-react'
 import { getAuctions } from '@/lib/auctions-api'
-import { ArtworksAPI } from '@/lib/artworks-api'
+import { ArtworksAPI } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
@@ -72,7 +72,7 @@ export default function AuctionViewPage() {
         console.log('Found artwork IDs in auction:', foundAuction.artwork_ids)
         
         const artworksResponse = await ArtworksAPI.getArtworks({
-          item_ids: foundAuction.artwork_ids.join(','), // Use the artwork_ids from auction
+          item_ids: foundAuction.artwork_ids.map(id => id.toString()), // Use the artwork_ids from auction
           page: 1,
           limit: 1000,
           status: 'all', // Include all statuses
@@ -344,7 +344,7 @@ export default function AuctionViewPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Total Lots</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {auction.lots_count || 0}
+                    {auction.artwork_ids?.length || 0}
                   </span>
                 </div>
                 

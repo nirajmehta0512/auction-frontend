@@ -6,6 +6,7 @@ import { useBrand } from '@/lib/brand-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
+import { hasAdminAccess, getCurrentUserRole } from '@/lib/auth-utils'
 
 interface CurrentUser {
   id: number
@@ -22,18 +23,7 @@ export default function Header() {
   const router = useRouter()
   const { brand, setBrand, details } = useBrand()
   const [brands, setBrands] = useState<{ code: string; name: string }[]>([])
-  const [isSuperAdmin, setIsSuperAdmin] = React.useState(false)
-
-  React.useEffect(() => {
-    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
-    if (userStr) {
-      try {
-        const u = JSON.parse(userStr)
-        setIsSuperAdmin(u?.role === 'super_admin')
-      } catch {}
-    }
-
-  }, [])
+  const userRole = getCurrentUserRole()
 
   useEffect(() => {
     // Get current user from localStorage
@@ -83,9 +73,8 @@ export default function Header() {
   }
 
   const getUserRole = () => {
-    if (!currentUser) return ''
-    const raw = currentUser.role || 'user'
-    const spaced = raw.replace(/_/g, ' ')
+    const role = userRole || 'user'
+    const spaced = role.replace(/_/g, ' ')
     return spaced.charAt(0).toUpperCase() + spaced.slice(1)
   }
 
@@ -177,14 +166,16 @@ export default function Header() {
                   <User className="h-4 w-4 text-gray-400" />
                   <span>My Account</span>
                 </Link>
-                <Link
-                  href="/settings"
-                  className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  onClick={() => setShowAccountDropdown(false)}
-                >
-                  <HelpCircle className="h-4 w-4 text-gray-400" />
-                  <span>Settings</span>
-                </Link>
+                {hasAdminAccess() && (
+                  <Link
+                    href="/settings"
+                    className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowAccountDropdown(false)}
+                  >
+                    <HelpCircle className="h-4 w-4 text-gray-400" />
+                    <span>Settings</span>
+                  </Link>
+                )}
                 <div className="border-t border-gray-100 mt-2 pt-2">
                   <button
                     className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { X, Upload, Link, Download } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import { getBrands, type Brand } from '@/lib/brands-api'
-import { importEOA } from '@/lib/auctions-api'
+import { importEOA, getAuction, type Auction } from '@/lib/auctions-api'
 
 interface EOAImportDialogProps {
   auctionId: number
@@ -28,7 +28,7 @@ export default function EOAImportDialog({
   onImportComplete
 }: EOAImportDialogProps) {
   const { brand: currentBrand } = useBrand()
-  
+
   const [importType, setImportType] = useState<'csv' | 'sheets'>('csv')
   const [platform, setPlatform] = useState<Platform>('LiveAuctioneers')
   const [selectedBrand, setSelectedBrand] = useState<string>('')
@@ -37,20 +37,87 @@ export default function EOAImportDialog({
   const [sheetsUrl, setSheetsUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [auctionData, setAuctionData] = useState<Auction | null>(null)
+  const [loadingAuction, setLoadingAuction] = useState(false)
 
   useEffect(() => {
     loadBrands()
-  }, [])
+    loadAuctionData()
+  }, [auctionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Set initial brand when brands are loaded
   useEffect(() => {
-    // Set default brand to current brand
-    if (currentBrand && brands.length > 0) {
+    if (brands.length > 0 && !selectedBrand && currentBrand) {
+      console.log('EOA Debug - Setting initial brand from current context:', currentBrand)
       const brand = brands.find(b => b.code === currentBrand)
       if (brand) {
         setSelectedBrand(brand.id.toString())
+      } else if (brands.length > 0) {
+        // Fallback to first available brand if current brand not found
+        console.log('EOA Debug - Current brand not found, using first available brand')
+        setSelectedBrand(brands[0].id.toString())
       }
     }
-  }, [currentBrand, brands])
+  }, [brands, currentBrand, selectedBrand])
+
+  useEffect(() => {
+    // Pre-fill platform and brand from auction data
+    if (auctionData && brands.length > 0) {
+      console.log('EOA Debug - Auction data:', auctionData)
+      console.log('EOA Debug - Available brands:', brands)
+      console.log('EOA Debug - Current brand:', currentBrand)
+
+      // Pre-fill platform based on auction data
+      if (auctionData.platform) {
+        const mappedPlatform = mapAuctionPlatformToDialog(auctionData.platform)
+        if (mappedPlatform) {
+          console.log('EOA Debug - Setting platform to:', mappedPlatform)
+          setPlatform(mappedPlatform)
+        }
+      }
+
+      // Pre-fill brand based on auction data
+      let selectedBrandFound = false
+
+      // Try to match by brand_code first (if available)
+      if (auctionData.brand_code && auctionData.brand_code.trim()) {
+        console.log('EOA Debug - Looking for brand_code:', auctionData.brand_code)
+        const brandCode = auctionData.brand_code.trim()
+        const brand = brands.find(b => b.code === brandCode)
+        if (brand) {
+          console.log('EOA Debug - Found brand by code:', brand)
+          setSelectedBrand(brand.id.toString())
+          selectedBrandFound = true
+        }
+      }
+
+      // If no brand_code match, try to match by brand_id
+      if (!selectedBrandFound && auctionData.brand_id) {
+        console.log('EOA Debug - Looking for brand_id:', auctionData.brand_id)
+        const brand = brands.find(b => b.id === auctionData.brand_id)
+        if (brand) {
+          console.log('EOA Debug - Found brand by id:', brand)
+          setSelectedBrand(brand.id.toString())
+          selectedBrandFound = true
+        }
+      }
+
+      // Fallback to current brand if no auction brand found and no brand is currently selected
+      if (!selectedBrandFound && !selectedBrand && currentBrand && brands.length > 0) {
+        console.log('EOA Debug - Using current brand as fallback:', currentBrand)
+        const brand = brands.find(b => b.code === currentBrand)
+        if (brand) {
+          console.log('EOA Debug - Found current brand:', brand)
+          setSelectedBrand(brand.id.toString())
+        }
+      }
+
+      if (!selectedBrandFound) {
+        console.log('EOA Debug - No brand selected, available options:')
+        brands.forEach(b => console.log(`  - ${b.code} (id: ${b.id})`))
+      }
+    }
+  }, [auctionData, brands, currentBrand])
 
   const loadBrands = async () => {
     try {
@@ -65,6 +132,37 @@ export default function EOAImportDialog({
       console.error('Error loading brands:', err)
       setError(err.message || 'Failed to load brands')
     }
+  }
+
+  const loadAuctionData = async () => {
+    try {
+      setLoadingAuction(true)
+      const auction = await getAuction(auctionId.toString())
+      setAuctionData(auction)
+    } catch (err: any) {
+      console.error('Error loading auction data:', err)
+      setError('Failed to load auction data')
+    } finally {
+      setLoadingAuction(false)
+    }
+  }
+
+  const mapAuctionPlatformToDialog = (auctionPlatform: string): Platform | null => {
+    // Map auction platform values to dialog platform options
+    const platformMapping: Record<string, Platform> = {
+      'liveauctioneers': 'LiveAuctioneers',
+      'live_auctioneers': 'LiveAuctioneers',
+      'live auctioneers': 'LiveAuctioneers',
+      'the_saleroom': 'The Saleroom',
+      'the saleroom': 'The Saleroom',
+      'saleroom': 'The Saleroom',
+      'invaluable': 'Invaluable',
+      'easylive': 'Easylive Auctions',
+      'easy_live': 'Easylive Auctions',
+      'easy live': 'Easylive Auctions'
+    }
+
+    return platformMapping[auctionPlatform.toLowerCase()] || null
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +255,28 @@ export default function EOAImportDialog({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Auction Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">Auction Details</h3>
+                {loadingAuction ? (
+                  <div className="flex items-center mt-1">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-sm text-blue-700">Loading auction data...</span>
+                  </div>
+                ) : auctionData ? (
+                  <div className="mt-1">
+                    <p className="text-sm text-blue-800 font-medium">{auctionData.long_name}</p>
+                    <p className="text-xs text-blue-600">ID: {auctionData.id} • Platform: {auctionData.platform || 'Not set'}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-blue-700 mt-1">Auction ID: {auctionId}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Import Type Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

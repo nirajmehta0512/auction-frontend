@@ -33,13 +33,15 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { hasAdminAccess } from '@/lib/auth-utils'
 
 interface NavItem {
   name: string
-  href: string
-  icon: React.ElementType
+  href?: string
+  icon?: React.ElementType
   subItems?: SubNavItem[]
   badge?: string
+  isCategory?: boolean
 }
 
 interface SubNavItem {
@@ -57,6 +59,7 @@ const navigationItems: NavItem[] = [
   { name: 'School of Art', href: '/schools', icon: GraduationCap },
   { name: 'Inventory', href: '/items', icon: Layers },
   { name: 'Auctions', href: '/auctions', icon: Gavel },
+  { name: 'Accountancy', isCategory: true },
   { name: 'Auction Invoicing', href: '/invoices', icon: FileText },
   { name: 'Banking', href: '/banking', icon: Building2 },
   {
@@ -163,6 +166,9 @@ export default function Sidebar() {
   }, [pathname, router])
 
   const handleMenuClick = (item: NavItem) => {
+    // Don't handle clicks for category items
+    if (item.isCategory) return
+
     if (item.subItems && item.subItems.length > 0) {
       const isCurrentlyExpanded = expandedMenus.includes(item.name)
 
@@ -232,13 +238,19 @@ export default function Sidebar() {
           <ul className="space-y-1">
             {navigationItems.map((item) => {
               const IconComponent = item.icon
-              const isActive = pathname === item.href ||
-                (item.subItems && item.subItems.some(sub => pathname === sub.href))
+              const isActive = item.href ? (pathname === item.href ||
+                (item.subItems && item.subItems.some(sub => pathname === sub.href))) : false
               const isExpanded = expandedMenus.includes(item.name)
 
               return (
                 <li key={item.name}>
-                  {item.subItems ? (
+                  {item.isCategory ? (
+                    <div className="px-3 py-2 mt-4 mb-2">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {item.name}
+                      </span>
+                    </div>
+                  ) : item.subItems ? (
                     <div>
                       <button
                         onClick={() => handleMenuClick(item)}
@@ -253,10 +265,10 @@ export default function Sidebar() {
                         )}
                       >
                         <div className="flex items-center">
-                          <IconComponent className={cn(
+                          {IconComponent && <IconComponent className={cn(
                             "flex-shrink-0",
                             isCollapsed ? "h-5 w-5" : "h-5 w-5 mr-3"
-                          )} />
+                          )} />}
                           {!isCollapsed && (
                             <span className="font-medium">{item.name}</span>
                           )}
@@ -302,7 +314,7 @@ export default function Sidebar() {
                         </ul>
                       )}
                     </div>
-                  ) : (
+                  ) : item.href ? (
                     <Link
                       href={item.href}
                       onClick={() => handleMenuClick(item)}
@@ -316,10 +328,10 @@ export default function Sidebar() {
                           : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                       )}
                     >
-                      <IconComponent className={cn(
+                      {IconComponent && <IconComponent className={cn(
                         "flex-shrink-0",
                         isCollapsed ? "h-5 w-5" : "h-5 w-5 mr-3"
-                      )} />
+                      )} />}
                       {!isCollapsed && (
                         <div className="flex items-center justify-between w-full">
                           <span className="font-medium">{item.name}</span>
@@ -331,6 +343,20 @@ export default function Sidebar() {
                         </div>
                       )}
                     </Link>
+                  ) : (
+                    <div
+                      className={cn(
+                        "flex items-center transition-all duration-200",
+                        isCollapsed
+                          ? "justify-center p-3 mx-1 rounded-xl"
+                          : "px-3 py-2.5 rounded-xl",
+                        "text-gray-700"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium">{item.name}</span>
+                      </div>
+                    </div>
                   )}
                 </li>
               )
@@ -339,71 +365,73 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Settings Section */}
-      <div className="border-t border-gray-100 py-4">
-        <nav className="px-3">
-          <ul>
-            <li>
-              <button
-                onClick={handleSettingsClick}
-                className={cn(
-                  "w-full flex items-center transition-all duration-200 group",
-                  isCollapsed
-                    ? "justify-center p-3 mx-1 rounded-xl"
-                    : "px-3 py-2.5 justify-between rounded-xl",
-                  (pathname.startsWith('/settings'))
-                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                )}
-              >
-                <div className="flex items-center">
-                  <Settings className={cn(
-                    "flex-shrink-0",
-                    isCollapsed ? "h-5 w-5" : "h-5 w-5 mr-3"
-                  )} />
-                  {!isCollapsed && (
-                    <span className="font-medium">Settings</span>
+      {/* Settings Section - Only for Admin Users */}
+      {hasAdminAccess() && (
+        <div className="border-t border-gray-100 py-4">
+          <nav className="px-3">
+            <ul>
+              <li>
+                <button
+                  onClick={handleSettingsClick}
+                  className={cn(
+                    "w-full flex items-center transition-all duration-200 group",
+                    isCollapsed
+                      ? "justify-center p-3 mx-1 rounded-xl"
+                      : "px-3 py-2.5 justify-between rounded-xl",
+                    (pathname.startsWith('/settings'))
+                      ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                   )}
-                </div>
-                {!isCollapsed && (
-                  <ChevronDown className={cn(
-                    "h-4 w-4 transition-transform duration-200",
-                    expandedMenus.includes('Settings') && "transform rotate-180"
-                  )} />
-                )}
-              </button>
+                >
+                  <div className="flex items-center">
+                    <Settings className={cn(
+                      "flex-shrink-0",
+                      isCollapsed ? "h-5 w-5" : "h-5 w-5 mr-3"
+                    )} />
+                    {!isCollapsed && (
+                      <span className="font-medium">Settings</span>
+                    )}
+                  </div>
+                  {!isCollapsed && (
+                    <ChevronDown className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      expandedMenus.includes('Settings') && "transform rotate-180"
+                    )} />
+                  )}
+                </button>
 
-              {/* Settings submenu */}
-              {!isCollapsed && expandedMenus.includes('Settings') && (
-                <ul className="mt-2 space-y-1 ml-4 border-l border-gray-200 pl-4">
-                  {settingsItems.map((subItem) => (
-                    <li key={subItem.name}>
-                      <Link
-                        href={subItem.href}
-                        className={cn(
-                          "block px-3 py-2 text-sm transition-colors duration-200 rounded-lg",
-                          pathname === subItem.href
-                            ? "text-blue-600 bg-blue-50 font-medium border border-blue-200"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{subItem.name}</span>
-                          {subItem.badge && (
-                            <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-600 rounded-full font-medium">
-                              {subItem.badge}
-                            </span>
+                {/* Settings submenu */}
+                {!isCollapsed && expandedMenus.includes('Settings') && (
+                  <ul className="mt-2 space-y-1 ml-4 border-l border-gray-200 pl-4">
+                    {settingsItems.map((subItem) => (
+                      <li key={subItem.name}>
+                        <Link
+                          href={subItem.href}
+                          className={cn(
+                            "block px-3 py-2 text-sm transition-colors duration-200 rounded-lg",
+                            pathname === subItem.href
+                              ? "text-blue-600 bg-blue-50 font-medium border border-blue-200"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                           )}
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          </ul>
-        </nav>
-      </div>
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{subItem.name}</span>
+                            {subItem.badge && (
+                              <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-600 rounded-full font-medium">
+                                {subItem.badge}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            </ul>
+          </nav>
+        </div>
+      )}
     </div>
   )
 } 

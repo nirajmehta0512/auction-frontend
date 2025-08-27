@@ -61,7 +61,7 @@ interface ConsignmentStats {
   saleRate: number
 }
 
-// Use the Artwork interface from artworks-api instead of custom interface
+// Using the Artwork interface from items-api (unified interface)
 
 export default function ConsignmentViewPage() {
   const params = useParams()

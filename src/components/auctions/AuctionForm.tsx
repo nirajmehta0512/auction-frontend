@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Minus, ChevronDown, ChevronUp, Clock, Calendar, Info, DollarSign, Save, X, AlertCircle, Search, Image, Trash2, Check } from 'lucide-react'
 import { createAuction, updateAuction } from '@/lib/auctions-api'
-import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
+import { ArtworksAPI, type Artwork } from '@/lib/items-api'
 import type { Auction } from '@/lib/auctions-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import {

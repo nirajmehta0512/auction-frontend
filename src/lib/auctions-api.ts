@@ -41,7 +41,6 @@ export interface Auction {
   platform?: string;
   brand_code?: string;
   brand_id?: number;
-  lots_count?: number;
   registrations_count?: number;
   total_estimate_low?: number;
   total_estimate_high?: number;

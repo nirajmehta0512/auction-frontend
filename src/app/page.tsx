@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, ChevronDown, MoreHorizontal, TrendingUp, TrendingDown, Users, Package, Gavel, DollarSign } from 'lucide-react'
+import { Calendar, ChevronDown, MoreHorizontal, TrendingUp, TrendingDown, Users, Package, Gavel, DollarSign, Building } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getDashboardStats, getRecentAuctions, getTopLots, getTopBuyers, getTopVendors, DashboardStats } from '@/lib/dashboard-api'
+import { getBrands, Brand } from '@/lib/brands-api'
 
 export default function DashboardPage() {
   // Set default to last 30 days
@@ -25,16 +26,44 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Load dashboard data
+  // Brand selection state
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('all')
+  const [brandsLoading, setBrandsLoading] = useState(false)
+
+  // Load brands on component mount
+  useEffect(() => {
+    loadBrands()
+  }, [])
+
+  // Load dashboard data when filters change
   useEffect(() => {
     loadDashboardData()
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, selectedBrandId])
+
+  const loadBrands = async () => {
+    try {
+      setBrandsLoading(true)
+      const response = await getBrands()
+      if (response.success) {
+        setBrands(response.data)
+      }
+    } catch (error) {
+      console.error('Error loading brands:', error)
+    } finally {
+      setBrandsLoading(false)
+    }
+  }
 
   const loadDashboardData = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await getDashboardStats(dateFrom || undefined, dateTo || undefined)
+
+      // Get selected brand code or undefined for 'all'
+      const brandCode = selectedBrandId === 'all' ? undefined : brands.find(b => b.id.toString() === selectedBrandId)?.code
+
+      const data = await getDashboardStats(dateFrom || undefined, dateTo || undefined, brandCode)
       setStats(data)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -91,25 +120,46 @@ export default function DashboardPage() {
     <div className="bg-gray-50 min-h-full">
       {/* Date Filter Section */}
       <div className="bg-white px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-            />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+          {/* Date Filters */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5 text-gray-400" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+            <span className="text-gray-400">-</span>
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5 text-gray-400" />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
           </div>
-          <span className="text-gray-400">-</span>
+
+          {/* Brand Filter */}
           <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-            />
+            <Building className="h-5 w-5 text-gray-400" />
+            <select
+              value={selectedBrandId}
+              onChange={(e) => setSelectedBrandId(e.target.value)}
+              disabled={brandsLoading}
+              className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="all">All Brands</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id.toString()}>
+                  {brand.name} ({brand.code})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -344,12 +394,16 @@ export default function DashboardPage() {
             </div>
             <div className="p-4 space-y-3 text-sm">
               <div className="flex justify-between">
-                <span>Total Bids</span>
-                <span className="font-medium">{stats.buyers.totalBids}</span>
+                <span>Total Buyers</span>
+                <span className="font-medium">{stats.buyers.totalBuyers}</span>
               </div>
               <div className="flex justify-between">
-                <span>Unique Bidders</span>
+                <span>Active Bidders</span>
                 <span className="font-medium">{stats.buyers.totalBidders}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Bids</span>
+                <span className="font-medium">{stats.buyers.totalBids}</span>
               </div>
             </div>
           </div>
@@ -370,6 +424,10 @@ export default function DashboardPage() {
               <div className="flex justify-between">
                 <span>Total Consignments</span>
                 <span className="font-medium">{stats.vendors.totalConsignments}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Items from Vendors</span>
+                <span className="font-medium">{stats.lots.totalLots}</span>
               </div>
             </div>
           </div>

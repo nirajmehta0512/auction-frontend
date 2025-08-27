@@ -12,7 +12,7 @@ import { ArrowLeft, Save, Plus, X } from 'lucide-react'
 import Link from 'next/link'
 import { createRefund } from '@/lib/refunds-api'
 import { fetchClients, type Client } from '@/lib/clients-api'
-import { ArtworksAPI, type Artwork } from '@/lib/artworks-api'
+import { ArtworksAPI, type Artwork } from '@/lib/items-api'
 import { getAuction } from '@/lib/auctions-api'
 import { getAuctions, type Auction } from '@/lib/auctions-api'
 import StaffDropdown from '@/components/ui/staff-dropdown'
@@ -94,8 +94,8 @@ export default function NewRefundPage() {
             }
 
             // Get items using artwork_ids
-            const itemsData = await ArtworksAPI.getArtworks({ 
-                item_ids: auction.artwork_ids.join(','),
+            const itemsData = await ArtworksAPI.getArtworks({
+                item_ids: auction.artwork_ids.map(id => id.toString()),
                 limit: 1000,
                 status: 'sold' // Only show sold items for refunds
             })

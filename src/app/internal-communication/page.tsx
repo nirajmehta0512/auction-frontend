@@ -2,73 +2,50 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react'
-import { 
-  CheckSquare, 
-  Send, 
-  Plus, 
-  Search,
-  Calendar,
-  Paperclip,
-  ArrowRight,
-  Clock,
-  AlertCircle,
-  Settings,
+import {
+  CheckSquare,
+  Plus,
   MessageCircle,
   X,
   MoreVertical,
-  File,
   Users,
-  Filter,
-  Smile,
-  CheckCircle2,
-  Circle,
-  Trash2
+  Search
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import type { 
-  User as UserType, 
-  Message, 
-  MessageRequest, 
-  TaskFormData, 
-  TaskComment,
+
+import type {
+  User as UserType,
+  Message,
+  MessageRequest,
+  TaskFormData,
+
   PaginatedResponse
 } from '@/types/api'
+import { realtimeChatService } from '@/lib/realtime-chat'
+import FloatingChat from '@/components/FloatingChat'
+import { UnifiedChat } from '@/components/realtime-chat'
 
-interface GroupChat {
-  id: string;
-  name: string;
-  members: string[];
-  lastMessage?: Message;
-  unreadCount: number;
-}
+
 
 type MessageFilter = 'all' | 'unread' | 'important' | 'files' | 'tasks';
 
 export default function InternalCommunicationPage() {
   // Main state
   const [messageFilter, setMessageFilter] = useState<MessageFilter>('all')
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [isGroupChat, setIsGroupChat] = useState(false)
   
   // Data state
   const [messages, setMessages] = useState<Message[]>([])
   const [users, setUsers] = useState<UserType[]>([])
-  const [groupChats, setGroupChats] = useState<GroupChat[]>([])
-  const [comments, setComments] = useState<Record<string, TaskComment[]>>({})
   
   // UI state
   const [loading, setLoading] = useState(false)
   const [newMessage, setNewMessage] = useState('')
-  const [newComment, setNewComment] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [unreadCount, setUnreadCount] = useState(0)
   const [currentUser, setCurrentUser] = useState<UserType | null>(null)
   const [showUserSelector, setShowUserSelector] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
   
   // Form states
   const [showTaskForm, setShowTaskForm] = useState(false)
@@ -80,28 +57,125 @@ export default function InternalCommunicationPage() {
     priority: 'normal',
     task_estimated_hours: undefined
   })
-  const [groupName, setGroupName] = useState('')
-  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageInputRef = useRef<HTMLTextAreaElement>(null)
-  const commentInputRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const user = localStorage.getItem('user')
     if (user) {
       setCurrentUser(JSON.parse(user))
     }
-    
+
     loadInitialData()
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      loadMessages()
+
+    // Initialize realtime connection
+    const initRealtime = async () => {
+      try {
+        await realtimeChatService.connect()
+        console.log('✅ Connected to realtime chat service')
+      } catch (error) {
+        console.error('❌ Failed to connect to realtime chat service:', error)
+      }
+    }
+
+    initRealtime()
+
+    // Setup realtime event handlers
+    realtimeChatService.onMessage((message) => {
+      console.log('📨 Realtime message received:', message)
+      // Add message to current conversation if it matches
+      if (selectedUsers.length === 1 &&
+          (message.sender_id === selectedUsers[0] || message.receiver_id === selectedUsers[0])) {
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.find(m => m.id === message.id)) return prev
+          return [...prev, message].sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          )
+        })
+      }
+
+      // Update unread count
       loadUnreadCount()
-    }, 30000)
+    })
+
+    // POLLING FALLBACK: Check for new messages every 5 seconds
+    // This will work until Supabase realtime is enabled
+    const startPolling = () => {
+      const pollInterval = setInterval(async () => {
+        if (selectedUsers.length === 1) {
+          try {
+            const token = localStorage.getItem('token')
+            if (!token) return
+
+            const response = await fetch(`/api/internal-communication/messages?user_id=${selectedUsers[0]}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              const newMessages = data.messages || []
+
+              setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id))
+                const trulyNewMessages = newMessages.filter((m: Message) => !existingIds.has(m.id))
+
+                if (trulyNewMessages.length > 0) {
+                  console.log('📨 Polling found new messages:', trulyNewMessages.length)
+                  return [...prev, ...trulyNewMessages].sort((a, b) =>
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                  )
+                }
+                return prev
+              })
+            }
+          } catch (error) {
+            console.error('❌ Polling error:', error)
+          }
+        }
+      }, 5000) // Poll every 5 seconds
+
+      return pollInterval
+    }
+
+    const pollInterval = startPolling()
+
+    realtimeChatService.onMessageUpdate((message) => {
+      setMessages(prev =>
+        prev.map(m => m.id === message.id ? message : m)
+      )
+    })
+
+    realtimeChatService.onMessageDelete((messageId) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId))
+    })
+
+    // Cleanup function
+    return () => {
+      clearInterval(pollInterval)
+      realtimeChatService.disconnect()
+    }
+
+    realtimeChatService.onTaskAssignment((task) => {
+      // Refresh messages to show new task
+      if (selectedUsers.includes(task.sender_id) || selectedUsers.includes(task.task_assigned_to || '')) {
+        loadMessages()
+      }
+    })
+
+    realtimeChatService.onTaskStatusChange((data) => {
+      // Update task in messages
+      setMessages(prev => 
+        prev.map(m => m.id === data.messageId ? { ...m, task_status: data.newStatus } : m)
+      )
+    })
     
-    return () => clearInterval(interval)
+    return () => {
+      realtimeChatService.disconnect()
+    }
   }, [])
 
   useEffect(() => {
@@ -184,27 +258,31 @@ export default function InternalCommunicationPage() {
 
   const loadMessages = async () => {
     if (selectedUsers.length === 0) return
-    
+
     try {
       let url = '/api/internal-communication/messages?'
       const params = new URLSearchParams()
-      
+
       if (selectedUsers.length === 1) {
         params.append('user_id', selectedUsers[0])
       }
-      
+
       if (messageFilter !== 'all') {
         params.append('filter', messageFilter)
       }
-      
+
       url += params.toString()
-      
+
       const response = await makeAuthenticatedRequest(url)
-      
+
       if (response?.ok) {
         const data: PaginatedResponse<Message> = await response.json()
-        setMessages(data.data || [])
-        console.log('✅ Loaded messages:', data.data?.length || 0)
+        // Sort messages by created_at ascending (oldest first, like chat apps)
+        const sortedMessages = (data.data || []).sort((a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+        setMessages(sortedMessages)
+        console.log('✅ Loaded messages:', sortedMessages.length)
       }
     } catch (error) {
       console.error('Error loading messages:', error)
@@ -224,37 +302,12 @@ export default function InternalCommunicationPage() {
     }
   }
 
-  const loadComments = async (messageId: string) => {
-    try {
-      const response = await makeAuthenticatedRequest(`/api/internal-communication/messages/${messageId}/comments`)
-      
-      if (response?.ok) {
-        const data: { comments: TaskComment[] } = await response.json()
-        setComments(prev => ({
-          ...prev,
-          [messageId]: data.comments || []
-        }))
-      }
-    } catch (error) {
-      console.error('Error loading comments:', error)
-    }
-  }
 
-  const handleFileUpload = (files: FileList) => {
-    const fileArray = Array.from(files)
-    setAttachments(prev => [...prev, ...fileArray])
-  }
 
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index))
-  }
 
-  const sendMessage = async () => {
-    if ((!newMessage.trim() && attachments.length === 0) || loading || selectedUsers.length === 0) return
 
-    setLoading(true)
-    try {
-      const messageData: MessageRequest = {
+  const sendMessage = async (customMessageData?: MessageRequest) => {
+    const messageData = customMessageData || {
         content: newMessage || 'File attachment',
         message_type: attachments.length > 0 ? 'file' : 'text',
         receiver_id: selectedUsers.length === 1 ? selectedUsers[0] : undefined,
@@ -262,16 +315,24 @@ export default function InternalCommunicationPage() {
         attachments: attachments.length > 0 ? attachments : undefined
       }
 
+    if (loading || selectedUsers.length === 0) return
+    if (!customMessageData && !newMessage.trim() && attachments.length === 0) return
+
+    setLoading(true)
+    try {
+
       const response = await makeAuthenticatedRequest('/api/internal-communication/messages', {
         method: 'POST',
         body: JSON.stringify(messageData)
       })
 
       if (response?.ok) {
+        if (!customMessageData) {
         setNewMessage('')
         setAttachments([])
-        await loadMessages()
         messageInputRef.current?.focus()
+        }
+        await loadMessages()
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -321,88 +382,11 @@ export default function InternalCommunicationPage() {
     }
   }
 
-  const updateTaskStatus = async (messageId: string, status: string) => {
-    setLoading(true)
-    try {
-      const response = await makeAuthenticatedRequest(`/api/internal-communication/messages/${messageId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ task_status: status })
-      })
 
-      if (response?.ok) {
-        await loadMessages()
-      }
-    } catch (error) {
-      console.error('Error updating task status:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  const addComment = async (messageId: string) => {
-    if (!newComment.trim() || loading) return
 
-    setLoading(true)
-    try {
-      const response = await makeAuthenticatedRequest(`/api/internal-communication/messages/${messageId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ comment: newComment })
-      })
 
-      if (response?.ok) {
-        setNewComment('')
-        await loadComments(messageId)
-        setActiveCommentId(null)
-      }
-    } catch (error) {
-      console.error('Error adding comment:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-
-    if (minutes < 1) return 'now'
-    if (minutes < 60) return `${minutes}m`
-    if (hours < 24) return `${hours}h`
-    if (days < 7) return `${days}d`
-    return date.toLocaleDateString()
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-500 text-white'
-      case 'high': return 'bg-orange-500 text-white'
-      case 'normal': return 'bg-blue-500 text-white'
-      case 'low': return 'bg-gray-500 text-white'
-      default: return 'bg-gray-500 text-white'
-    }
-  }
-
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-500 text-white'
-      case 'in_progress': return 'bg-blue-500 text-white'
-      case 'cancelled': return 'bg-red-500 text-white'
-      default: return 'bg-yellow-500 text-black'
-    }
-  }
-
-  const getTaskStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return <CheckCircle2 className="w-4 h-4" />
-      case 'in_progress': return <Clock className="w-4 h-4" />
-      case 'cancelled': return <X className="w-4 h-4" />
-      default: return <Circle className="w-4 h-4" />
-    }
-  }
 
   const getFilteredMessages = () => {
     let filtered = messages
@@ -428,17 +412,17 @@ export default function InternalCommunicationPage() {
   }
 
   const renderSidebar = () => (
-    <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
+    <div className="w-72 bg-gray-50 border-r border-gray-200 flex flex-col h-full overflow-hidden">
       {/* Sidebar Header */}
-      <div className="p-6 border-b border-gray-200 bg-white">
+      <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Messages</h1>
             <p className="text-sm text-gray-500">Team Communication</p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowUserSelector(true)}
               className="border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -446,8 +430,8 @@ export default function InternalCommunicationPage() {
               <Plus className="w-4 h-4 mr-1" />
               Chat
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowTaskForm(true)}
               className="border-green-200 text-green-600 hover:bg-green-50"
@@ -457,7 +441,7 @@ export default function InternalCommunicationPage() {
             </Button>
           </div>
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -472,7 +456,7 @@ export default function InternalCommunicationPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="px-6 py-3 border-b border-gray-200 bg-white">
+      <div className="flex-shrink-0 px-6 py-3 border-b border-gray-200 bg-white">
         <div className="flex flex-wrap gap-2">
           {(['all', 'unread', 'important', 'files', 'tasks'] as MessageFilter[]).map((filter) => (
             <button
@@ -495,8 +479,8 @@ export default function InternalCommunicationPage() {
         </div>
       </div>
 
-      {/* Team Members List */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Team Members List - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center">
@@ -505,19 +489,16 @@ export default function InternalCommunicationPage() {
             </h3>
             <span className="text-xs text-gray-500">{users.length} online</span>
           </div>
-          
+
           <div className="space-y-2">
             {users.map((user) => {
               const isSelected = selectedUsers.includes(user.auth_user_id) && selectedUsers.length === 1
-              const userInitials = `${user.first_name[0]}${user.last_name}`
-              
+
               return (
                 <button
                   key={user.id}
                   onClick={() => {
                     setSelectedUsers([user.auth_user_id])
-                    setSelectedConversation(null)
-                    setIsGroupChat(false)
                   }}
                   className={`w-full text-left p-3 rounded-xl transition-all duration-200 ${
                     isSelected
@@ -527,9 +508,9 @@ export default function InternalCommunicationPage() {
                 >
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                      isSelected ? 'bg-blue-600 text-white' : 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
+                      isSelected ? 'bg-blue-600 text-white' : 'bg-gradient-to-br from-emerald-400 to-teal-600 text-white'
                     }`}>
-                      {userInitials}
+                      {user.first_name[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">
@@ -553,175 +534,11 @@ export default function InternalCommunicationPage() {
     </div>
   )
 
-  const renderMessage = (message: Message) => {
-    const isCurrentUser = message.sender_id === currentUser?.auth_user_id
-    const hasComments = comments[message.id] && comments[message.id].length > 0
-    const isCommentActive = activeCommentId === message.id
-    
-    return (
-      <div key={message.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-6`}>
-        <div className={`max-w-2xl ${isCurrentUser ? 'order-2' : 'order-1'}`}>
-          <div className={`rounded-2xl px-4 py-3 shadow-sm ${
-            isCurrentUser
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-200'
-          }`}>
-            {message.message_type === 'task' ? (
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2 mb-2">
-                  <CheckSquare className="w-4 h-4" />
-                  <span className="font-medium text-xs uppercase tracking-wide">TASK</span>
-                  <Badge className={`text-xs ${getPriorityColor(message.priority)} border-0`}>
-                    {message.priority}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">{message.task_title}</h4>
-                  {message.task_description && (
-                    <p className="text-sm opacity-90">{message.task_description}</p>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge className={`text-xs ${getTaskStatusColor(message.task_status || 'pending')} border-0`}>
-                      {getTaskStatusIcon(message.task_status || 'pending')}
-                      <span className="ml-1 capitalize">{message.task_status?.replace('_', ' ') || 'pending'}</span>
-                    </Badge>
-                  </div>
-                  
-                  {message.task_assigned_to === currentUser?.auth_user_id && message.task_status !== 'completed' && (
-                    <Button
-                      size="sm"
-                      variant={isCurrentUser ? "outline" : "default"}
-                      onClick={() => updateTaskStatus(message.id, 'completed')}
-                      className="text-xs h-7"
-                    >
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Complete
-                    </Button>
-                  )}
-                </div>
-
-                {(message.task_due_date || message.task_estimated_hours) && (
-                  <div className="flex items-center space-x-4 text-xs opacity-75 pt-2 border-t border-opacity-20 border-gray-300">
-                    {message.task_due_date && (
-                      <div className="flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Due: {new Date(message.task_due_date).toLocaleDateString()}
-                      </div>
-                    )}
-                    {message.task_estimated_hours && (
-                      <div className="flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {message.task_estimated_hours}h estimated
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : message.message_type === 'file' ? (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <File className="w-4 h-4" />
-                  <span className="font-medium text-xs uppercase tracking-wide">FILE</span>
-                </div>
-                <div className="text-sm">{message.content}</div>
-              </div>
-            ) : (
-              <div className="text-sm leading-relaxed">{message.content}</div>
-            )}
-          </div>
-          
-          {/* Message footer */}
-          <div className={`flex items-center justify-between mt-2 px-2 ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div className="flex items-center space-x-2 text-xs text-gray-500">
-              <span>{message.sender_name || 'Unknown'}</span>
-              <span>•</span>
-              <span>{formatTime(message.created_at)}</span>
-            </div>
-            
-            {message.message_type === 'task' && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    if (isCommentActive) {
-                      setActiveCommentId(null)
-                    } else {
-                      setActiveCommentId(message.id)
-                      if (!comments[message.id]) {
-                        loadComments(message.id)
-                      }
-                    }
-                  }}
-                  className="text-xs text-gray-500 hover:text-blue-600 flex items-center"
-                >
-                  <MessageCircle className="w-3 h-3 mr-1" />
-                  {comments[message.id]?.length || 0} {comments[message.id]?.length === 1 ? 'comment' : 'comments'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Comments section */}
-          {message.message_type === 'task' && (isCommentActive || hasComments) && (
-            <div className="mt-4 pl-4 border-l-2 border-gray-200 space-y-3">
-              {comments[message.id]?.map((comment) => (
-                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {comment.profiles?.first_name} {comment.profiles?.last_name}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatTime(comment.created_at)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700">{comment.comment}</p>
-                </div>
-              ))}
-              
-              {isCommentActive && (
-                <div className="flex space-x-2">
-                  <textarea
-                    ref={commentInputRef}
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Add a comment..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
-                    rows={2}
-                  />
-                  <div className="flex flex-col space-y-1">
-                    <Button
-                      onClick={() => addComment(message.id)}
-                      disabled={!newComment.trim() || loading}
-                      size="sm"
-                      className="h-8"
-                    >
-                      <Send className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      onClick={() => setActiveCommentId(null)}
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
 
   const renderMainContent = () => (
-    <div className="flex-1 flex flex-col h-full bg-gray-50">
+    <div className="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden">
       {selectedUsers.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
               <MessageCircle className="w-8 h-8 text-gray-400" />
@@ -747,14 +564,13 @@ export default function InternalCommunicationPage() {
       ) : (
         <>
           {/* Chat Header */}
-          <div className="border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {selectedUsers.length === 1 ? (
                   <>
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                      {users.find(u => u.auth_user_id === selectedUsers[0])?.first_name[0]}
-                      {users.find(u => u.auth_user_id === selectedUsers[0])?.last_name}
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                      {users.find(u => u.auth_user_id === selectedUsers[0])?.first_name[0].toUpperCase()}
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">
@@ -775,7 +591,7 @@ export default function InternalCommunicationPage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -793,104 +609,52 @@ export default function InternalCommunicationPage() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {getFilteredMessages().length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center space-y-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                    <MessageCircle className="w-6 h-6 text-gray-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">No messages yet</h4>
-                    <p className="text-sm text-gray-500">Start the conversation!</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <>
-                {getFilteredMessages().map(renderMessage)}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-
-          {/* Message Input */}
-          <div className="border-t border-gray-200 bg-white p-4">
-            {/* Attachments Preview */}
-            {attachments.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {attachments.map((file, index) => (
-                  <div key={index} className="flex items-center space-x-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    <File className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm text-blue-800 truncate max-w-32">{file.name}</span>
-                    <button
-                      onClick={() => removeAttachment(index)}
-                      className="text-blue-400 hover:text-blue-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="flex items-end space-x-3">
-              <div className="flex-1">
-                <textarea
-                  ref={messageInputRef}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  rows={1}
-                  style={{ minHeight: '44px', maxHeight: '120px' }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      sendMessage()
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex space-x-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={(e) => handleFileUpload(e.target.files || new FileList())}
-                  className="hidden"
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-11 w-11 p-0"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                <Button 
-                  onClick={sendMessage}
-                  disabled={(!newMessage.trim() && attachments.length === 0) || loading}
-                  className="h-11 w-11 p-0 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          {/* Unified Chat Component */}
+          <UnifiedChat
+            currentUser={currentUser}
+            selectedUsers={selectedUsers}
+            messages={getFilteredMessages()}
+            onSendMessage={async (messageData: MessageRequest) => {
+              await sendMessage(messageData)
+            }}
+            onSendTask={async (taskData: TaskFormData) => {
+              // Create task message
+              const taskMessage: MessageRequest = {
+                content: `Task: ${taskData.task_title}`,
+                message_type: 'task',
+                receiver_id: selectedUsers[0],
+                task_title: taskData.task_title,
+                task_description: taskData.task_description,
+                task_assigned_to: taskData.task_assigned_to,
+                task_due_date: taskData.task_due_date,
+                priority: taskData.priority
+              }
+              await sendMessage(taskMessage)
+            }}
+            showTaskCreation={true}
+            className="flex-1"
+          />
         </>
       )}
     </div>
   )
 
   return (
-    <div className="h-screen bg-white flex overflow-hidden">
-      {/* Sidebar */}
-      {renderSidebar()}
+    <div className="layout-wrapper">
 
-      {/* Main Content */}
-      {renderMainContent()}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Chat Interface */}
+        <main className="flex-1 bg-gray-50 overflow-hidden">
+          <div className="h-full flex overflow-hidden">
+            {/* Team Members Sidebar */}
+            {renderSidebar()}
+
+            {/* Chat Area */}
+            {renderMainContent()}
+          </div>
+        </main>
+      </div>
 
       {/* User Selector Modal */}
       {showUserSelector && (
@@ -908,7 +672,7 @@ export default function InternalCommunicationPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
                 {users.map((user) => (
@@ -918,7 +682,7 @@ export default function InternalCommunicationPage() {
                       checked={selectedUsers.includes(user.auth_user_id)}
                       onChange={(e) => {
                         const isChecked = e.target.checked
-                        setSelectedUsers(prev => 
+                        setSelectedUsers(prev =>
                           isChecked
                             ? [...prev, user.auth_user_id]
                             : prev.filter(id => id !== user.auth_user_id)
@@ -926,8 +690,8 @@ export default function InternalCommunicationPage() {
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                      {user.first_name[0]}{user.last_name}
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                      {user.first_name[0].toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">
@@ -939,7 +703,7 @@ export default function InternalCommunicationPage() {
                 ))}
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-3 mt-6">
               <Button
                 variant="outline"
@@ -980,7 +744,7 @@ export default function InternalCommunicationPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
@@ -992,7 +756,7 @@ export default function InternalCommunicationPage() {
                   placeholder="Enter task title"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -1003,7 +767,7 @@ export default function InternalCommunicationPage() {
                   placeholder="Task description (optional)"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assign To *</label>
                 <select
@@ -1019,7 +783,7 @@ export default function InternalCommunicationPage() {
                   ))}
                 </select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
@@ -1034,15 +798,15 @@ export default function InternalCommunicationPage() {
                     <option value="urgent">Urgent</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Hours</label>
                   <input
                     type="number"
                     value={taskForm.task_estimated_hours || ''}
-                    onChange={(e) => setTaskForm(prev => ({ 
-                      ...prev, 
-                      task_estimated_hours: e.target.value ? parseInt(e.target.value) : undefined 
+                    onChange={(e) => setTaskForm(prev => ({
+                      ...prev,
+                      task_estimated_hours: e.target.value ? parseInt(e.target.value) : undefined
                     }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Hours"
@@ -1050,7 +814,7 @@ export default function InternalCommunicationPage() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                 <input
@@ -1061,7 +825,7 @@ export default function InternalCommunicationPage() {
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-3 mt-6">
               <Button
                 variant="outline"
@@ -1080,6 +844,9 @@ export default function InternalCommunicationPage() {
           </div>
         </div>
       )}
+      
+      {/* Floating Chat Widget */}
+      <FloatingChat />
     </div>
   )
 } 

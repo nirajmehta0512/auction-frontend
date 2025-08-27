@@ -83,7 +83,6 @@ export default function PlatformSettingsPage() {
   const rows = [
     { label: 'Email SMTP', key: 'email_smtp' },
     { label: 'Instagram', key: 'instagram' },
-    { label: 'PayPal', key: 'PAYPAL' },
     { label: 'LiveAuctioneers (FTP Upload)', key: 'LIVE_AUCTIONEERS' },
     { label: 'Easy Live Auction', key: 'EASY_LIVE' },
     { label: 'Invaluable', key: 'INVALUABLE' },

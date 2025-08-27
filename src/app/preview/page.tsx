@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ExternalLink, Download, Eye, Calendar, MapPin, Gavel } from 'lucide-react'
-import { Artwork, ArtworksAPI } from '@/lib/artworks-api'
+import { Artwork, ArtworksAPI } from '@/lib/items-api'
 import { Artist, ArtistsAPI } from '@/lib/artists-api'
 import { School, SchoolsAPI } from '@/lib/schools-api'
 import { getAuctions } from '@/lib/auctions-api'
@@ -32,7 +32,7 @@ export default function LiveAuctioneerPreviewPage() {
       setLoading(true)
       setError(null)
 
-      let artworkIds: string | undefined = undefined
+      let artworkIds: string[] | undefined = undefined
 
       // If filtering by auction, get the auction's artwork_ids first
       if (auctionId) {
@@ -42,10 +42,10 @@ export default function LiveAuctioneerPreviewPage() {
             limit: 100,
             brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
           })
-          
+
           const auction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
           if (auction && auction.artwork_ids && Array.isArray(auction.artwork_ids)) {
-            artworkIds = auction.artwork_ids.join(',')
+            artworkIds = auction.artwork_ids.map(id => id.toString())
           }
         } catch (auctionError) {
           console.warn('Failed to load auction for preview:', auctionError)

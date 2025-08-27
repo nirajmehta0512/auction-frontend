@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import AuthGuard from './AuthGuard'
+import FloatingChat from './FloatingChat'
 
 interface LayoutWrapperProps {
   children: React.ReactNode
@@ -12,12 +13,15 @@ interface LayoutWrapperProps {
 
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname()
-  
+
   // Check if current path is an auth route
   const isAuthRoute = pathname?.startsWith('/auth')
 
-  // If it's an auth route, render without sidebar/header and without auth guard
-  if (isAuthRoute) {
+  // Check if current path is a public invoice route
+  const isPublicInvoiceRoute = pathname?.startsWith('/invoice/') && pathname?.split('/').length === 3
+
+  // If it's an auth route or public invoice route, render without sidebar/header and without auth guard
+  if (isAuthRoute || isPublicInvoiceRoute) {
     return <>{children}</>
   }
 
@@ -32,6 +36,8 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
             {children}
           </main>
         </div>
+        {/* Floating Chat Widget - Available on all authenticated pages */}
+        <FloatingChat />
       </div>
     </AuthGuard>
   )

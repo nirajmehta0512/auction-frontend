@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react'
 import AuctionForm from '@/components/auctions/AuctionForm'
 import { getAuction } from '@/lib/auctions-api'
 import type { Auction } from '@/lib/auctions-api'
-import { ArtworksAPI } from '@/lib/artworks-api'
+import { ArtworksAPI } from '@/lib/items-api'
 
 export default function EditAuctionPage() {
   const router = useRouter()

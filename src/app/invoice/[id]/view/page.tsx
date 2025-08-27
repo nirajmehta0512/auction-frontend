@@ -77,7 +77,7 @@ interface InvoiceData {
   }>
 }
 
-export default function InvoiceViewPage({ params }: { params: Promise<{ invoiceId: string }> }) {
+export default function InvoiceViewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params)
   const router = useRouter()
   const [invoice, setInvoice] = useState<InvoiceData | null>(null)
@@ -86,14 +86,14 @@ export default function InvoiceViewPage({ params }: { params: Promise<{ invoiceI
 
   useEffect(() => {
     fetchInvoice()
-  }, [resolvedParams.invoiceId])
+  }, [resolvedParams.id])
 
   const fetchInvoice = async () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`/api/invoices/${resolvedParams.invoiceId}`, {
+      const response = await fetch(`/api/invoices/${resolvedParams.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -122,7 +122,7 @@ export default function InvoiceViewPage({ params }: { params: Promise<{ invoiceI
     try {
       const token = localStorage.getItem('token')
       
-      const response = await fetch(`/api/invoices/${resolvedParams.invoiceId}/pdf`, {
+      const response = await fetch(`/api/invoices/${resolvedParams.id}/pdf`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
-import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice } from '@/lib/items-api'
+import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
 import { getAuctions, Auction } from '@/lib/auctions-api'
@@ -665,14 +665,18 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   }
 
   const populateAIData = (aiData: any) => {
+    // Calculate start price and reserve price (reserve = start price for AI data)
+    const startPrice = aiData.low_est ? generateStartPrice(aiData.low_est) : 0
+    const reservePrice = startPrice ? generateReservePriceForAI(startPrice).toString() : ''
+
     setFormData({
       title: aiData.title || '',
       description: aiData.description || '',
       low_est: aiData.low_est?.toString() || '',
       high_est: aiData.high_est?.toString() || '',
-      start_price: '', // Will be auto-calculated
+      start_price: startPrice.toString(), // Auto-calculated from low_est
       condition: aiData.condition || '',
-      reserve: '',
+      reserve: reservePrice, // Set reserve price equal to start price
       vendor_id: '',
       buyer_id: '',
       consignment_id: '',
@@ -1629,9 +1633,9 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             <div className="space-y-6">
               {/* Pricing Information Section */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-green-900 mb-4">Pricing & Category Information</h3>
+                <h3 className="text-sm font-medium text-green-900 mb-4">Pricing Information</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Low Estimate * (£)
@@ -1675,9 +1679,28 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reserve Price (£) <span className="text-xs text-gray-500">(internal use)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.reserve}
+                      onChange={(e) => handleInputChange('reserve', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Information Section */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-blue-900 mb-4">Category Information</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category
@@ -1694,6 +1717,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subcategory
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.subcategory}
+                      onChange={(e) => handleInputChange('subcategory', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="e.g., Oil Paintings, Watercolors"
+                    />
                   </div>
 
                   <div>
@@ -1840,33 +1876,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subcategory
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.subcategory}
-                    onChange={(e) => handleInputChange('subcategory', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reserve Price (£) <span className="text-xs text-gray-500">(internal use)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.reserve}
-                    onChange={(e) => handleInputChange('reserve', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-              </div>
             </div>
           )}
 

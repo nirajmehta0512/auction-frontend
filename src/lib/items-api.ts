@@ -1,4 +1,4 @@
-// frontend/src/lib/artworks-api.ts
+// frontend/src/lib/items-api.ts
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
@@ -6,6 +6,7 @@ import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 // Artwork interface matching the actual database schema
 export interface Artwork {
   id?: string;
+  lot_num: string;                    // Required: LotNum (up to 10 chars)
   title: string;                      // Required: Title
   description: string;                // Required: Description
   low_est: number;                    // Required: Low Estimate
@@ -109,7 +110,8 @@ interface GetArtworksParams {
   limit?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  brand_code?: 'MSABER' | 'AURUM' | 'METSAB';
+  brand_code?: string;
+  item_ids?: string[];
 }
 
 // Helper function to get auth token
@@ -500,6 +502,11 @@ export const formatLotNumber = (lotNum: string): string => {
 
 export const generateStartPrice = (lowEst: number): number => {
   return Math.round(lowEst * 0.5);
+};
+
+// Generate reserve price for AI data (set to same as start price)
+export const generateReservePriceForAI = (startPrice: number): number => {
+  return startPrice;
 };
 
 // Categories for dropdown selections

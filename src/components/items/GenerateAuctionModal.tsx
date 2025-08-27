@@ -224,7 +224,7 @@ export default function GenerateAuctionModal({
         catalogue_launch_date: catalogueLaunchDate || '',
         auction_days: [],
         status: 'planned',
-        lots_count: selectedArtworks.length,
+        artwork_ids: selectedArtworks.map(id => parseInt(id)), // Convert string IDs to numbers
         registrations_count: 0,
         brand_code: selectedBrand
       }
@@ -254,7 +254,7 @@ export default function GenerateAuctionModal({
 
       const auctionId = result.data.id
 
-      setSuccess(`Auction "${auctionName}" created successfully! (${selectedArtworks.length} artworks selected)`)
+      setSuccess(`Auction "${auctionName}" created successfully! (${selectedArtworks.length} artworks added to auction)`)
       
       // Call completion callback
       if (onComplete) {
@@ -376,7 +376,7 @@ export default function GenerateAuctionModal({
                         </p>
                       </div>
                       <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {auction.lots_count || 0} lots
+                        {(auction.artwork_ids?.length || 0)} lots
                       </span>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 // frontend/src/lib/artwork-preview.ts
 
-import { Artwork } from './artworks-api'
+import { Artwork } from './items-api'
 import { Artist } from './artists-api'
 import { Client } from './clients-api'
 

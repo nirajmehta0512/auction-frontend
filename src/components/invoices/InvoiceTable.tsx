@@ -116,6 +116,29 @@ export default function InvoiceTable({ invoices, loading = false, onRefresh, inv
     }
   }
 
+  const handleGeneratePublicUrl = async (invoiceId: number) => {
+    try {
+      const result = await InvoicesAPI.generatePublicUrl(invoiceId)
+      if (result.success) {
+        // Open the URL in a new tab (primary action)
+        window.open(result.url, '_blank')
+
+        // Also copy URL to clipboard for reference
+        try {
+          await navigator.clipboard.writeText(result.url)
+          console.log('Public invoice URL copied to clipboard:', result.url)
+        } catch (clipboardError) {
+          console.warn('Failed to copy URL to clipboard:', clipboardError)
+        }
+      } else {
+        alert(result.message || 'Failed to generate public URL')
+      }
+    } catch (error) {
+      console.error('Failed to generate public URL:', error)
+      alert('Failed to generate public URL')
+    }
+  }
+
   const handleEditLogistics = (invoice: Invoice) => {
     setSelectedInvoice(invoice)
     setShowLogisticsDialog(true)
@@ -541,6 +564,13 @@ export default function InvoiceTable({ invoices, loading = false, onRefresh, inv
                             >
                               <Download className="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 flex-shrink-0" />
                               <span className="leading-tight">Generate Invoice (With Shipping)</span>
+                            </button>
+                            <button
+                              onClick={() => handleGeneratePublicUrl(invoice.id)}
+                              className="group flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 w-full text-left whitespace-normal"
+                            >
+                              <FileText className="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 flex-shrink-0" />
+                              <span className="leading-tight">Generate Invoice (with Url)</span>
                             </button>
                             <button
                               onClick={() => handleSendAcknowledgmentEmail(invoice)}

@@ -167,12 +167,12 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     }))
   }, [parsePlaceToAddress])
 
-  // Load Google Sheets URL from brand settings
+  // Load Google Sheets URL from app settings
   useEffect(() => {
     const loadGoogleSheetUrl = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/brand-settings?brand_code=${brand}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/app-settings/google-sheets/clients`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -181,11 +181,8 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
 
         if (response.ok) {
           const data = await response.json()
-          if (data.success && data.data) {
-            const googleSheetSetting = data.data.find((setting: any) => setting.key === 'google_sheet_url')
-            if (googleSheetSetting && googleSheetSetting.value) {
-              setGoogleSheetUrl(googleSheetSetting.value)
-            }
+          if (data.success && data.data && data.data.url) {
+            setGoogleSheetUrl(data.data.url)
           }
         }
       } catch (error) {
@@ -193,10 +190,8 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
       }
     }
 
-    if (brand) {
-      loadGoogleSheetUrl()
-    }
-  }, [brand])
+    loadGoogleSheetUrl()
+  }, [])
 
   // Seed initial data in edit mode
   useEffect(() => {

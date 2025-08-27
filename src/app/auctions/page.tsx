@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import AuctionsTable from '@/components/auctions/AuctionsTable'
 import CSVUpload from '@/components/auctions/CSVUpload'
 import { Plus, Download, Upload, RefreshCw } from 'lucide-react'
-import { ArtworksAPI } from '@/lib/artworks-api'
+import { ArtworksAPI } from '@/lib/items-api'
 import { getAuctions, exportAuctionsCSV, bulkActionAuctions, deleteAuction } from '@/lib/auctions-api'
 import { useBrand } from '@/lib/brand-context'
 import type { Auction } from '@/lib/auctions-api'
@@ -22,7 +22,7 @@ const convertAuctionFormat = (auction: Auction) => ({
   status: auction.status as 'planned' | 'inProgress' | 'ended' | 'aftersale' | 'archived',
   name: auction.short_name,
   type: auction.type === 'timed' ? 'Timed' : auction.type === 'live' ? 'Live' : 'Private Sale',
-  lots: auction.lots_count || 0,
+  lots: auction.artwork_ids?.length || 0,
   regs: auction.registrations_count || 0,
   endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : ''
 })

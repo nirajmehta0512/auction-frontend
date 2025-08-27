@@ -48,6 +48,7 @@ export interface DashboardStats {
   buyers: {
     totalBids: number;
     totalBidders: number;
+    totalBuyers: number;
   };
   vendors: {
     totalVendors: number;
@@ -90,14 +91,16 @@ export interface DashboardStats {
 }
 
 // Get dashboard statistics
-export async function getDashboardStats(dateFrom?: string, dateTo?: string): Promise<DashboardStats> {
+export async function getDashboardStats(dateFrom?: string, dateTo?: string, brandCode?: string): Promise<DashboardStats> {
   const token = getAuthToken();
-  const brand_code = isSuperAdmin() ? undefined : localStorage.getItem('brand_code') || 'MSABER';
+
+  // Use provided brandCode, or fall back to user context for non-super-admin
+  const finalBrandCode = brandCode !== undefined ? brandCode : (isSuperAdmin() ? undefined : localStorage.getItem('brand_code') || 'MSABER');
 
   const queryParams = new URLSearchParams();
   if (dateFrom) queryParams.append('date_from', dateFrom);
   if (dateTo) queryParams.append('date_to', dateTo);
-  if (brand_code) queryParams.append('brand_code', brand_code);
+  if (finalBrandCode) queryParams.append('brand_code', finalBrandCode);
 
   const response = await fetch(`${API_BASE_URL}/api/dashboard/stats?${queryParams}`, {
     headers: {

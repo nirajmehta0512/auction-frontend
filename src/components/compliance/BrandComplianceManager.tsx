@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Check,
   MessageCircle,
-  CreditCard
+  CreditCard,
+  Send,
+  X
 } from 'lucide-react'
 import BrandLogoManager from '@/components/brands/BrandLogoManager'
 
@@ -55,6 +57,12 @@ interface BrandComplianceData {
   logo_url?: string
   logo_file_name?: string
   logo_uploaded_at?: string
+  winning_bid_email_subject?: string
+  winning_bid_email_body?: string
+  payment_confirmation_email_subject?: string
+  payment_confirmation_email_body?: string
+  shipping_confirmation_email_subject?: string
+  shipping_confirmation_email_body?: string
 }
 
 interface BrandComplianceManagerProps {
@@ -74,7 +82,13 @@ export default function BrandComplianceManager({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'info' | 'banking' | 'logo' | 'legal'>('info')
+  const [activeTab, setActiveTab] = useState<'info' | 'banking' | 'logo' | 'legal' | 'email'>('info')
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean
+    type: 'winning_bid' | 'payment_confirmation' | 'shipping_confirmation'
+    subject: string
+    body: string
+  } | null>(null)
 
   useEffect(() => {
     if (showAllBrands) {
@@ -176,7 +190,13 @@ export default function BrandComplianceManager({
           eori_number: editingBrand.eori_number,
           business_license: editingBrand.business_license,
           compliance_notes: editingBrand.compliance_notes,
-          bank_accounts: editingBrand.bank_accounts
+          bank_accounts: editingBrand.bank_accounts,
+          winning_bid_email_subject: editingBrand.winning_bid_email_subject,
+          winning_bid_email_body: editingBrand.winning_bid_email_body,
+          payment_confirmation_email_subject: editingBrand.payment_confirmation_email_subject,
+          payment_confirmation_email_body: editingBrand.payment_confirmation_email_body,
+          shipping_confirmation_email_subject: editingBrand.shipping_confirmation_email_subject,
+          shipping_confirmation_email_body: editingBrand.shipping_confirmation_email_body
         })
       })
 
@@ -214,6 +234,73 @@ export default function BrandComplianceManager({
       const updated = { ...selectedBrand, logo_url: logoUrl || undefined }
       setSelectedBrand(updated)
       setEditingBrand(updated)
+    }
+  }
+
+  const handlePreviewEmail = async (type: 'winning_bid' | 'payment_confirmation' | 'shipping_confirmation') => {
+    if (!selectedBrand || !editingBrand) return
+
+    try {
+      setError(null)
+
+      // Sample variables for preview - using uppercase to match template variables
+      const variables = {
+        CLIENT_NAME: 'John Smith',
+        ITEM_TITLE: 'Antique Painting',
+        LOT_NUMBER: 'LOT-001',
+        FINAL_BID_AMOUNT: '£2,500',
+        AUCTION_NAME: selectedBrand.name,
+        PAYMENT_TERMS: '7 days',
+        CONTACT_EMAIL: editingBrand.contact_email || 'contact@example.com',
+        CONTACT_PHONE: editingBrand.contact_phone || '+44 20 1234 5678',
+        INVOICE_NUMBER: 'INV-2024-001',
+        PURCHASE_AMOUNT: '£2,750',
+        PAYMENT_METHOD: 'Bank Transfer',
+        REFERENCE_NUMBER: 'REF123456',
+        SHIPPING_METHOD: 'Courier Delivery',
+        DELIVERY_TIMEFRAME: '3-5 business days',
+        TRACKING_NUMBER: 'TRACK123456',
+        BASE_URL: window.location.origin,
+        BRAND_NAME: selectedBrand.name,
+        PAYMENT_DATE: new Date().toLocaleDateString('en-GB'),
+        INVOICE_ID: 'inv_123456'
+      }
+
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const token = localStorage.getItem('token')
+
+      const response = await fetch(`${API_BASE_URL}/api/brands/${selectedBrand.id}/email-preview`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type,
+          variables
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (!data.subject || !data.body) {
+        throw new Error('Preview returned empty subject or body')
+      }
+
+      setPreviewModal({
+        isOpen: true,
+        type,
+        subject: data.subject,
+        body: data.body
+      })
+    } catch (error: any) {
+      console.error('Email preview error:', error)
+      setError(`Failed to generate preview: ${error.message}`)
     }
   }
 
@@ -302,7 +389,8 @@ export default function BrandComplianceManager({
                 { id: 'info', label: 'Contact & Business Info', icon: Building2 },
                 { id: 'banking', label: 'Banking Information', icon: CreditCard },
                 { id: 'logo', label: 'Brand Logo', icon: Eye },
-                { id: 'legal', label: 'Legal & Compliance', icon: Shield }
+                { id: 'legal', label: 'Legal & Compliance', icon: Shield },
+                { id: 'email', label: 'Email Formats', icon: Send }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -701,6 +789,308 @@ export default function BrandComplianceManager({
                 </div>
               </div>
             )}
+
+            {activeTab === 'email' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900">Email Format Templates</h3>
+                <p className="text-sm text-gray-600">Customize email templates for different auction and payment notifications.</p>
+
+                {/* Congratulations on Winning Bid */}
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <Check className="h-5 w-5 text-green-600 mr-2" />
+                        Congratulations on Winning Bid
+                      </h4>
+                      <button
+                        onClick={() => handlePreviewEmail('winning_bid')}
+                        className="flex items-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subject Line
+                        </label>
+                        <input
+                          type="text"
+                          value={editingBrand.winning_bid_email_subject || ''}
+                          onChange={(e) => handleInputChange('winning_bid_email_subject', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Congratulations! You've won the auction for [Item Title]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email Body
+                        </label>
+                        <textarea
+                          rows={12}
+                          value={editingBrand.winning_bid_email_body || ''}
+                          onChange={(e) => handleInputChange('winning_bid_email_body', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder={`Dear [Client Name],
+
+Congratulations! You have successfully won the auction for:
+
+Item: [Item Title]
+Lot Number: [Lot Number]
+Final Bid: [Final Bid Amount]
+Auction: [Auction Name]
+
+Your winning bid has been confirmed and you are now the highest bidder for this lot. Our team will be in touch shortly with payment instructions and collection/shipping details.
+
+Please note:
+- Payment is due within [Payment Terms] of the auction close
+- Collection/shipping arrangements will be coordinated separately
+- All sales are subject to our terms and conditions
+
+If you have any questions, please contact our team at [Contact Email] or [Contact Phone].
+
+Thank you for participating in our auction!
+
+Best regards,
+[Auction House Name]
+[Contact Information]`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Confirmation & Shipping Details */}
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
+                        Payment Confirmation & Shipping Details
+                      </h4>
+                      <button
+                        onClick={() => handlePreviewEmail('payment_confirmation')}
+                        className="flex items-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subject Line
+                        </label>
+                        <input
+                          type="text"
+                          value={editingBrand.payment_confirmation_email_subject || ''}
+                          onChange={(e) => handleInputChange('payment_confirmation_email_subject', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Payment Confirmed - Shipping Details for Your Winning Lot"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email Body
+                        </label>
+                        <textarea
+                          rows={15}
+                          value={editingBrand.payment_confirmation_email_body || ''}
+                          onChange={(e) => handleInputChange('payment_confirmation_email_body', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder={`Dear [Client Name],
+
+Thank you for your payment! Your transaction has been successfully processed.
+
+Order Details:
+- Item: [Item Title]
+- Lot Number: [Lot Number]
+- Purchase Price: [Purchase Amount]
+- Payment Method: [Payment Method]
+- Transaction Reference: [Reference Number]
+
+Shipping Information:
+- Shipping Method: [Shipping Method]
+- Estimated Delivery: [Delivery Timeframe]
+- Tracking Number: [Tracking Number] (when available)
+- Insurance: [Insurance Details]
+
+Your item will be carefully packaged and shipped to the address provided. You will receive a separate email with tracking information once your package has been dispatched.
+
+Please note:
+- All shipments are fully insured
+- Signature may be required for delivery
+- International shipments may be subject to customs duties and taxes
+
+If you have any questions about your order or shipping, please contact our logistics team at [Logistics Contact] or call [Phone Number].
+
+Thank you for your business!
+
+Best regards,
+[Auction House Name]
+[Contact Information]
+[Shipping Department]`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Shipping / Mode Confirmed */}
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <MessageCircle className="h-5 w-5 text-purple-600 mr-2" />
+                        Payment Shipping / Mode Confirmed - Courier/Collection Details Required
+                      </h4>
+                      <button
+                        onClick={() => handlePreviewEmail('shipping_confirmation')}
+                        className="flex items-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subject Line
+                        </label>
+                        <input
+                          type="text"
+                          value={editingBrand.shipping_confirmation_email_subject || ''}
+                          onChange={(e) => handleInputChange('shipping_confirmation_email_subject', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Action Required: Please Confirm Shipping Method and Provide Collection Details"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email Body
+                        </label>
+                        <textarea
+                          rows={15}
+                          value={editingBrand.shipping_confirmation_email_body || ''}
+                          onChange={(e) => handleInputChange('shipping_confirmation_email_body', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder={`Dear [Client Name],
+
+Your payment has been confirmed and we now need some additional information from you to proceed with shipping your winning lot.
+
+Order Details:
+- Item: [Item Title]
+- Lot Number: [Lot Number]
+- Purchase Price: [Purchase Amount]
+- Payment Reference: [Reference Number]
+
+Please reply to this email with the following information:
+
+1. Preferred Shipping Method:
+   - Courier Delivery (additional charges may apply)
+   - Collection from our premises
+   - White glove delivery service
+
+2. If choosing Courier Delivery, please provide:
+   - Complete delivery address (including postcode)
+   - Preferred delivery date/time
+   - Any access restrictions or special delivery instructions
+   - Contact telephone number for delivery
+
+3. If choosing Collection, please provide:
+   - Preferred collection date and time
+   - Full name of person collecting
+   - Identification details required
+   - Vehicle registration (if applicable)
+
+Our shipping department will contact you within 24 hours of receiving this information to arrange the logistics and provide any additional costs.
+
+Important Notes:
+- Courier services are available Monday to Friday, 9 AM to 5 PM
+- Collection is available by appointment only
+- All items are insured during transit
+- International shipping requires additional documentation
+
+Please reply to this email as soon as possible so we can expedite your order.
+
+If you have any questions, please don't hesitate to contact our shipping team at [Shipping Email] or [Shipping Phone].
+
+Best regards,
+[Auction House Name]
+[Shipping Department]
+[Contact Information]`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Email Preview Modal */}
+      {previewModal?.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Email Preview - {previewModal.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </h3>
+              <button
+                onClick={() => setPreviewModal(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject:</label>
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-md font-medium break-words">
+                    {previewModal.subject}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Body Preview:</label>
+                  <div className="border border-gray-200 rounded-md overflow-hidden">
+                    <iframe
+                      srcDoc={previewModal.body}
+                      className="w-full h-96 border-0 bg-white"
+                      title="Email Preview"
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">HTML Source:</label>
+                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap max-h-48 bg-white p-2 border border-gray-200 rounded">
+                      {previewModal.body.substring(0, 1000)}{previewModal.body.length > 1000 ? '...' : ''}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setPreviewModal(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

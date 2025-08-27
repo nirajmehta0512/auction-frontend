@@ -13,7 +13,7 @@ interface TrackingInfo {
   estimatedDelivery?: string
 }
 
-export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId: string }> }) {
+export default function TrackOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params)
   const [trackingInfo, setTrackingInfo] = useState<TrackingInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,7 +21,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId
 
   useEffect(() => {
     fetchTrackingInfo()
-  }, [resolvedParams.invoiceId])
+  }, [resolvedParams.id])
 
   const fetchTrackingInfo = async () => {
     try {
@@ -33,7 +33,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId
       
       // Mock tracking data
       const mockTracking: TrackingInfo = {
-        invoiceId: resolvedParams.invoiceId,
+        invoiceId: resolvedParams.id,
         trackingNumber: Math.random() > 0.5 ? 'EV123456789GB' : undefined,
         status: ['pending', 'in_transit', 'delivered'][Math.floor(Math.random() * 3)] as any,
         description: 'Your artwork is being prepared for shipment',
@@ -100,7 +100,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId
           <div className="flex justify-center mb-4">
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Track Your Order</h1>
-          <p className="text-gray-600">Invoice: {resolvedParams.invoiceId}</p>
+          <p className="text-gray-600">Invoice: {resolvedParams.id}</p>
         </div>
 
         {error && (
@@ -245,7 +245,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ invoiceId
             <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Order Not Found</h2>
             <p className="text-gray-600">
-              We couldn't find any tracking information for invoice {resolvedParams.invoiceId}.
+              We couldn't find any tracking information for invoice {resolvedParams.id}.
             </p>
           </div>
         )}
