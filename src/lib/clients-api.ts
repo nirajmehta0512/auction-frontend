@@ -198,10 +198,60 @@ export const determineClientType = (client: Client): 'buyer' | 'vendor' | 'suppl
   return client.client_type || 'buyer';
 };
 
-// Base API URL
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
+// Base API URL - Use environment URLs directly
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
   : 'http://localhost:3001/api';
+
+console.log('🔗 API URL:', API_BASE_URL);
+
+// Debug function to test backend connectivity
+export const testBackendConnectivity = async (): Promise<{ success: boolean; message: string; details?: any }> => {
+  const backendUrl = API_BASE_URL.replace('/api', '');
+  console.log('🔍 Testing backend connectivity:', { backendUrl, apiBaseUrl: API_BASE_URL });
+
+  try {
+    // Test health check endpoint
+    const healthResponse = await fetch(`${backendUrl}/`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!healthResponse.ok) {
+      return {
+        success: false,
+        message: `Backend health check failed: ${healthResponse.status} ${healthResponse.statusText}`,
+        details: {
+          status: healthResponse.status,
+          statusText: healthResponse.statusText,
+          url: healthResponse.url
+        }
+      };
+    }
+
+    const healthData = await healthResponse.json();
+    console.log('✅ Backend health check successful:', healthData);
+
+    return {
+      success: true,
+      message: 'Backend is reachable and healthy',
+      details: healthData
+    };
+  } catch (error: any) {
+    console.error('❌ Backend connectivity test failed:', error);
+    return {
+      success: false,
+      message: `Cannot connect to backend: ${error.message}`,
+      details: {
+        error: error.message,
+        backendUrl,
+        apiBaseUrl: API_BASE_URL,
+        nodeEnv: process.env.NODE_ENV,
+        nextPublicApiUrl: process.env.NEXT_PUBLIC_API_URL
+      }
+    };
+  }
+};
 
 // Get authentication token from localStorage or cookies
 const getAuthToken = (): string | null => {
@@ -217,14 +267,38 @@ const createHeaders = (): HeadersInit => {
   };
 };
 
-// Handle API response errors
+// Handle API response errors with detailed logging
 const handleApiError = async (response: Response): Promise<never> => {
+  const url = response.url;
+  const method = response.status >= 500 ? 'SERVER_ERROR' : 'CLIENT_ERROR';
   const contentType = response.headers.get('content-type');
+
+  console.error(`🚨 API ${method}:`, {
+    url,
+    status: response.status,
+    statusText: response.statusText,
+    headers: Object.fromEntries(response.headers.entries()),
+    timestamp: new Date().toISOString()
+  });
+
   if (contentType && contentType.includes('application/json')) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    try {
+      const errorData = await response.json();
+      console.error('📋 Error response body:', errorData);
+      throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+    } catch (parseError) {
+      console.error('❌ Failed to parse error response as JSON:', parseError);
+      throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+    }
   } else {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    // Try to get text response for debugging
+    try {
+      const textResponse = await response.text();
+      console.error('📄 Error response (text):', textResponse.substring(0, 500));
+    } catch (textError) {
+      console.error('❌ Could not read error response:', textError);
+    }
+    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
   }
 };
 
@@ -253,17 +327,50 @@ export const fetchClients = async (params: {
   });
 
   const url = `${API_BASE_URL}/clients?${searchParams.toString()}`;
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: createHeaders()
+
+  console.log('🌐 FETCHING CLIENTS:', {
+    url,
+    baseUrl: API_BASE_URL,
+    params: Object.fromEntries(searchParams.entries()),
+    env: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
   });
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: createHeaders()
+    });
 
-  return response.json();
+    console.log('📡 CLIENTS API RESPONSE:', {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    if (!response.ok) {
+      await handleApiError(response);
+    }
+
+    const data = await response.json();
+    console.log('✅ CLIENTS DATA RECEIVED:', {
+      success: data.success,
+      count: data.data?.length || 0,
+      total: data.pagination?.total || 0
+    });
+
+    return data;
+  } catch (error: any) {
+    console.error('❌ FETCH CLIENTS ERROR:', {
+      error: error.message,
+      stack: error.stack,
+      url,
+      timestamp: new Date().toISOString()
+    });
+    throw error;
+  }
 };
 
 /**

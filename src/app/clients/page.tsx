@@ -6,7 +6,7 @@ import { Plus, Download, AlertCircle, Upload, RefreshCw } from 'lucide-react'
 import ClientsFilter from '@/components/clients/ClientsFilter'
 import ClientsTable from '@/components/clients/ClientsTable'
 import CSVUpload from '@/components/clients/CSVUpload'
-import { fetchClients, exportClientsCSV, bulkActionClients, deleteClient, type Client, type ClientsResponse, type BulkActionRequest } from '@/lib/clients-api'
+import { fetchClients, exportClientsCSV, bulkActionClients, deleteClient, testBackendConnectivity, type Client, type ClientsResponse, type BulkActionRequest } from '@/lib/clients-api'
 import { useBrand } from '@/lib/brand-context'
 import { 
   syncClientsFromGoogleSheet, 
@@ -78,6 +78,22 @@ export default function ClientsPage() {
     } catch (error) {
       console.error('Error loading Google Sheets URL:', error)
       setHasGoogleSheetConfig(false)
+    }
+  }
+
+  // Debug function to test backend connectivity
+  const testConnectivity = async () => {
+    try {
+      console.log('🔧 Starting backend connectivity test...')
+      const result = await testBackendConnectivity()
+      if (result.success) {
+        alert(`✅ Backend is reachable!\n\n${result.message}\n\nDetails: ${JSON.stringify(result.details, null, 2)}`)
+      } else {
+        alert(`❌ Backend connectivity failed!\n\n${result.message}\n\nDetails: ${JSON.stringify(result.details, null, 2)}`)
+      }
+    } catch (error: any) {
+      console.error('❌ Connectivity test error:', error)
+      alert(`❌ Connectivity test failed: ${error.message}`)
     }
   }
 
@@ -447,6 +463,13 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Google Sheets
+            </button>
+            <button
+              onClick={testConnectivity}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              title="Test backend connectivity"
+            >
+              🔧 Debug API
             </button>
           </div>
         </div>
