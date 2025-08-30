@@ -61,7 +61,7 @@ export async function getBrands(): Promise<BrandsResponse> {
   try {
     const token = getAuthToken()
     
-    const response = await fetch(`${API_BASE_URL}/api/brands`, {
+    const response = await fetch(`${API_BASE_URL}/brands`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -89,7 +89,7 @@ export async function getBrandByCode(code: string): Promise<BrandResponse> {
   try {
     const token = getAuthToken()
     
-    const response = await fetch(`${API_BASE_URL}/api/brands/by-code/${code}`, {
+    const response = await fetch(`${API_BASE_URL}/brands/by-code/${code}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -113,7 +113,7 @@ export async function getBrandById(id: number): Promise<BrandResponse> {
   try {
     const token = getAuthToken()
     
-    const response = await fetch(`${API_BASE_URL}/api/brands/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/brands/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -137,7 +137,7 @@ export async function getBrandCompliance(id: number): Promise<BrandResponse> {
   try {
     const token = getAuthToken()
     
-    const response = await fetch(`${API_BASE_URL}/api/brands/${id}/compliance`, {
+    const response = await fetch(`${API_BASE_URL}/brands/${id}/compliance`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ export async function updateBrandCompliance(id: number, complianceData: Partial<
   try {
     const token = getAuthToken()
     
-    const response = await fetch(`${API_BASE_URL}/api/brands/${id}/compliance`, {
+    const response = await fetch(`${API_BASE_URL}/brands/${id}/compliance`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

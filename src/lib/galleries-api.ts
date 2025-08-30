@@ -94,35 +94,35 @@ export class GalleriesAPI {
       }
     });
 
-    return this.makeRequest(`/api/galleries?${params.toString()}`);
+    return this.makeRequest(`/galleries?${params.toString()}`);
   }
 
   static async getGallery(id: string): Promise<GalleryResponse> {
-    return this.makeRequest(`/api/galleries/${id}`);
+    return this.makeRequest(`/galleries/${id}`);
   }
 
   static async createGallery(gallery: Omit<Gallery, 'id' | 'created_at' | 'updated_at'>): Promise<GalleryResponse> {
-    return this.makeRequest('/api/galleries', {
+    return this.makeRequest('/galleries', {
       method: 'POST',
       body: JSON.stringify(gallery),
     });
   }
 
   static async updateGallery(id: string, gallery: Partial<Gallery>): Promise<GalleryResponse> {
-    return this.makeRequest(`/api/galleries/${id}`, {
+    return this.makeRequest(`/galleries/${id}`, {
       method: 'PUT',
       body: JSON.stringify(gallery),
     });
   }
 
   static async deleteGallery(id: string): Promise<{ success: boolean; message: string }> {
-    return this.makeRequest(`/api/galleries/${id}`, {
+    return this.makeRequest(`/galleries/${id}`, {
       method: 'DELETE',
     });
   }
 
   static async bulkAction(action: string, galleryIds: string[], data?: any): Promise<{ success: boolean; message: string }> {
-    return this.makeRequest('/api/galleries/bulk', {
+    return this.makeRequest('/galleries/bulk', {
       method: 'POST',
       body: JSON.stringify({ action, ids: galleryIds, data }),
     });
@@ -138,7 +138,7 @@ export class GalleriesAPI {
     });
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/api/galleries/export/csv?${params.toString()}`, {
+    const response = await fetch(`${API_BASE}/galleries/export/csv?${params.toString()}`, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
       },
@@ -164,7 +164,7 @@ export class GalleriesAPI {
     formData.append('file', file);
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/api/galleries/import/csv`, {
+    const response = await fetch(`${API_BASE}/galleries/import/csv`, {
       method: 'POST',
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
@@ -181,7 +181,7 @@ export class GalleriesAPI {
   }
 
   static async generateAI(request: AIGenerateRequest): Promise<AIGenerateResponse> {
-    return this.makeRequest('/api/galleries/generate-ai', {
+    return this.makeRequest('/galleries/generate-ai', {
       method: 'POST',
       body: JSON.stringify(request),
     });

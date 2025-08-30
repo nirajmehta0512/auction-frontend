@@ -46,7 +46,7 @@ export interface XeroInvoiceStatus {
 export async function getXeroAuthUrl(brandId: string): Promise<{ authUrl: string }> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/auth-url/${brandId}`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/auth-url/${brandId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -61,7 +61,7 @@ export async function getXeroAuthUrl(brandId: string): Promise<{ authUrl: string
 export async function saveXeroCredentials(brandId: string, clientId: string, clientSecret: string): Promise<ApiResponse> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/save-credentials`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/save-credentials`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -82,7 +82,7 @@ export async function saveXeroCredentials(brandId: string, clientId: string, cli
 export async function getXeroCredentials(brandId: string): Promise<{ configured: boolean } & Partial<XeroCredentials>> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/credentials/${brandId}`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/credentials/${brandId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ export async function createXeroPaymentLink(
 ): Promise<{ success: boolean; paymentLink: XeroPaymentLink }> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/create-payment-link`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/create-payment-link`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -127,7 +127,7 @@ export async function getXeroInvoiceStatus(
 ): Promise<{ success: boolean; invoice: XeroInvoiceStatus }> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/invoice-status/${brandId}/${invoiceId}`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/invoice-status/${brandId}/${invoiceId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ export async function getXeroInvoiceStatus(
 export async function refreshXeroToken(brandId: string): Promise<ApiResponse> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/xero-payments/refresh-token/${brandId}`, {
+  const response = await fetch(`${API_BASE_URL}/xero-payments/refresh-token/${brandId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

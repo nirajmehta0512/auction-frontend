@@ -116,7 +116,7 @@ export async function getRefunds(filters: RefundsFilters = {}): Promise<RefundsR
     }
   });
 
-  const response = await fetch(`${API_BASE_URL}/api/refunds?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/refunds?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -134,7 +134,7 @@ export async function getRefunds(filters: RefundsFilters = {}): Promise<RefundsR
 export async function getRefund(id: string): Promise<Refund> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/${id}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -160,7 +160,7 @@ export async function createRefund(refundData: Partial<Refund>): Promise<Refund>
     }
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds`, {
+  const response = await fetch(`${API_BASE_URL}/refunds`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -180,7 +180,7 @@ export async function createRefund(refundData: Partial<Refund>): Promise<Refund>
 export async function updateRefund(id: string, refundData: Partial<Refund>): Promise<Refund> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/${id}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -200,7 +200,7 @@ export async function updateRefund(id: string, refundData: Partial<Refund>): Pro
 export async function approveRefund(id: string, comments?: string): Promise<Refund> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/${id}/approve`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/${id}/approve`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -220,7 +220,7 @@ export async function approveRefund(id: string, comments?: string): Promise<Refu
 export async function processRefund(id: string, status: 'processing' | 'completed', refund_date?: string, payment_reference?: string): Promise<Refund> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/${id}/process`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/${id}/process`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -240,7 +240,7 @@ export async function processRefund(id: string, status: 'processing' | 'complete
 export async function deleteRefund(id: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -257,7 +257,7 @@ export async function deleteRefund(id: string): Promise<void> {
 export async function getRefundStats(): Promise<RefundStats> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/refunds/stats`, {
+  const response = await fetch(`${API_BASE_URL}/refunds/stats`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

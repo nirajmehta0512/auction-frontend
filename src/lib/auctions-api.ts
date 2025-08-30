@@ -1,5 +1,7 @@
 // frontend/src/lib/auctions-api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // Get authentication token from localStorage
 const getAuthToken = (): string | null => {
@@ -104,7 +106,7 @@ export async function getAuctions(filters: AuctionFilters = {}): Promise<Auction
     }
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions?${params}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions?${params}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -125,7 +127,7 @@ export async function getAuctions(filters: AuctionFilters = {}): Promise<Auction
 export async function getAuction(id: string): Promise<Auction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/${id}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -143,7 +145,7 @@ export async function getAuction(id: string): Promise<Auction> {
 export async function createAuction(auctionData: Partial<Auction>): Promise<Auction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions`, {
+  const response = await fetch(`${API_BASE_URL}/auctions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -164,7 +166,7 @@ export async function createAuction(auctionData: Partial<Auction>): Promise<Auct
 export async function updateAuction(id: string, auctionData: Partial<Auction>): Promise<Auction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/${id}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -185,7 +187,7 @@ export async function updateAuction(id: string, auctionData: Partial<Auction>): 
 export async function deleteAuction(id: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -202,7 +204,7 @@ export async function deleteAuction(id: string): Promise<void> {
 export async function bulkActionAuctions(auctionIds: string[], action: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/bulk-action`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/bulk-action`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -227,7 +229,7 @@ export async function exportAuctionsCSV(filters: AuctionFilters = {}): Promise<B
     }
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/export/csv?${params}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/export/csv?${params}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     }
@@ -244,7 +246,7 @@ export async function exportAuctionsCSV(filters: AuctionFilters = {}): Promise<B
 export async function importAuctionsCSV(csvData: any[]): Promise<any> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/upload/csv`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/upload/csv`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -347,7 +349,7 @@ export async function getAuctionInvoices(
   if (options.limit) params.append('limit', options.limit.toString());
   if (options.type) params.append('type', options.type);
 
-  const response = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}/invoices?${params}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/invoices?${params}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -366,7 +368,7 @@ export async function getAuctionInvoices(
 export async function importEOA(formData: FormData): Promise<EOAImportResponse> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auctions/import-eoa`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/import-eoa`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -387,7 +389,7 @@ export async function importEOA(formData: FormData): Promise<EOAImportResponse> 
 export async function exportEOACsv(auctionId: string): Promise<Blob> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/invoices/export-eoa-csv/${auctionId}`, {
+  const response = await fetch(`${API_BASE_URL}/invoices/export-eoa-csv/${auctionId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -411,7 +413,7 @@ export async function generateInvoicePdf(
 ): Promise<Blob> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/pdf`, {
+  const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/pdf`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -438,7 +440,7 @@ export async function generatePassedAuction(
 ): Promise<Auction> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/auctions/${originalAuctionId}/generate-passed`, {
+  const response = await fetch(`${API_BASE_URL}/auctions/${originalAuctionId}/generate-passed`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

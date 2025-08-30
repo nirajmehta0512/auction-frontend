@@ -98,42 +98,42 @@ export class SchoolsAPI {
       }
     });
 
-    return this.makeRequest(`/api/schools?${params.toString()}`);
+    return this.makeRequest(`/schools?${params.toString()}`);
   }
 
   static async getSchool(id: string): Promise<SchoolResponse> {
-    return this.makeRequest(`/api/schools/${id}`);
+    return this.makeRequest(`/schools/${id}`);
   }
 
   static async createSchool(school: Omit<School, 'id' | 'created_at' | 'updated_at'>): Promise<SchoolResponse> {
-    return this.makeRequest('/api/schools', {
+    return this.makeRequest('/schools', {
       method: 'POST',
       body: JSON.stringify(school),
     });
   }
 
   static async updateSchool(id: string, school: Partial<School>): Promise<SchoolResponse> {
-    return this.makeRequest(`/api/schools/${id}`, {
+    return this.makeRequest(`/schools/${id}`, {
       method: 'PUT',
       body: JSON.stringify(school),
     });
   }
 
   static async deleteSchool(id: string): Promise<{ success: boolean; message: string }> {
-    return this.makeRequest(`/api/schools/${id}`, {
+    return this.makeRequest(`/schools/${id}`, {
       method: 'DELETE',
     });
   }
 
   static async generateAI(request: AIGenerateRequest): Promise<AIGenerateResponse> {
-    return this.makeRequest('/api/schools/generate-ai', {
+    return this.makeRequest('/schools/generate-ai', {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   static async bulkAction(action: string, schoolIds: string[], data?: any): Promise<{ success: boolean; message: string }> {
-    return this.makeRequest('/api/schools/bulk', {
+    return this.makeRequest('/schools/bulk', {
       method: 'POST',
       body: JSON.stringify({ action, school_ids: schoolIds, data }),
     });
@@ -149,7 +149,7 @@ export class SchoolsAPI {
     });
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/api/schools/export/csv?${params.toString()}`, {
+    const response = await fetch(`${API_BASE}/schools/export/csv?${params.toString()}`, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
       },

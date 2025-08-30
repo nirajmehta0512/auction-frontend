@@ -148,7 +148,7 @@ export async function getReimbursements(filters: ReimbursementFilters = {}): Pro
     }
   });
 
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -166,7 +166,7 @@ export async function getReimbursements(filters: ReimbursementFilters = {}): Pro
 export async function getPendingApprovals(): Promise<PendingApproval[]> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/pending-approvals`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/pending-approvals`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -184,7 +184,7 @@ export async function getPendingApprovals(): Promise<PendingApproval[]> {
 export async function getReimbursement(id: string): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -210,7 +210,7 @@ export async function createReimbursement(reimbursementData: Partial<Reimburseme
     }
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -230,7 +230,7 @@ export async function createReimbursement(reimbursementData: Partial<Reimburseme
 export async function updateReimbursement(id: string, reimbursementData: Partial<Reimbursement>): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -250,7 +250,7 @@ export async function updateReimbursement(id: string, reimbursementData: Partial
 export async function approveDirector1(id: string, approved: boolean, comments?: string): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}/approve-director1`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}/approve-director1`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -270,7 +270,7 @@ export async function approveDirector1(id: string, approved: boolean, comments?:
 export async function approveDirector2(id: string, approved: boolean, comments?: string): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}/approve-director2`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}/approve-director2`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -290,7 +290,7 @@ export async function approveDirector2(id: string, approved: boolean, comments?:
 export async function approveAccountant(id: string, approved: boolean, comments?: string, payment_reference?: string): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}/approve-accountant`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}/approve-accountant`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -310,7 +310,7 @@ export async function approveAccountant(id: string, approved: boolean, comments?
 export async function completePayment(id: string, payment_reference?: string): Promise<Reimbursement> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}/complete-payment`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}/complete-payment`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -330,7 +330,7 @@ export async function completePayment(id: string, payment_reference?: string): P
 export async function deleteReimbursement(id: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -354,7 +354,7 @@ export async function getReimbursementStats(filters: { category?: string; date_f
     }
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/reimbursements/stats?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/reimbursements/stats?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

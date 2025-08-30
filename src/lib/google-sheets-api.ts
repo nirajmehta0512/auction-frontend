@@ -71,11 +71,14 @@ export const convertToGoogleSheetsCSVUrl = (url: string): string => {
 export const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
     // Client-side: use current origin for relative URLs, or environment variable
-    return process.env.NEXT_PUBLIC_API_URL || 
-           (window.location.origin.includes('localhost') ? 'http://localhost:3001' : `${window.location.origin}`);
+    return process.env.NEXT_PUBLIC_API_URL
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+      : (window.location.origin.includes('localhost') ? 'http://localhost:3001/api' : `${window.location.origin}/api`);
   }
   // Server-side fallback
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  return process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+    : 'http://localhost:3001/api';
 };
 
 // Get authentication headers

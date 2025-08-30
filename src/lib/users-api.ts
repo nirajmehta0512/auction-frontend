@@ -1,5 +1,7 @@
 // frontend/src/lib/users-api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // Get authentication token from localStorage
 const getAuthToken = (): string | null => {
@@ -80,17 +82,17 @@ class UsersAPI {
   // Get all users
   static async getUsers(params?: { brand_id?: number }): Promise<UserResponse> {
     const qp = params?.brand_id ? `?brand_id=${params.brand_id}` : ''
-    return this.makeRequest(`/api/users${qp}`);
+    return this.makeRequest(`/users${qp}`);
   }
 
   // Get user by ID
   static async getUser(id: number): Promise<{ success: boolean; data: User; error?: string }> {
-    return this.makeRequest(`/api/users/${id}`);
+    return this.makeRequest(`/users/${id}`);
   }
 
   // Create user
   static async createUser(userData: CreateUserRequest): Promise<{ success: boolean; data: User; error?: string }> {
-    return this.makeRequest('/api/users', {
+    return this.makeRequest('/users', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -98,7 +100,7 @@ class UsersAPI {
 
   // Update user
   static async updateUser(id: number, userData: UpdateUserRequest): Promise<{ success: boolean; data: User; error?: string }> {
-    return this.makeRequest(`/api/users/${id}`, {
+    return this.makeRequest(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
@@ -106,14 +108,14 @@ class UsersAPI {
 
   // Delete user
   static async deleteUser(id: number): Promise<{ success: boolean; error?: string }> {
-    return this.makeRequest(`/api/users/${id}`, {
+    return this.makeRequest(`/users/${id}`, {
       method: 'DELETE',
     });
   }
 
   // Update user role
   static async updateUserRole(id: number, role: string): Promise<{ success: boolean; data: User; error?: string }> {
-    return this.makeRequest(`/api/users/${id}/role`, {
+    return this.makeRequest(`/users/${id}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });

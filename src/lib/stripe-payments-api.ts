@@ -45,7 +45,7 @@ export interface StripePaymentStatus {
 export async function getStripeCredentials(brandId: string): Promise<{ configured: boolean } & Partial<StripeCredentials>> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/stripe-payments/credentials/${brandId}`, {
+  const response = await fetch(`${API_BASE_URL}/stripe-payments/credentials/${brandId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -65,7 +65,7 @@ export async function saveStripeCredentials(
 ): Promise<ApiResponse> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/stripe-payments/save-credentials`, {
+  const response = await fetch(`${API_BASE_URL}/stripe-payments/save-credentials`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -87,7 +87,7 @@ export async function saveStripeCredentials(
 export async function testStripeConnection(brandId: string): Promise<ApiResponse> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/stripe-payments/test-connection/${brandId}`, {
+  const response = await fetch(`${API_BASE_URL}/stripe-payments/test-connection/${brandId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -108,7 +108,7 @@ export async function createStripePaymentLink(
 ): Promise<{ success: boolean; paymentLink: StripePaymentLink }> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/stripe-payments/create-payment-link`, {
+  const response = await fetch(`${API_BASE_URL}/stripe-payments/create-payment-link`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -133,7 +133,7 @@ export async function getStripePaymentStatus(
 ): Promise<{ success: boolean; payment: StripePaymentStatus }> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/api/stripe-payments/payment-status/${brandId}/${paymentId}`, {
+  const response = await fetch(`${API_BASE_URL}/stripe-payments/payment-status/${brandId}/${paymentId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

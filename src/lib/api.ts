@@ -1,5 +1,7 @@
 // frontend/src/lib/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // API client with error handling
 class ApiClient {
@@ -49,25 +51,25 @@ class ApiClient {
 
   // Auth endpoints
   async login(email: string, password: string, remember: boolean = false) {
-    return this.request<AuthResponse>('/api/auth/login', {
+    return this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password, remember }),
     });
   }
 
   async logout() {
-    return this.request<{ message: string }>('/api/auth/logout', {
+    return this.request<{ message: string }>('/auth/logout', {
       method: 'POST',
     });
   }
 
   async verifyToken() {
-    return this.request<{ valid: boolean; user: User }>('/api/auth/verify');
+    return this.request<{ valid: boolean; user: User }>('/auth/verify');
   }
 
   // Health check
   async healthCheck() {
-    return this.request<{ status: string; timestamp: string }>('/api/health');
+    return this.request<{ status: string; timestamp: string }>('/health');
   }
 }
 
@@ -94,7 +96,7 @@ export interface Brand { id: string; code: string; name: string }
 export async function fetchBrands(): Promise<Brand[]> {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    const resp = await fetch(`${API_BASE_URL}/api/brands`, {
+    const resp = await fetch(`${API_BASE_URL}/brands`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})

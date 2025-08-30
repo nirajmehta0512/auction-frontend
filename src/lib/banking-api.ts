@@ -115,7 +115,7 @@ export async function getBankingTransactions(filters: BankingFilters = {}): Prom
     }
   });
 
-  const response = await fetch(`${API_BASE_URL}/api/banking?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/banking?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -145,7 +145,7 @@ export async function getBankingTransactions(filters: BankingFilters = {}): Prom
 export async function getBankingTransaction(id: string): Promise<BankingTransaction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/banking/${id}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -163,7 +163,7 @@ export async function getBankingTransaction(id: string): Promise<BankingTransact
 export async function createBankingTransaction(transactionData: Partial<BankingTransaction>): Promise<BankingTransaction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking`, {
+  const response = await fetch(`${API_BASE_URL}/banking`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -183,7 +183,7 @@ export async function createBankingTransaction(transactionData: Partial<BankingT
 export async function updateBankingTransaction(id: string, transactionData: Partial<BankingTransaction>): Promise<BankingTransaction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/banking/${id}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -203,7 +203,7 @@ export async function updateBankingTransaction(id: string, transactionData: Part
 export async function reconcileBankingTransaction(id: string, reconciled_balance?: number, notes?: string): Promise<BankingTransaction> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/${id}/reconcile`, {
+  const response = await fetch(`${API_BASE_URL}/banking/${id}/reconcile`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -223,7 +223,7 @@ export async function reconcileBankingTransaction(id: string, reconciled_balance
 export async function deleteBankingTransaction(id: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/banking/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -259,7 +259,7 @@ export async function getBankingStats(filters: { bank_account?: string; date_fro
     }
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/api/stats?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/banking/stats?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -277,7 +277,7 @@ export async function getBankingStats(filters: { bank_account?: string; date_fro
 export async function getBankAccounts(): Promise<string[]> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/banking/api/accounts`, {
+  const response = await fetch(`${API_BASE_URL}/banking/accounts`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

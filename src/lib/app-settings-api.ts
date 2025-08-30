@@ -24,7 +24,7 @@ export interface GoogleSheetsUrls {
 
 export const getGoogleSheetsUrls = async (): Promise<GoogleSheetsUrls> => {
   try {
-    const response = await authedFetch('/api/app-settings/google-sheets');
+    const response = await authedFetch('/app-settings/google-sheets');
     
     if (!response.ok) {
       throw new Error('Failed to fetch Google Sheets URLs');
@@ -45,7 +45,7 @@ export const getGoogleSheetsUrls = async (): Promise<GoogleSheetsUrls> => {
 
 export const updateGoogleSheetsUrl = async (module: keyof GoogleSheetsUrls, url: string): Promise<void> => {
   try {
-    const response = await authedFetch('/api/app-settings/google-sheets', {
+    const response = await authedFetch('/app-settings/google-sheets', {
       method: 'POST',
       body: JSON.stringify({ module, url }),
     });
@@ -67,7 +67,7 @@ export const updateGoogleSheetsUrl = async (module: keyof GoogleSheetsUrls, url:
 
 export const getGoogleSheetsUrlForModule = async (module: keyof GoogleSheetsUrls): Promise<string> => {
   try {
-    const response = await authedFetch(`/api/app-settings/google-sheets/${module}`);
+    const response = await authedFetch(`/app-settings/google-sheets/${module}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch Google Sheets URL');

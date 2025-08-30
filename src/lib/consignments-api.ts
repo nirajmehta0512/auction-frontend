@@ -1,5 +1,7 @@
 // frontend/src/lib/consignments-api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // Get authentication token from localStorage
 const getAuthToken = (): string | null => {
@@ -75,7 +77,7 @@ export async function getConsignments(filters: ConsignmentFilters = {}): Promise
     }
   });
   
-  const url = `${API_BASE_URL}/api/consignments?${params.toString()}`;
+  const url = `${API_BASE_URL}/consignments?${params.toString()}`;
   console.log('Fetching consignments from:', url); // Debug log
   
   const response = await fetch(url, {
@@ -100,7 +102,7 @@ export async function getConsignments(filters: ConsignmentFilters = {}): Promise
 export async function getConsignment(id: string): Promise<Consignment> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/${id}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -119,7 +121,7 @@ export async function getConsignment(id: string): Promise<Consignment> {
 export async function createConsignment(consignmentData: Partial<Consignment>): Promise<Consignment> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments`, {
+  const response = await fetch(`${API_BASE_URL}/consignments`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -141,7 +143,7 @@ export async function createConsignment(consignmentData: Partial<Consignment>): 
 export async function updateConsignment(id: string, consignmentData: Partial<Consignment>): Promise<Consignment> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/${id}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -163,7 +165,7 @@ export async function updateConsignment(id: string, consignmentData: Partial<Con
 export async function deleteConsignment(id: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -180,7 +182,7 @@ export async function deleteConsignment(id: string): Promise<void> {
 export async function addArtworksToConsignment(consignmentId: string, artworkIds: number[]): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/add-artworks`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/add-artworks`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -199,7 +201,7 @@ export async function addArtworksToConsignment(consignmentId: string, artworkIds
 export async function removeArtworksFromConsignment(consignmentId: string, artworkIds: number[]): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/remove-artworks`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/remove-artworks`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -218,7 +220,7 @@ export async function removeArtworksFromConsignment(consignmentId: string, artwo
 export async function bulkActionConsignments(consignmentIds: string[], action: string): Promise<void> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/bulk-action`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/bulk-action`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -243,7 +245,7 @@ export async function exportConsignmentsCSV(filters: ConsignmentFilters = {}): P
     }
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/export/csv?${params.toString()}`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/export/csv?${params.toString()}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     }
@@ -260,7 +262,7 @@ export async function exportConsignmentsCSV(filters: ConsignmentFilters = {}): P
 export async function importConsignmentsCSV(csvData: any[]): Promise<any> {
   const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/consignments/upload/csv`, {
+  const response = await fetch(`${API_BASE_URL}/consignments/upload/csv`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

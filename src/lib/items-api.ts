@@ -1,5 +1,7 @@
 // frontend/src/lib/items-api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 
@@ -174,7 +176,7 @@ export class ArtworksAPI {
       }
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/items?${queryParams}`, {
+    const response = await fetch(`${API_BASE_URL}/items?${queryParams}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -185,7 +187,7 @@ export class ArtworksAPI {
 
   // Get specific artwork by ID
   static async getArtwork(id: string): Promise<ArtworkResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/items/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/items/${id}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -196,7 +198,7 @@ export class ArtworksAPI {
 
   // Create new artwork
   static async createArtwork(artworkData: Omit<Artwork, 'id' | 'created_at' | 'updated_at'>, brand?: string): Promise<ArtworkResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/items`, {
+    const response = await fetch(`${API_BASE_URL}/items`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(artworkData),
@@ -219,7 +221,7 @@ export class ArtworksAPI {
 
   // Update existing artwork
   static async updateArtwork(id: string, artworkData: Partial<Artwork>, brand?: string): Promise<ArtworkResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/items/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/items/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(artworkData),
@@ -243,7 +245,7 @@ export class ArtworksAPI {
   // Delete artwork (soft delete by default)
   static async deleteArtwork(id: string, hardDelete = false): Promise<{ success: boolean; message: string }> {
     const queryParams = hardDelete ? '?hard_delete=true' : '';
-    const response = await fetch(`${API_BASE_URL}/api/items/${id}${queryParams}`, {
+    const response = await fetch(`${API_BASE_URL}/items/${id}${queryParams}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -258,7 +260,7 @@ export class ArtworksAPI {
     itemIds: string[],
     data?: { status?: string }
   ): Promise<{ success: boolean; message: string; affected_count: number }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/bulk-action`, {
+    const response = await fetch(`${API_BASE_URL}/items/bulk-action`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -293,7 +295,7 @@ export class ArtworksAPI {
     });
 
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/items/export/csv?${queryParams}`, {
+    const response = await fetch(`${API_BASE_URL}/items/export/csv?${queryParams}`, {
       method: 'GET',
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -318,7 +320,7 @@ export class ArtworksAPI {
   // Download a CSV template for IMPORT (used in import dialog)
   static async downloadTemplate(platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database') {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/items/import/template?platform=${platform}`, {
+    const response = await fetch(`${API_BASE_URL}/items/import/template?platform=${platform}`, {
       method: 'GET',
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -339,7 +341,7 @@ export class ArtworksAPI {
   // Download a CSV template for EXPORT (used in export dialog)
   static async downloadExportTemplate(platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database') {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/items/export/template?platform=${platform}`, {
+    const response = await fetch(`${API_BASE_URL}/items/export/template?platform=${platform}`, {
       method: 'GET',
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -365,7 +367,7 @@ export class ArtworksAPI {
     mapped_ids?: number;
     error?: string;
   }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/preview/drive-mapping`, {
+    const response = await fetch(`${API_BASE_URL}/items/preview/drive-mapping`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -387,7 +389,7 @@ export class ArtworksAPI {
     };
     error?: string;
   }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/upload/csv`, {
+    const response = await fetch(`${API_BASE_URL}/items/upload/csv`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -415,7 +417,7 @@ export class ArtworksAPI {
     existing_lot_numbers?: string[];
     duplicate_lot_numbers?: string[];
   }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/upload/csv`, {
+    const response = await fetch(`${API_BASE_URL}/items/upload/csv`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -438,7 +440,7 @@ export class ArtworksAPI {
     base_dir?: string;
     files: { path: string; content: string; encoding?: 'base64' | 'utf8' }[];
   }): Promise<{ success: boolean; uploaded?: number; error?: string; details?: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/images/upload/ftp`, {
+    const response = await fetch(`${API_BASE_URL}/items/images/upload/ftp`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(params),
@@ -456,7 +458,7 @@ export class ArtworksAPI {
     host?: string;
     secure?: boolean;
   }): Promise<{ success?: boolean; uploaded?: number; errors?: string[]; error?: string; details?: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/items/images/upload/ftp/from-items`, {
+    const response = await fetch(`${API_BASE_URL}/items/images/upload/ftp/from-items`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(params),
@@ -468,7 +470,7 @@ export class ArtworksAPI {
 // Platform credentials helpers (used by frontend components to pull saved creds)
 export async function getPlatformCredentials(brandCode: string, platform: string) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-  const res = await fetch(`${API_BASE_URL}/api/platform-credentials?brand_code=${encodeURIComponent(brandCode)}&platform=${encodeURIComponent(platform)}`, {
+  const res = await fetch(`${API_BASE_URL}/platform-credentials?brand_code=${encodeURIComponent(brandCode)}&platform=${encodeURIComponent(platform)}`, {
     headers: {
       ...(token && { Authorization: `Bearer ${token}` })
     }

@@ -1,7 +1,9 @@
 // frontend/src/lib/dashboard-api.ts
 import { ApiResponse } from '@/types/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // Get authentication token
 const getAuthToken = (): string => {
@@ -102,7 +104,7 @@ export async function getDashboardStats(dateFrom?: string, dateTo?: string, bran
   if (dateTo) queryParams.append('date_to', dateTo);
   if (finalBrandCode) queryParams.append('brand_code', finalBrandCode);
 
-  const response = await fetch(`${API_BASE_URL}/api/dashboard/stats?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/dashboard/stats?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -124,7 +126,7 @@ export async function getRecentAuctions(limit: number = 10): Promise<any[]> {
   queryParams.append('order', 'desc');
   if (brand_code) queryParams.append('brand_code', brand_code);
 
-  const response = await fetch(`${API_BASE_URL}/api/auctions?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/auctions?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -150,7 +152,7 @@ export async function getTopLots(limit: number = 5, dateFrom?: string, dateTo?: 
   if (dateTo) queryParams.append('date_to', dateTo);
   if (brand_code) queryParams.append('brand_code', brand_code);
 
-  const response = await fetch(`${API_BASE_URL}/api/items?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/items?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -174,7 +176,7 @@ export async function getTopBuyers(limit: number = 5, dateFrom?: string, dateTo?
   if (dateTo) queryParams.append('date_to', dateTo);
   if (brand_code) queryParams.append('brand_code', brand_code);
 
-  const response = await fetch(`${API_BASE_URL}/api/clients/top-performers?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/clients/top-performers?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -197,7 +199,7 @@ export async function getTopVendors(limit: number = 5, dateFrom?: string, dateTo
   if (dateTo) queryParams.append('date_to', dateTo);
   if (brand_code) queryParams.append('brand_code', brand_code);
 
-  const response = await fetch(`${API_BASE_URL}/api/clients/top-performers?${queryParams}`, {
+  const response = await fetch(`${API_BASE_URL}/clients/top-performers?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

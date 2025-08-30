@@ -1,6 +1,8 @@
 // frontend/src/lib/invoices-api.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api'
 
 // Get authentication token from localStorage
 const getAuthToken = (): string | null => {
@@ -114,7 +116,7 @@ export const InvoicesAPI = {
       if (params?.page) queryParams.set('page', params.page.toString())
       if (params?.limit) queryParams.set('limit', params.limit.toString())
 
-      const url = `${API_BASE_URL}/api/invoices${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+      const url = `${API_BASE_URL}/invoices${queryParams.toString() ? '?' + queryParams.toString() : ''}`
       
       const response = await fetch(url, {
         headers: {
@@ -144,7 +146,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
       
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -168,7 +170,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
       
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -195,7 +197,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
       
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -218,7 +220,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
       
-      const response = await fetch(`${API_BASE_URL}/api/invoices/generate`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/generate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -250,7 +252,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/send-acknowledgment-email`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/send-acknowledgment-email`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -275,7 +277,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -301,7 +303,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/generate-public-url`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/generate-public-url`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -324,7 +326,7 @@ export const InvoicesAPI = {
   // Get public invoice with token verification (no auth required)
   async getPublicInvoice(invoiceId: number, accessToken: string): Promise<InvoiceResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}`, {
+      const response = await fetch(`${API_BASE_URL}/public/invoices/${invoiceId}/${accessToken}`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -345,7 +347,7 @@ export const InvoicesAPI = {
   // Generate public invoice PDF with token verification
   async generatePublicPdf(invoiceId: number, accessToken: string): Promise<Blob> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/pdf`, {
+      const response = await fetch(`${API_BASE_URL}/public/invoices/${invoiceId}/${accessToken}/pdf`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -367,7 +369,7 @@ export const InvoicesAPI = {
   // Update shipping selection for public invoice with token verification
   async updatePublicShipping(invoiceId: number, accessToken: string, shippingData: any): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/shipping`, {
+      const response = await fetch(`${API_BASE_URL}/public/invoices/${invoiceId}/${accessToken}/shipping`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -390,7 +392,7 @@ export const InvoicesAPI = {
   // Create shipping payment link for public invoice with token verification
   async createPublicShippingPaymentLink(invoiceId: number, accessToken: string, shippingAmount: number, customerEmail?: string): Promise<{ success: boolean; paymentLink: string; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/create-shipping-payment-link`, {
+      const response = await fetch(`${API_BASE_URL}/public/invoices/${invoiceId}/${accessToken}/create-shipping-payment-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -413,7 +415,7 @@ export const InvoicesAPI = {
   // Check payment status for public invoice with token verification
   async checkPublicPaymentStatus(invoiceId: number, accessToken: string): Promise<{ success: boolean; status: string; totalAmount: number; paidAmount: number; dueAmount: number; lastChecked: string; message?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/public/invoices/${invoiceId}/${accessToken}/payment-status`, {
+      const response = await fetch(`${API_BASE_URL}/public/invoices/${invoiceId}/${accessToken}/payment-status`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -436,7 +438,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/create-shipping-payment-link`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/create-shipping-payment-link`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -462,7 +464,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/payment-status`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/payment-status`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -486,7 +488,7 @@ export const InvoicesAPI = {
     try {
       const token = getAuthToken()
 
-      const response = await fetch(`${API_BASE_URL}/api/invoices/${invoiceId}/send-payment-confirmation`, {
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/send-payment-confirmation`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
