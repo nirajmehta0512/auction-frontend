@@ -11,17 +11,20 @@ interface AIUploadResult {
   description: string;
   category: string;
   materials: string;
-  dimensions: string;
+  height_inches?: string;
+  width_inches?: string;
+  height_cm?: string;
+  width_cm?: string;
+  height_with_frame_inches?: string;
+  width_with_frame_inches?: string;
+  height_with_frame_cm?: string;
+  width_with_frame_cm?: string;
+  weight?: string;
   period_age: string;
   condition: string;
   low_est: number;
   high_est: number;
   artist_id?: number;
-  // New dimension fields from AI analysis
-  dimensions_inches?: string;
-  dimensions_cm?: string;
-  dimensions_with_frame_inches?: string;
-  dimensions_with_frame_cm?: string;
   // Artist information inclusion flags
   include_artist_description?: boolean;
   include_artist_key_description?: boolean;

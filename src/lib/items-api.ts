@@ -21,8 +21,6 @@ export interface Artwork {
   status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed';
   category?: string;
   subcategory?: string;
-  dimensions?: string;
-  weight?: string;
   materials?: string;
   artist_id?: number;                 // Reference to artist in database
   school_id?: string;                 // School ID (string in database)
@@ -31,10 +29,15 @@ export interface Artwork {
   consignment_id?: number;            // Reference to consignment
 
   // Dimension fields (matching database schema)
-  dimensions_inches?: string;
-  dimensions_cm?: string;
-  dimensions_with_frame_inches?: string;
-  dimensions_with_frame_cm?: string;
+  height_inches?: string;
+  width_inches?: string;
+  height_cm?: string;
+  width_cm?: string;
+  height_with_frame_inches?: string;
+  width_with_frame_inches?: string;
+  height_with_frame_cm?: string;
+  width_with_frame_cm?: string;
+  weight?: string;
 
   // Certification fields
   artist_certification?: boolean;
@@ -312,8 +315,29 @@ export class ArtworksAPI {
     document.body.removeChild(a);
   }
 
-  // Download a CSV template for a platform
+  // Download a CSV template for IMPORT (used in import dialog)
   static async downloadTemplate(platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database') {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/items/import/template?platform=${platform}`, {
+      method: 'GET',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
+    });
+    await handleApiError(response);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `items_${platform}_import_template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
+  // Download a CSV template for EXPORT (used in export dialog)
+  static async downloadExportTemplate(platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database') {
     const token = getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/items/export/template?platform=${platform}`, {
       method: 'GET',
@@ -326,11 +350,30 @@ export class ArtworksAPI {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `items_${platform}_template.csv`;
+    a.download = `items_${platform}_export_template.csv`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+  }
+
+  // Preview drive folder mapping
+  static async previewDriveMapping(driveFolderUrl: string): Promise<{
+    success: boolean;
+    mapping_preview?: Record<string, { images: { filename: string; url: string; fileId: string }[]; count: number }>;
+    total_files?: number;
+    mapped_ids?: number;
+    error?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/api/items/preview/drive-mapping`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        drive_folder_url: driveFolderUrl
+      }),
+    });
+
+    return response.json();
   }
 
   // Validate CSV data before upload
@@ -358,7 +401,11 @@ export class ArtworksAPI {
   }
 
   // Upload items from CSV (LiveAuctioneers compatible format)
-  static async uploadCSV(csvData: string, platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database'): Promise<{
+  static async uploadCSV(
+    csvData: string,
+    platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database',
+    driveFolderUrl?: string
+  ): Promise<{
     success: boolean;
     message?: string;
     imported_count?: number;
@@ -374,7 +421,8 @@ export class ArtworksAPI {
       body: JSON.stringify({
         csvData,
         validateOnly: false,
-        platform
+        platform,
+        drive_folder_url: driveFolderUrl
       }),
     });
 

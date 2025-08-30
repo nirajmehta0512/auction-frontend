@@ -728,10 +728,37 @@ export default function ConsignmentViewPage() {
                                   <span className="ml-1 text-gray-900">{(item as any).school_name}</span>
                                 </div>
                               )}
-                              {item.dimensions && (
+                              {(item.height_inches || item.width_inches || item.height_cm || item.width_cm) && (
                                 <div>
                                   <span className="text-gray-500">Size:</span>
-                                  <span className="ml-1 text-gray-900">{item.dimensions}</span>
+                                  <span className="ml-1 text-gray-900">
+                                    {item.height_inches && item.width_inches
+                                      ? `${item.height_inches}" × ${item.width_inches}"`
+                                      : item.height_cm && item.width_cm
+                                      ? `${item.height_cm}cm × ${item.width_cm}cm`
+                                      : item.height_inches
+                                      ? `${item.height_inches}" (H)`
+                                      : item.width_inches
+                                      ? `${item.width_inches}" (W)`
+                                      : item.height_cm
+                                      ? `${item.height_cm}cm (H)`
+                                      : `${item.width_cm}cm (W)`}
+                                    {(item.height_with_frame_inches || item.width_with_frame_inches || item.height_with_frame_cm || item.width_with_frame_cm) && (
+                                      <span className="ml-2 text-xs">
+                                        (framed: {item.height_with_frame_inches && item.width_with_frame_inches
+                                          ? `${item.height_with_frame_inches}" × ${item.width_with_frame_inches}"`
+                                          : item.height_with_frame_cm && item.width_with_frame_cm
+                                          ? `${item.height_with_frame_cm}cm × ${item.width_with_frame_cm}cm`
+                                          : item.height_with_frame_inches
+                                          ? `${item.height_with_frame_inches}" (H)`
+                                          : item.width_with_frame_inches
+                                          ? `${item.width_with_frame_inches}" (W)`
+                                          : item.height_with_frame_cm
+                                          ? `${item.height_with_frame_cm}cm (H)`
+                                          : `${item.width_with_frame_cm}cm (W)`})
+                                      </span>
+                                    )}
+                                  </span>
                                 </div>
                               )}
                               {item.condition && (

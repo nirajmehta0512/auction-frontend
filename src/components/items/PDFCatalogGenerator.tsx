@@ -352,7 +352,12 @@ export default function PDFCatalogGenerator({
           colX += colWidths[3]
           
           // Dimensions
-          const dimension = artwork.dimensions_inches || artwork.dimensions_cm || artwork.dimensions
+          let dimension = ''
+          if (artwork.height_inches && artwork.width_inches) {
+            dimension = `${artwork.height_inches}" × ${artwork.width_inches}"`
+          } else if (artwork.height_cm && artwork.width_cm) {
+            dimension = `${artwork.height_cm}cm × ${artwork.width_cm}cm`
+          }
           if (dimension) {
             const dimText = dimension.length > 12 ? dimension.substring(0, 12) + '...' : dimension
             doc.text(dimText, colX, tableY + 13)
@@ -440,7 +445,12 @@ export default function PDFCatalogGenerator({
 
           // Dimensions
           if (options.includeDimensions) {
-            const dimension = artwork.dimensions_inches || artwork.dimensions_cm || artwork.dimensions
+            let dimension = ''
+            if (artwork.height_inches && artwork.width_inches) {
+              dimension = `${artwork.height_inches}" × ${artwork.width_inches}"`
+            } else if (artwork.height_cm && artwork.width_cm) {
+              dimension = `${artwork.height_cm}cm × ${artwork.width_cm}cm`
+            }
             if (dimension) {
               doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
               doc.setFontSize(9)

@@ -46,7 +46,6 @@ interface FormData {
   status: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed'
   category: string
   subcategory: string
-  dimensions: string
   weight: string
   materials: string
   artist_id: string
@@ -70,10 +69,14 @@ interface FormData {
   include_artist_signature_style: boolean
 
   // New dimension fields with unit conversion
-  dimensions_inches: string
-  dimensions_cm: string
-  dimensions_with_frame_inches: string
-  dimensions_with_frame_cm: string
+  height_inches: string
+  width_inches: string
+  height_cm: string
+  width_cm: string
+  height_with_frame_inches: string
+  width_with_frame_inches: string
+  height_with_frame_cm: string
+  width_with_frame_cm: string
 
   // New certification fields
   condition_report: string
@@ -112,7 +115,14 @@ const initialFormData: FormData = {
   status: 'draft',
   category: '',
   subcategory: '',
-  dimensions: '',
+  height_inches: '',
+  width_inches: '',
+  height_cm: '',
+  width_cm: '',
+  height_with_frame_inches: '',
+  width_with_frame_inches: '',
+  height_with_frame_cm: '',
+  width_with_frame_cm: '',
   weight: '',
   materials: '',
   artist_id: '',
@@ -130,10 +140,6 @@ const initialFormData: FormData = {
   include_artist_awards_honors: false,
   include_artist_market_value_range: false,
   include_artist_signature_style: false,
-  dimensions_inches: '',
-  dimensions_cm: '',
-  dimensions_with_frame_inches: '',
-  dimensions_with_frame_cm: '',
   condition_report: '',
   gallery_certification: false,
   gallery_id: '',
@@ -428,15 +434,15 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }
 
     // Dimensions (single line break before dimensions)
-    if (formData.dimensions_inches || formData.dimensions_cm) {
+    if (formData.height_inches || formData.width_inches || formData.height_cm || formData.width_cm) {
       let dimensionText = 'Dimensions: '
-      if (formData.dimensions_inches) {
-        dimensionText += formData.dimensions_inches
-        if (formData.dimensions_cm) {
-          dimensionText += ` (${formData.dimensions_cm})`
+      if (formData.height_inches && formData.width_inches) {
+        dimensionText += `${formData.height_inches} × ${formData.width_inches} inches`
+        if (formData.height_cm && formData.width_cm) {
+          dimensionText += ` (${formData.height_cm} × ${formData.width_cm} cm)`
         }
-      } else if (formData.dimensions_cm) {
-        dimensionText += formData.dimensions_cm
+      } else if (formData.height_cm && formData.width_cm) {
+        dimensionText += `${formData.height_cm} × ${formData.width_cm} cm`
       }
       parts.push(dimensionText)
     }
@@ -474,8 +480,10 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     formData.include_artist_awards_honors,
     formData.include_artist_market_value_range,
     formData.include_artist_signature_style,
-    formData.dimensions_inches,
-    formData.dimensions_cm,
+    formData.height_inches,
+    formData.width_inches,
+    formData.height_cm,
+    formData.width_cm,
     artists
   ])
 
@@ -606,6 +614,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }
   }
 
+
+
   const populateFormData = (data: Partial<Artwork>) => {
     setFormData({
       title: data.title || '',
@@ -621,7 +631,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       status: data.status || 'draft',
       category: data.category || '',
       subcategory: data.subcategory || '',
-      dimensions: data.dimensions || '',
+      height_inches: data.height_inches || '',
+      width_inches: data.width_inches || '',
+      height_cm: data.height_cm || '',
+      width_cm: data.width_cm || '',
+      height_with_frame_inches: data.height_with_frame_inches || '',
+      width_with_frame_inches: data.width_with_frame_inches || '',
+      height_with_frame_cm: data.height_with_frame_cm || '',
+      width_with_frame_cm: data.width_with_frame_cm || '',
       weight: data.weight || '',
       materials: data.materials || '',
       artist_id: data.artist_id?.toString() || '',
@@ -639,10 +656,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       include_artist_awards_honors: Boolean((data as any).include_artist_awards_honors) || false,
       include_artist_market_value_range: Boolean((data as any).include_artist_market_value_range) || false,
       include_artist_signature_style: Boolean((data as any).include_artist_signature_style) || false,
-      dimensions_inches: (data as any).dimensions_inches || '',
-      dimensions_cm: (data as any).dimensions_cm || '',
-      dimensions_with_frame_inches: (data as any).dimensions_with_frame_inches || '',
-      dimensions_with_frame_cm: (data as any).dimensions_with_frame_cm || '',
       condition_report: (data as any).condition_report || '',
       gallery_certification: (data as any).gallery_certification || false,
       gallery_id: (data as any).gallery_id || '',
@@ -683,8 +696,15 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       status: 'draft',
       category: aiData.category || '',
       subcategory: '',
-      dimensions: aiData.dimensions || '',
-      weight: '',
+      height_inches: aiData.height_inches || '',
+      width_inches: aiData.width_inches || '',
+      height_cm: aiData.height_cm || '',
+      width_cm: aiData.width_cm || '',
+      height_with_frame_inches: aiData.height_with_frame_inches || '',
+      width_with_frame_inches: aiData.width_with_frame_inches || '',
+      height_with_frame_cm: aiData.height_with_frame_cm || '',
+      width_with_frame_cm: aiData.width_with_frame_cm || '',
+      weight: aiData.weight || '',
       materials: aiData.materials || '',
       artist_id: aiData.artist_id || '',
       school_id: '',
@@ -693,18 +713,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       artwork_subject: aiData.artwork_subject || '',
       signature_placement: aiData.signature_placement || '',
       medium: aiData.materials || '', // Use materials as medium initially
-      include_artist_description: true,
-      include_artist_key_description: true,
-      include_artist_biography: false,
-      include_artist_notable_works: false,
-      include_artist_major_exhibitions: false,
-      include_artist_awards_honors: false,
-      include_artist_market_value_range: false,
-      include_artist_signature_style: false,
-      dimensions_inches: aiData.dimensions_inches || '',
-      dimensions_cm: aiData.dimensions_cm || '',
-      dimensions_with_frame_inches: aiData.dimensions_with_frame_inches || '',
-      dimensions_with_frame_cm: aiData.dimensions_with_frame_cm || '',
+      include_artist_description: aiData.include_artist_description !== undefined ? aiData.include_artist_description : true,
+      include_artist_key_description: aiData.include_artist_key_description !== undefined ? aiData.include_artist_key_description : true,
+      include_artist_biography: aiData.include_artist_biography || false,
+      include_artist_notable_works: aiData.include_artist_notable_works || false,
+      include_artist_major_exhibitions: aiData.include_artist_major_exhibitions || false,
+      include_artist_awards_honors: aiData.include_artist_awards_honors || false,
+      include_artist_market_value_range: aiData.include_artist_market_value_range || false,
+      include_artist_signature_style: aiData.include_artist_signature_style || false,
       condition_report: aiData.condition_report || '',
       gallery_certification: aiData.gallery_certification || false,
       gallery_id: aiData.gallery_id || '',
@@ -734,7 +750,40 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
   const handleInputChange = (field: keyof FormData, value: string | boolean) => {
     // Update the form data first
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const updatedData = { ...prev, [field]: value }
+
+      // Auto-calculate with-frame dimensions when main dimensions change
+      if (field === 'height_inches' || field === 'width_inches') {
+        const height = parseFloat(updatedData.height_inches)
+        const width = parseFloat(updatedData.width_inches)
+
+        if (!isNaN(height) && !isNaN(width)) {
+          updatedData.height_with_frame_inches = (height + 2).toFixed(1)
+          updatedData.width_with_frame_inches = (width + 2).toFixed(1)
+          updatedData.height_with_frame_cm = (parseFloat(updatedData.height_with_frame_inches) * 2.54).toFixed(1)
+          updatedData.width_with_frame_cm = (parseFloat(updatedData.width_with_frame_inches) * 2.54).toFixed(1)
+        }
+      }
+
+      // Auto-calculate with-frame dimensions when cm dimensions change
+      if (field === 'height_cm' || field === 'width_cm') {
+        const heightCm = parseFloat(updatedData.height_cm)
+        const widthCm = parseFloat(updatedData.width_cm)
+
+        if (!isNaN(heightCm) && !isNaN(widthCm)) {
+          // Convert to inches, add 2 inches, convert back to cm
+          const heightInInches = heightCm / 2.54
+          const widthInInches = widthCm / 2.54
+          updatedData.height_with_frame_inches = (heightInInches + 2).toFixed(1)
+          updatedData.width_with_frame_inches = (widthInInches + 2).toFixed(1)
+          updatedData.height_with_frame_cm = ((heightInInches + 2) * 2.54).toFixed(1)
+          updatedData.width_with_frame_cm = ((widthInInches + 2) * 2.54).toFixed(1)
+        }
+      }
+
+      return updatedData
+    })
 
     // Auto-calculate start price when low_est changes
     if (field === 'low_est' && typeof value === 'string' && value && !formData.start_price) {
@@ -929,7 +978,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       status: formData.status,
       category: formData.category || undefined,
       subcategory: formData.subcategory || undefined,
-      dimensions: formData.dimensions || undefined,
+      height_inches: formData.height_inches || undefined,
+      width_inches: formData.width_inches || undefined,
+      height_cm: formData.height_cm || undefined,
+      width_cm: formData.width_cm || undefined,
+      height_with_frame_inches: formData.height_with_frame_inches || undefined,
+      width_with_frame_inches: formData.width_with_frame_inches || undefined,
+      height_with_frame_cm: formData.height_with_frame_cm || undefined,
+      width_with_frame_cm: formData.width_with_frame_cm || undefined,
       weight: formData.weight || undefined,
       materials: formData.materials || undefined,
       artist_id: formData.artist_id ? parseInt(formData.artist_id) : undefined,
@@ -937,11 +993,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       period_age: formData.period_age || undefined,
       provenance: formData.provenance || undefined,
       consignment_id: formData.consignment_id ? parseInt(formData.consignment_id) : undefined,
-      // New dimension fields
-      dimensions_inches: formData.dimensions_inches || undefined,
-      dimensions_cm: formData.dimensions_cm || undefined,
-      dimensions_with_frame_inches: formData.dimensions_with_frame_inches || undefined,
-      dimensions_with_frame_cm: formData.dimensions_with_frame_cm || undefined,
       image_file_1: formData.image_file_1 || undefined,
       image_file_2: formData.image_file_2 || undefined,
       image_file_3: formData.image_file_3 || undefined,
@@ -1764,38 +1815,84 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.dimensions_inches}
+                        value={formData.height_inches}
                         onChange={(e) => {
-                          handleInputChange('dimensions_inches', e.target.value)
+                          handleInputChange('height_inches', e.target.value)
                           // Auto-convert to cm
                           if (e.target.value) {
                             const cmValue = convertInchesToCm(e.target.value)
                             if (cmValue) {
-                              handleInputChange('dimensions_cm', cmValue)
+                              handleInputChange('height_cm', cmValue)
                             }
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 24" x 36"'
+                        placeholder='e.g., 24"'
                       />
                     </div>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.dimensions_cm}
+                        value={formData.height_cm}
                         onChange={(e) => {
-                          handleInputChange('dimensions_cm', e.target.value)
+                          handleInputChange('height_cm', e.target.value)
                           // Auto-convert to inches
                           if (e.target.value) {
                             const inchValue = convertCmToInches(e.target.value)
                             if (inchValue) {
-                              handleInputChange('dimensions_inches', inchValue)
+                              handleInputChange('height_inches', inchValue)
                             }
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                         placeholder="e.g., 61 x 91 cm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Width
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
+                      <input
+                        type="text"
+                        value={formData.width_inches}
+                        onChange={(e) => {
+                          handleInputChange('width_inches', e.target.value)
+                          // Auto-convert to cm
+                          if (e.target.value) {
+                            const cmValue = convertInchesToCm(e.target.value)
+                            if (cmValue) {
+                              handleInputChange('width_cm', cmValue)
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder='e.g., 36"'
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
+                      <input
+                        type="text"
+                        value={formData.width_cm}
+                        onChange={(e) => {
+                          handleInputChange('width_cm', e.target.value)
+                          // Auto-convert to inches
+                          if (e.target.value) {
+                            const inchValue = convertCmToInches(e.target.value)
+                            if (inchValue) {
+                              handleInputChange('width_inches', inchValue)
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g., 91 cm"
                       />
                     </div>
                   </div>
@@ -1810,14 +1907,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.dimensions_with_frame_inches}
+                        value={formData.height_with_frame_inches}
                         onChange={(e) => {
-                          handleInputChange('dimensions_with_frame_inches', e.target.value)
+                          handleInputChange('height_with_frame_inches', e.target.value)
                           // Auto-convert to cm
                           if (e.target.value) {
                             const cmValue = convertInchesToCm(e.target.value)
                             if (cmValue) {
-                              handleInputChange('dimensions_with_frame_cm', cmValue)
+                              handleInputChange('height_with_frame_cm', cmValue)
                             }
                           }
                         }}
@@ -1829,19 +1926,65 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.dimensions_with_frame_cm}
+                        value={formData.height_with_frame_cm}
                         onChange={(e) => {
-                          handleInputChange('dimensions_with_frame_cm', e.target.value)
+                          handleInputChange('height_with_frame_cm', e.target.value)
                           // Auto-convert to inches
                           if (e.target.value) {
                             const inchValue = convertCmToInches(e.target.value)
                             if (inchValue) {
-                              handleInputChange('dimensions_with_frame_inches', inchValue)
+                              handleInputChange('height_with_frame_inches', inchValue)
                             }
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                         placeholder="e.g., 66 x 97 cm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Width with Frame
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
+                      <input
+                        type="text"
+                        value={formData.width_with_frame_inches}
+                        onChange={(e) => {
+                          handleInputChange('width_with_frame_inches', e.target.value)
+                          // Auto-convert to cm
+                          if (e.target.value) {
+                            const cmValue = convertInchesToCm(e.target.value)
+                            if (cmValue) {
+                              handleInputChange('width_with_frame_cm', cmValue)
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder='e.g., 38"'
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
+                      <input
+                        type="text"
+                        value={formData.width_with_frame_cm}
+                        onChange={(e) => {
+                          handleInputChange('width_with_frame_cm', e.target.value)
+                          // Auto-convert to inches
+                          if (e.target.value) {
+                            const inchValue = convertCmToInches(e.target.value)
+                            if (inchValue) {
+                              handleInputChange('width_with_frame_inches', inchValue)
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g., 97 cm"
                       />
                     </div>
                   </div>

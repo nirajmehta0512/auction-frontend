@@ -35,21 +35,25 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
     label: 'Our Database',
     description: 'Full format with all available fields',
     csvHeaders: [
-      'id', 'title', 'description', 'low_est', 'high_est', 'start_price', 'condition', 'reserve', 'consignor',
-      'status', 'category', 'subcategory', 'dimensions', 'weight', 'materials', 'artist_maker', 'period_age', 'provenance', 'auction_id',
-      'artist_id', 'school_id', 'dimensions_inches', 'dimensions_cm', 'dimensions_with_frame_inches', 'dimensions_with_frame_cm',
-      'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
+      'id', 'title', 'description', 'low_est', 'high_est', 'start_price', 'reserve', 'condition', 'consignor',
+      'status', 'category', 'subcategory', 'height_inches', 'width_inches', 'height_cm', 'width_cm',
+      'height_with_frame_inches', 'width_with_frame_inches', 'height_with_frame_cm', 'width_with_frame_cm',
+      'weight', 'materials', 'artist_maker', 'period_age', 'provenance',
+      'artist_id', 'school_id', 'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
       'restoration_done', 'restoration_by', 'image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5',
-      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10', 'created_at', 'updated_at'
+      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10',
+      'include_artist_description', 'include_artist_key_description', 'include_artist_biography', 'include_artist_notable_works',
+      'include_artist_major_exhibitions', 'include_artist_awards_honors', 'include_artist_market_value_range', 'include_artist_signature_style',
+      'created_at', 'updated_at'
     ],
     requiredFields: ['id', 'title', 'description', 'low_est', 'high_est']
   },
   liveauctioneers: {
     label: 'LiveAuctioneers',
     description: 'Compatible with LiveAuctioneers CSV format',
-    csvHeaders: ['LotNum', 'Title', 'Description', 'LowEst', 'HighEst', 'StartPrice', 'ReservePrice', 'Buy Now Price', 'Exclude From Buy Now', 'Condition', 'Category', 'Origin', 'Style & Period', 'Creator', 'Materials & Techniques', 'Reserve Price', 'Domestic Flat Shipping Price', 'Height', 'Width', 'Depth', 'Dimension Unit', 'Weight', 'Weight Unit', 'Quantity'],
-    requiredFields: ['LotNum', 'Title', 'Description', 'LowEst', 'HighEst'],
-    sampleData: ['1', 'MAQBOOL FIDA HUSAIN (1915-2011) WATERCOLOUR ON PAPER SIGNED LOWER RIGHT', 'MAQBOOL FIDA HUSAIN (1915-2011) WATERCOLOUR ON PAPER .THESE WORKS ARE HIGHLY SOUGHT AFTER, MUCH LIKE THOSE BY RENOWNED ARTISTS SUCH AS M.F. HUSAIN, S.H. RAZA, F.N. SOUZA, AKBAR PADAMSEE, HEMENDRANATH MAZUMDAR, RAM KUMAR, JAMINI ROY, B. PRABHA, TYEB MEHTA, AND MANY OTHERS. THEY ARE OFTEN SOLD BY AUCTIONEERS TO COLLECTORS AROUND THE GLOBE<BR><BR>30 X 22 INCHES', '8000', '12000', '8000', '8000', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+    csvHeaders: ['Lot', 'Lot ID', 'Title', 'Description', 'Condition', 'LowEst', 'HighEst', 'Start Price', 'Reserve Price', 'Height', 'Width', 'Depth', 'Dimension Unit', 'Weight', 'Weight Unit', 'Domestic Flat Shipping Price', 'Quantity', 'Shipping Height', 'Shipping Width', 'Shipping Depth', 'Shipping Dimension Unit', 'Shipping Weight', 'Shipping Weight Unit', 'Shipping Quantity', 'Consigner', 'Reference Number', 'Bids', 'Pending Bids', 'Hits', 'Image Count', 'Live', 'Edited'],
+    requiredFields: ['Title', 'Description', 'LowEst', 'HighEst'],
+    sampleData: ['1', '209274727', 'MAQBOOL FIDA HUSAIN (1915-2011) WATERCOLOUR ON PAPER SIGNED LOWER RIGHT', 'MAQBOOL FIDA HUSAIN (1915-2011) WATERCOLOUR ON PAPER<br><br>THESE WORKS ARE HIGHLY SOUGHT AFTER, MUCH LIKE THOSE BY RENOWNED ARTISTS SUCH AS M.F. HUSAIN, S.H. RAZA, F.N. SOUZA, AKBAR PADAMSEE, HEMENDRANATH MAZUMDAR, RAM KUMAR, JAMINI ROY, B. PRABHA, TYEB MEHTA, AND MANY OTHERS. THEY ARE OFTEN SOLD BY AUCTIONEERS TO COLLECTORS AROUND THE GLOBE<BR><BR>30 X 22 INCHES', '', '&pound;4,000', '&pound;6,000', '&pound;800', '&pound;800', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
   },
   easylive: {
     label: 'Easy Live Auction',
@@ -89,7 +93,16 @@ export default function ImportExportDialog({
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  
+  const [driveFolderUrl, setDriveFolderUrl] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewData, setPreviewData] = useState<{
+    mapping_preview: Record<string, { images: { filename: string; url: string; fileId: string }[]; count: number }>;
+    total_files: number;
+    mapped_ids: number;
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [syncBackToSheets, setSyncBackToSheets] = useState(false)
+
   // Google Sheets configuration
   const [hasGoogleSheetConfig, setHasGoogleSheetConfig] = useState(false)
   const [showUrlConfig, setShowUrlConfig] = useState(false)
@@ -192,7 +205,7 @@ export default function ImportExportDialog({
         if (!validation) return
         
         setProgress('Importing data...')
-        result = await ArtworksAPI.uploadCSV(csvData, platform as any)
+        result = await ArtworksAPI.uploadCSV(csvData, platform as any, driveFolderUrl || undefined)
         
       } else if (format === 'spreadsheet') {
         if (!googleSheetUrl) {
@@ -201,12 +214,24 @@ export default function ImportExportDialog({
         }
         
         setProgress('Syncing from Google Sheets...')
-        result = await syncArtworksFromGoogleSheet(googleSheetUrl, brand, platform)
+        result = await syncArtworksFromGoogleSheet(googleSheetUrl, brand, platform, driveFolderUrl || undefined, syncBackToSheets)
       }
 
       if (result?.success) {
         const importedCount = (result as any).imported_count || (result as any).upserted || 0;
-        setSuccess(`Import complete! ${importedCount} artworks imported.`)
+        let successMessage = `Import complete! ${importedCount} artworks imported.`;
+
+        // Add sync-back results if applicable
+        if (format === 'spreadsheet' && syncBackToSheets && (result as any).sync_back) {
+          const syncBack = (result as any).sync_back;
+          if (syncBack.success) {
+            successMessage += ` ${syncBack.message}`;
+          } else {
+            successMessage += ` Warning: ${syncBack.message}`;
+          }
+        }
+
+        setSuccess(successMessage)
         setTimeout(() => {
           onComplete?.(result)
         }, 2000)
@@ -309,6 +334,34 @@ export default function ImportExportDialog({
     }
   }
 
+  const handlePreviewDriveMapping = async () => {
+    if (!driveFolderUrl.trim()) {
+      setError('Please enter a Google Drive folder URL')
+      return
+    }
+
+    try {
+      setPreviewLoading(true)
+      setError('')
+      const result = await ArtworksAPI.previewDriveMapping(driveFolderUrl)
+
+      if (result.success && result.mapping_preview) {
+        setPreviewData({
+          mapping_preview: result.mapping_preview,
+          total_files: result.total_files || 0,
+          mapped_ids: result.mapped_ids || 0
+        })
+        setShowPreview(true)
+      } else {
+        setError(result.error || 'Failed to preview drive mapping')
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to preview drive mapping')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   const currentConfig = platformConfigs[platform]
 
   return (
@@ -392,6 +445,34 @@ export default function ImportExportDialog({
             >
               Download {currentConfig.label} Template
             </button>
+            {/* Drive folder mapping for images */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Google Drive Folder URL (optional)</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={driveFolderUrl}
+                  onChange={(e) => setDriveFolderUrl(e.target.value)}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={handlePreviewDriveMapping}
+                  disabled={previewLoading || !driveFolderUrl.trim()}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
+                >
+                  {previewLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full mr-1"></div>
+                      Loading...
+                    </div>
+                  ) : (
+                    'Preview'
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">If provided, images will be mapped by item id (e.g., files starting with 12*, 12-A, 12 (A) map to item id 12).</p>
+            </div>
           </div>
 
           {/* CSV File Upload */}
@@ -470,6 +551,27 @@ export default function ImportExportDialog({
                   </div>
                 </div>
               )}
+
+              {/* Sync Back Option */}
+              {hasGoogleSheetConfig && driveFolderUrl && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="syncBack"
+                      checked={syncBackToSheets}
+                      onChange={(e) => setSyncBackToSheets(e.target.checked)}
+                      className="mr-2"
+                    />
+                    <label htmlFor="syncBack" className="text-sm text-blue-800">
+                      <strong>Sync back to Google Sheets:</strong> After importing and mapping images, write the complete updated data back to Google Sheets
+                    </label>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    This ensures your Google Sheet stays updated with the latest image URLs and data from the database.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -543,8 +645,138 @@ export default function ImportExportDialog({
               )}
             </button>
           </div>
+
+          <div className="mt-4 text-xs text-gray-500">
+            Looking for a public submission link? Share our <a href="/inventory-form" target="_blank" rel="noopener noreferrer" className="underline text-teal-700">Inventory Form</a> with your clients.
+          </div>
         </div>
       </div>
+
+      {/* Drive Mapping Preview Modal */}
+      {showPreview && previewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="p-6 flex-1 overflow-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold">Drive Mapping Preview</h3>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Summary */}
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{previewData.total_files}</div>
+                    <div className="text-sm text-gray-600">Total Files</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{previewData.mapped_ids}</div>
+                    <div className="text-sm text-gray-600">Mapped IDs</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-600">{Object.values(previewData.mapping_preview).reduce((sum, item) => sum + item.count, 0)}</div>
+                    <div className="text-sm text-gray-600">Total Images Mapped</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mapping Details */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-lg">Image Mapping Details</h4>
+                {Object.entries(previewData.mapping_preview).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No images could be mapped to item IDs. Please check your folder and filename format.
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {Object.entries(previewData.mapping_preview).map(([itemId, mapping]) => (
+                      <div key={itemId} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-medium text-lg">Item ID: {itemId}</h5>
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                            {mapping.count} image{mapping.count !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {mapping.images.map((image, index) => (
+                            <div key={index} className="border border-gray-200 rounded-lg p-2">
+                              <div className="aspect-square mb-2 overflow-hidden bg-gray-100 rounded relative">
+                                <img
+                                  src={image.url}
+                                  alt={image.filename}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.currentTarget;
+                                    const fileId = image.fileId;
+
+                                    // Try multiple Google Drive URL formats as fallbacks
+                                    if (!img.dataset.triedFallback1) {
+                                      img.dataset.triedFallback1 = 'true';
+                                      img.src = `https://drive.google.com/uc?id=${fileId}&export=download`;
+                                      return;
+                                    }
+
+                                    if (!img.dataset.triedFallback2) {
+                                      img.dataset.triedFallback2 = 'true';
+                                      img.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=s400`;
+                                      return;
+                                    }
+
+                                    if (!img.dataset.triedFallback3) {
+                                      img.dataset.triedFallback3 = 'true';
+                                      img.src = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+                                      return;
+                                    }
+
+                                    // If all Google Drive URLs fail, show local placeholder SVG
+                                    if (!img.dataset.triedPlaceholder) {
+                                      img.dataset.triedPlaceholder = 'true';
+                                      img.src = '/placeholder-image.svg';
+                                      return;
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="text-xs text-gray-600 truncate" title={image.filename}>
+                                {image.filename}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky Actions */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Close Preview
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreview(false)
+                  // Could auto-populate the import form or provide next steps
+                }}
+                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+              >
+                Proceed with Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

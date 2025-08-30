@@ -29,8 +29,6 @@ export interface ArtworkPreviewData extends Artwork {
   include_artist_description?: boolean
   include_artist_key_description?: boolean
   include_artist_extra_info?: boolean
-  dimensions_inches?: string
-  dimensions_cm?: string
   artwork_subject?: string
   signature_placement?: string
   medium?: string
@@ -121,22 +119,17 @@ export const generateArtworkPreview = (
   // Dimensions
   if (opts.includeDimensions) {
     let dimensionText = ''
-    
-    // Check form-specific dimension fields first
-    if (artwork.dimensions_inches || artwork.dimensions_cm) {
-      dimensionText = 'Dimensions: '
-      if (artwork.dimensions_inches) {
-        dimensionText += artwork.dimensions_inches
-        if (artwork.dimensions_cm) {
-          dimensionText += ` (${artwork.dimensions_cm})`
-        }
-      } else if (artwork.dimensions_cm) {
-        dimensionText += artwork.dimensions_cm
+
+    // Use new structured dimension fields
+    if (artwork.height_inches && artwork.width_inches) {
+      dimensionText = `Dimensions: ${artwork.height_inches}" × ${artwork.width_inches}"`
+      if (artwork.height_cm && artwork.width_cm) {
+        dimensionText += ` (${artwork.height_cm}cm × ${artwork.width_cm}cm)`
       }
-    } else if (artwork.dimensions) {
-      dimensionText = `Dimensions: ${artwork.dimensions}`
+    } else if (artwork.height_cm && artwork.width_cm) {
+      dimensionText = `Dimensions: ${artwork.height_cm}cm × ${artwork.width_cm}cm`
     }
-    
+
     if (dimensionText) {
       parts.push(dimensionText)
     }
@@ -196,11 +189,16 @@ export const generateArtworkPreviewConcise = (artwork: ArtworkPreviewData): stri
     parts.push(`by ${artwork.artist.name}`)
   }
   
-  if (artwork.dimensions_inches || artwork.dimensions_cm || artwork.dimensions) {
-    const dimension = artwork.dimensions_inches || artwork.dimensions_cm || artwork.dimensions
-    if (dimension) {
-      parts.push(dimension)
-    }
+  // Handle dimensions with structured fields
+  let dimension = ''
+  if (artwork.height_inches && artwork.width_inches) {
+    dimension = `${artwork.height_inches}" × ${artwork.width_inches}"`
+  } else if (artwork.height_cm && artwork.width_cm) {
+    dimension = `${artwork.height_cm}cm × ${artwork.width_cm}cm`
+  }
+
+  if (dimension) {
+    parts.push(dimension)
   }
   
   return parts.join(' • ')
@@ -219,7 +217,14 @@ export const generateArtworkPreviewCustom = (
   result = result.replace(/\$title/gi, artwork.title || '')
   result = result.replace(/\$description/gi, artwork.description || '')
   result = result.replace(/\$artist/gi, artwork.artist?.name || '')
-  result = result.replace(/\$dimensions/gi, artwork.dimensions_inches || artwork.dimensions_cm || artwork.dimensions || '')
+  // Handle dimensions with structured fields
+  let dimensionText = ''
+  if (artwork.height_inches && artwork.width_inches) {
+    dimensionText = `${artwork.height_inches}" × ${artwork.width_inches}"`
+  } else if (artwork.height_cm && artwork.width_cm) {
+    dimensionText = `${artwork.height_cm}cm × ${artwork.width_cm}cm`
+  }
+  result = result.replace(/\$dimensions/gi, dimensionText)
   result = result.replace(/\$condition/gi, artwork.condition || '')
   result = result.replace(/\$materials/gi, artwork.materials || '')
   result = result.replace(/\$provenance/gi, artwork.provenance || '')

@@ -26,6 +26,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Date range selection state
+  const [selectedDateRange, setSelectedDateRange] = useState<string>('last30days')
+
   // Brand selection state
   const [brands, setBrands] = useState<Brand[]>([])
   const [selectedBrandId, setSelectedBrandId] = useState<string>('all')
@@ -35,6 +38,44 @@ export default function DashboardPage() {
   useEffect(() => {
     loadBrands()
   }, [])
+
+  // Calculate dates based on selected range
+  const getDatesForRange = (range: string) => {
+    const today = new Date();
+    const to = today.toISOString().split('T')[0];
+
+    switch (range) {
+      case 'last7days':
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        return { from: sevenDaysAgo.toISOString().split('T')[0], to };
+      case 'last30days':
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        return { from: thirtyDaysAgo.toISOString().split('T')[0], to };
+      case 'lastyear':
+        const oneYearAgo = new Date(today);
+        oneYearAgo.setFullYear(today.getFullYear() - 1);
+        return { from: oneYearAgo.toISOString().split('T')[0], to };
+      case 'last2years':
+        const twoYearsAgo = new Date(today);
+        twoYearsAgo.setFullYear(today.getFullYear() - 2);
+        return { from: twoYearsAgo.toISOString().split('T')[0], to };
+      case 'custom':
+        return { from: dateFrom, to: dateTo };
+      default:
+        return getDefaultDates();
+    }
+  };
+
+  // Update dates when range changes
+  useEffect(() => {
+    if (selectedDateRange !== 'custom') {
+      const newDates = getDatesForRange(selectedDateRange);
+      setDateFrom(newDates.from);
+      setDateTo(newDates.to);
+    }
+  }, [selectedDateRange]);
 
   // Load dashboard data when filters change
   useEffect(() => {
@@ -121,28 +162,44 @@ export default function DashboardPage() {
       {/* Date Filter Section */}
       <div className="bg-white px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-          {/* Date Filters */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              />
-            </div>
-            <span className="text-gray-400">-</span>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-              />
-            </div>
+          {/* Date Range Selector */}
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-5 w-5 text-gray-400" />
+            <select
+              value={selectedDateRange}
+              onChange={(e) => setSelectedDateRange(e.target.value)}
+              className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            >
+              <option value="last7days">Last 7 Days</option>
+              <option value="last30days">Last 30 Days</option>
+              <option value="lastyear">Last Year</option>
+              <option value="last2years">Last 2 Years</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
           </div>
+
+          {/* Custom Date Inputs - Only show when custom is selected */}
+          {selectedDateRange === 'custom' && (
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+              <span className="text-gray-400">-</span>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="bg-transparent text-gray-900 font-medium text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Brand Filter */}
           <div className="flex items-center space-x-2">

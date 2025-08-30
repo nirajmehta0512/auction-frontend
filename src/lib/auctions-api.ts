@@ -295,9 +295,14 @@ export interface Invoice {
   item?: {
     id: number
     title: string
-    dimensions?: string
-    dimensions_cm?: string
-    dimensions_inches?: string
+    height_inches?: string;
+    width_inches?: string;
+    height_cm?: string;
+    width_cm?: string;
+    height_with_frame_inches?: string;
+    width_with_frame_inches?: string;
+    height_with_frame_cm?: string;
+    width_with_frame_cm?: string;
     weight?: string
     artist_maker?: string
   }

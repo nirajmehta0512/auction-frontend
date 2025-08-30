@@ -349,7 +349,9 @@ export const saveBrandGoogleSheetUrl = async (
 export const syncArtworksFromGoogleSheet = async (
   sheetUrl: string,
   selectedBrand?: string,
-  platform?: string
+  platform?: string,
+  driveFolderUrl?: string,
+  syncBack: boolean = false
 ): Promise<GoogleSheetsSyncResult> => {
   try {
     const apiUrl = getApiBaseUrl();
@@ -359,14 +361,17 @@ export const syncArtworksFromGoogleSheet = async (
     console.log('Using API URL:', apiUrl);
     console.log('Selected brand for empty fields:', selectedBrand);
     console.log('Target platform:', platform);
+    console.log('Sync back to sheets:', syncBack);
 
     const response = await fetch(`${apiUrl}/api/items/sync-google-sheet`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         sheet_url: sheetUrl,
         default_brand: selectedBrand,
-        platform: platform || 'database'
+        platform: platform || 'database',
+        drive_folder_url: driveFolderUrl,
+        sync_back: syncBack
       })
     });
 

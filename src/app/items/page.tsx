@@ -8,6 +8,7 @@ import { Artwork, ArtworksAPI, ArtworksResponse } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import ItemsTable from '@/components/items/ItemsTable'
 import ItemsFilter from '@/components/items/ItemsFilter'
+import PendingItemsTab from '@/components/items/PendingItemsTab'
 import CSVUpload from '@/components/items/CSVUpload'
 import AIImageUpload from '@/components/items/AIImageUpload'
 import AIBulkGenerationModal from '@/components/items/AIBulkGenerationModal'
@@ -46,6 +47,7 @@ export default function ItemsPage() {
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState(false)
   const [showGenerateAuctionModal, setShowGenerateAuctionModal] = useState(false)
+  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'pending'>('inventory')
   
   // Pagination and filtering state
   const [page, setPage] = useState(1)
@@ -279,6 +281,17 @@ export default function ItemsPage() {
               Export
             </button>
 
+            <a
+              href="/inventory-form"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+              title="Open public Inventory Form"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Inventory Form
+            </a>
+
             <button
               onClick={() => setShowGoogleSheetsModal(true)}
               className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -289,13 +302,7 @@ export default function ItemsPage() {
             </button>
           </div>
           
-          <button
-            onClick={() => router.push('/preview')}
-            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </button>
+
         </div>
       </div>
 
@@ -521,25 +528,37 @@ export default function ItemsPage() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Sub-tabs */}
+        <div className="px-6 border-b border-gray-200">
+          <div className="flex gap-2">
+            <button onClick={()=>setActiveSubTab('inventory')} className={`px-3 py-2 ${activeSubTab==='inventory'?'border-b-2 border-teal-600 text-teal-700':'text-gray-600'}`}>Inventory</button>
+            <button onClick={()=>setActiveSubTab('pending')} className={`px-3 py-2 ${activeSubTab==='pending'?'border-b-2 border-teal-600 text-teal-700':'text-gray-600'}`}>Pending</button>
+          </div>
+        </div>
+
+        {/* Content */}
         <div className="flex-1 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading items...</p>
-            </div>
+          {activeSubTab === 'inventory' ? (
+            loading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading items...</p>
+              </div>
+            ) : (
+              <div className="h-full overflow-auto">
+                <ItemsTable
+                  items={artworks}
+                  selectedItems={selectedItems}
+                  onSelectionChange={setSelectedItems}
+                  onSort={handleSort}
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onDelete={handleDeleteItem}
+                />
+              </div>
+            )
           ) : (
-            <div className="h-full overflow-auto">
-              <ItemsTable
-                items={artworks}
-                selectedItems={selectedItems}
-                onSelectionChange={setSelectedItems}
-                onSort={handleSort}
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onDelete={handleDeleteItem}
-              />
-            </div>
+            <PendingItemsTab />
           )}
         </div>
 

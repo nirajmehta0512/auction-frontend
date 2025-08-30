@@ -8,7 +8,15 @@ export interface ReceiptItemRowItemOption {
   id?: string
   lot_num?: string
   title?: string
-  dimensions?: string
+  height_inches?: string
+  width_inches?: string
+  height_cm?: string
+  width_cm?: string
+  height_with_frame_inches?: string
+  width_with_frame_inches?: string
+  height_with_frame_cm?: string
+  width_with_frame_cm?: string
+  weight?: string
   low_est?: number
   high_est?: number
   reserve?: number
@@ -29,7 +37,15 @@ export interface ReceiptItem {
   artwork_title?: string
   artist_id?: string
   artist_name?: string
-  dimensions?: string
+  height_inches?: string
+  width_inches?: string
+  height_cm?: string
+  width_cm?: string
+  height_with_frame_inches?: string
+  width_with_frame_inches?: string
+  height_with_frame_cm?: string
+  width_with_frame_cm?: string
+  weight?: string
   low_estimate?: number
   high_estimate?: number
   reserve?: number
@@ -58,7 +74,15 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
     if (artworkId === 'create_new') {
       onChange(receiptItem.id, 'artwork_id', 'new')
       onChange(receiptItem.id, 'artwork_title', '')
-      onChange(receiptItem.id, 'dimensions', '')
+      onChange(receiptItem.id, 'height_inches', '')
+      onChange(receiptItem.id, 'width_inches', '')
+      onChange(receiptItem.id, 'height_cm', '')
+      onChange(receiptItem.id, 'width_cm', '')
+      onChange(receiptItem.id, 'height_with_frame_inches', '')
+      onChange(receiptItem.id, 'width_with_frame_inches', '')
+      onChange(receiptItem.id, 'height_with_frame_cm', '')
+      onChange(receiptItem.id, 'width_with_frame_cm', '')
+      onChange(receiptItem.id, 'weight', '')
       onChange(receiptItem.id, 'low_estimate', 0)
       onChange(receiptItem.id, 'high_estimate', 0)
       onChange(receiptItem.id, 'reserve', 0)
@@ -71,7 +95,15 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
     if (!artworkId || artworkId === '') {
       onChange(receiptItem.id, 'artwork_id', '')
       onChange(receiptItem.id, 'artwork_title', '')
-      onChange(receiptItem.id, 'dimensions', '')
+      onChange(receiptItem.id, 'height_inches', '')
+      onChange(receiptItem.id, 'width_inches', '')
+      onChange(receiptItem.id, 'height_cm', '')
+      onChange(receiptItem.id, 'width_cm', '')
+      onChange(receiptItem.id, 'height_with_frame_inches', '')
+      onChange(receiptItem.id, 'width_with_frame_inches', '')
+      onChange(receiptItem.id, 'height_with_frame_cm', '')
+      onChange(receiptItem.id, 'width_with_frame_cm', '')
+      onChange(receiptItem.id, 'weight', '')
       onChange(receiptItem.id, 'low_estimate', 0)
       onChange(receiptItem.id, 'high_estimate', 0)
       onChange(receiptItem.id, 'reserve', 0)
@@ -85,7 +117,15 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
     if (selectedArtwork) {
       onChange(receiptItem.id, 'artwork_id', artworkId)
       onChange(receiptItem.id, 'artwork_title', selectedArtwork.title || '')
-      onChange(receiptItem.id, 'dimensions', selectedArtwork.dimensions || '')
+      onChange(receiptItem.id, 'height_inches', selectedArtwork.height_inches || '')
+      onChange(receiptItem.id, 'width_inches', selectedArtwork.width_inches || '')
+      onChange(receiptItem.id, 'height_cm', selectedArtwork.height_cm || '')
+      onChange(receiptItem.id, 'width_cm', selectedArtwork.width_cm || '')
+      onChange(receiptItem.id, 'height_with_frame_inches', selectedArtwork.height_with_frame_inches || '')
+      onChange(receiptItem.id, 'width_with_frame_inches', selectedArtwork.width_with_frame_inches || '')
+      onChange(receiptItem.id, 'height_with_frame_cm', selectedArtwork.height_with_frame_cm || '')
+      onChange(receiptItem.id, 'width_with_frame_cm', selectedArtwork.width_with_frame_cm || '')
+      onChange(receiptItem.id, 'weight', selectedArtwork.weight || '')
       onChange(receiptItem.id, 'low_estimate', selectedArtwork.low_est || 0)
       onChange(receiptItem.id, 'high_estimate', selectedArtwork.high_est || 0)
       onChange(receiptItem.id, 'reserve', selectedArtwork.reserve || 0)
@@ -176,12 +216,38 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Dimensions</label>
-              <input
-                value={receiptItem.dimensions || ''}
-                onChange={(e)=> onChange(receiptItem.id, 'dimensions', e.target.value)}
-                placeholder="e.g., 24 x 36 inches"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={receiptItem.height_inches || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'height_inches', e.target.value)}
+                  placeholder="Height (inches)"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  value={receiptItem.width_inches || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'width_inches', e.target.value)}
+                  placeholder="Width (inches)"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  value={receiptItem.height_cm || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'height_cm', e.target.value)}
+                  placeholder="Height (cm)"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  value={receiptItem.width_cm || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'width_cm', e.target.value)}
+                  placeholder="Width (cm)"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  value={receiptItem.weight || ''}
+                  onChange={(e)=> onChange(receiptItem.id, 'weight', e.target.value)}
+                  placeholder="Weight"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 col-span-2"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Low Estimate (£)</label>
@@ -314,7 +380,24 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                     </div>
                     <div>
                       <span className="text-gray-500">Dimensions:</span>
-                      <div className="font-medium">{receiptItem.dimensions || '—'}</div>
+                      <div className="font-medium">
+                        {receiptItem.height_inches && receiptItem.width_inches
+                          ? `${receiptItem.height_inches}" × ${receiptItem.width_inches}"`
+                          : receiptItem.height_cm && receiptItem.width_cm
+                          ? `${receiptItem.height_cm}cm × ${receiptItem.width_cm}cm`
+                          : receiptItem.height_inches
+                          ? `${receiptItem.height_inches}" (H)`
+                          : receiptItem.width_inches
+                          ? `${receiptItem.width_inches}" (W)`
+                          : receiptItem.height_cm
+                          ? `${receiptItem.height_cm}cm (H)`
+                          : receiptItem.width_cm
+                          ? `${receiptItem.width_cm}cm (W)`
+                          : receiptItem.weight
+                          ? `${receiptItem.weight}`
+                          : '—'
+                        }
+                      </div>
                     </div>
                     <div>
                       <span className="text-gray-500">Estimate:</span>

@@ -26,7 +26,15 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
     start_price: '',
     artist_id: '',
     artist_maker: '',
-    dimensions: '',
+    height_inches: '',
+    width_inches: '',
+    height_cm: '',
+    width_cm: '',
+    height_with_frame_inches: '',
+    width_with_frame_inches: '',
+    height_with_frame_cm: '',
+    width_with_frame_cm: '',
+    weight: '',
     materials: '',
     condition: '',
     category: '',
@@ -77,7 +85,15 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
           start_price: Math.round((result.low_est || 0) * 0.5),
           artist_id: result.artist_id ? parseInt(result.artist_id.toString()) : undefined,
           artist_maker: result.artist_name || result.artist_maker,
-          dimensions: result.dimensions,
+          height_inches: result.height_inches || '',
+          width_inches: result.width_inches || '',
+          height_cm: result.height_cm || '',
+          width_cm: result.width_cm || '',
+          height_with_frame_inches: result.height_with_frame_inches || '',
+          width_with_frame_inches: result.width_with_frame_inches || '',
+          height_with_frame_cm: result.height_with_frame_cm || '',
+          width_with_frame_cm: result.width_with_frame_cm || '',
+          weight: result.weight || '',
           materials: result.materials,
           condition: result.condition,
           category: result.category,
@@ -120,7 +136,15 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
         start_price: parseFloat(formData.start_price) || 0,
         artist_id: formData.artist_id ? parseInt(formData.artist_id) : undefined,
         artist_maker: formData.artist_maker,
-        dimensions: formData.dimensions,
+        height_inches: formData.height_inches,
+        width_inches: formData.width_inches,
+        height_cm: formData.height_cm,
+        width_cm: formData.width_cm,
+        height_with_frame_inches: formData.height_with_frame_inches,
+        width_with_frame_inches: formData.width_with_frame_inches,
+        height_with_frame_cm: formData.height_with_frame_cm,
+        width_with_frame_cm: formData.width_with_frame_cm,
+        weight: formData.weight,
         materials: formData.materials,
         condition: formData.condition,
         category: formData.category,
@@ -220,17 +244,70 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dimensions
-          </label>
-          <input
-            type="text"
-            value={formData.dimensions}
-            onChange={(e) => handleInputChange('dimensions', e.target.value)}
-            placeholder="e.g., 24 x 36 inches"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* New Dimensions with inch/cm conversion */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dimensions
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Height (inches)</label>
+                <input
+                  type="text"
+                  value={formData.height_inches}
+                  onChange={(e) => handleInputChange('height_inches', e.target.value)}
+                  placeholder='e.g., 24"'
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Width (inches)</label>
+                <input
+                  type="text"
+                  value={formData.width_inches}
+                  onChange={(e) => handleInputChange('width_inches', e.target.value)}
+                  placeholder='e.g., 36"'
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Height (cm)</label>
+                <input
+                  type="text"
+                  value={formData.height_cm}
+                  onChange={(e) => handleInputChange('height_cm', e.target.value)}
+                  placeholder="e.g., 61 cm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Width (cm)</label>
+                <input
+                  type="text"
+                  value={formData.width_cm}
+                  onChange={(e) => handleInputChange('width_cm', e.target.value)}
+                  placeholder="e.g., 91 cm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Weight
+            </label>
+            <input
+              type="text"
+              value={formData.weight}
+              onChange={(e) => handleInputChange('weight', e.target.value)}
+              placeholder="e.g., 2.5kg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         <div>
