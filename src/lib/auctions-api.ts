@@ -41,14 +41,14 @@ export interface Auction {
   estimates_visibility?: 'use_global' | 'show_always' | 'do_not_show';
   time_zone?: string;
   platform?: string;
+  upload_status?: string;
   brand_code?: string;
   brand_id?: number;
-  registrations_count?: number;
   total_estimate_low?: number;
   total_estimate_high?: number;
   total_sold_value?: number;
   sold_lots_count?: number;
-  status?: 'planned' | 'in_progress' | 'ended' | 'aftersale' | 'archived';
+
   artwork_ids?: number[]; // Array of artwork/item IDs
   created_at?: string;
   updated_at?: string;
@@ -138,6 +138,41 @@ export async function getAuction(id: string): Promise<Auction> {
     throw new Error(`Error fetching auction: ${response.statusText}`);
   }
   
+  return response.json();
+}
+
+// Get auction status counts
+export interface AuctionStatusCounts {
+  future: number;
+  present: number;
+  past: number;
+}
+
+export interface AuctionStatusCountsResponse {
+  success: boolean;
+  counts: AuctionStatusCounts;
+}
+
+export async function getAuctionStatusCounts(brandCode?: string): Promise<AuctionStatusCountsResponse> {
+  const token = getAuthToken();
+
+  const params = new URLSearchParams();
+  if (brandCode) {
+    params.append('brand_code', brandCode);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auctions/counts/status?${params}`, {
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error fetching status counts: ${response.statusText}`);
+  }
+
   return response.json();
 }
 

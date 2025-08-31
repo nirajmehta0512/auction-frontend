@@ -247,7 +247,17 @@ export default function InvoicesPage() {
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-medium text-gray-900">{state.selectedAuction.long_name}</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Status: <span className="capitalize">{state.selectedAuction.status}</span>
+                Status: <span className="capitalize">
+                  {(() => {
+                    const today = new Date()
+                    const catalogueLaunchDate = state.selectedAuction.catalogue_launch_date ? new Date(state.selectedAuction.catalogue_launch_date) : null
+                    const settlementDate = new Date(state.selectedAuction.settlement_date)
+
+                    if (today > settlementDate) return 'Past'
+                    else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) return 'Present'
+                    else return 'Future'
+                  })()}
+                </span>
                 {state.selectedAuction.settlement_date && (
                   <span className="ml-4">
                     Settlement: {new Date(state.selectedAuction.settlement_date).toLocaleDateString()}

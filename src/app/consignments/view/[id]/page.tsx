@@ -99,9 +99,9 @@ export default function ConsignmentViewPage() {
         let fetchedItems: Artwork[] = []
         try {
           console.log('Fetching items for consignment ID:', consignmentId)
-          const itemsResp = await ArtworksAPI.getArtworks({ 
+          const itemsResp = await ArtworksAPI.getArtworks({
             consignment_id: consignmentId, // Pass as string - backend will parse to int
-            limit: 1000, // Get all items for this consignment
+            limit: 5000, // Get all items for this consignment (higher limit)
             status: 'all' // Include all statuses for consignment view
           })
           console.log('Items response:', itemsResp)

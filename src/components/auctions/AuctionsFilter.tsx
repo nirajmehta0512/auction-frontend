@@ -19,21 +19,17 @@ interface AuctionsFilterProps {
   filters: FilterState
   onFilterChange: (filters: Partial<FilterState>) => void
   statusCounts?: {
-    planned: number
-    in_progress: number
-    ended: number
-    aftersale: number
-    archived: number
+    future: number
+    present: number
+    past: number
   }
 }
 
 const statuses = [
   { value: 'all', label: 'All Auctions', color: 'bg-gray-100 text-gray-800' },
-  { value: 'planned', label: 'Planned', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in_progress', label: 'In Progress', color: 'bg-orange-100 text-orange-800' },
-  { value: 'ended', label: 'Ended', color: 'bg-green-100 text-green-800' },
-  { value: 'aftersale', label: 'Aftersale', color: 'bg-purple-100 text-purple-800' },
-  { value: 'archived', label: 'Archived', color: 'bg-gray-100 text-gray-800' }
+  { value: 'future', label: 'Future', color: 'bg-blue-100 text-blue-800' },
+  { value: 'present', label: 'Present', color: 'bg-green-100 text-green-800' },
+  { value: 'past', label: 'Past', color: 'bg-red-100 text-red-800' }
 ]
 
 const auctionTypes = [
@@ -76,7 +72,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const loadSpecialists = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/users', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }

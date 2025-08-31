@@ -10,12 +10,14 @@ import { generatePassedAuction } from '@/lib/auctions-api'
 interface Auction {
   id: number
   number: string
-  status: 'planned' | 'inProgress' | 'ended' | 'aftersale' | 'archived'
-  name: string
+  short_name: string
+  long_name: string
   type: string
   lots: number
-  regs: number
   endingDate: string
+  catalogue_launch_date?: string
+  settlement_date: string
+  upload_status?: string
 }
 
 interface AuctionsTableProps {
@@ -31,22 +33,20 @@ interface AuctionsTableProps {
 }
 
 type SortField = keyof Auction
-type SortDirection = 'asc' | 'desc'
 
-const statusColors = {
-  planned: 'bg-gray-800',
-  inProgress: 'bg-red-500',
-  ended: 'bg-green-500',
-  aftersale: 'bg-yellow-500',
-  archived: 'bg-blue-500'
-}
+// Dynamic status calculation based on dates
+const getAuctionStatus = (auction: Auction) => {
+  const today = new Date()
+  const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+  const settlementDate = new Date(auction.settlement_date)
 
-const statusLabels = {
-  planned: 'Planned',
-  inProgress: 'In Progress',
-  ended: 'Ended',
-  aftersale: 'Aftersale',
-  archived: 'Archived'
+  if (today > settlementDate) {
+    return { status: 'Past', color: 'bg-red-100 text-red-800 border border-red-200' }
+  } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
+    return { status: 'Present', color: 'bg-green-100 text-green-800 border border-green-200' }
+  } else {
+    return { status: 'Future', color: 'bg-blue-100 text-blue-800 border border-blue-200' }
+  }
 }
 
 interface AuctionsTablePropsExtended extends AuctionsTableProps {
@@ -220,23 +220,15 @@ export default function AuctionsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button
-                  onClick={() => handleSort('status')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
-                >
-                  <span>Status</span>
-                  <SortIcon field="status" />
-                </button>
-              </th>
+
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort('long_name')}
                   className="flex items-center space-x-1 hover:text-gray-700"
                 >
                   <span>Name</span>
-                  <SortIcon field="name" />
+                  <SortIcon field="long_name" />
                 </button>
               </th>
 
@@ -255,7 +247,7 @@ export default function AuctionsTable({
               </th>
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Regs
+                Launch Date
               </th>
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -295,21 +287,29 @@ export default function AuctionsTable({
                   </button>
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div 
-                      className={cn("w-3 h-3 rounded-full", statusColors[auction.status])}
-                      title={statusLabels[auction.status]}
-                    />
-                  </div>
-                </td>
+
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => handleView(auction.id)}
                     className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline text-left"
                   >
-                    {auction.name}
+                    <div className="flex flex-col">
+                      <span>{auction.long_name}</span>
+                      <span className="text-xs text-gray-500">{auction.short_name}</span>
+                      <div className="flex items-center mt-1 space-x-2">
+                        <div
+                          className={cn("px-2 py-0.5 rounded-full text-xs font-medium", getAuctionStatus(auction).color)}
+                        >
+                          {getAuctionStatus(auction).status}
+                        </div>
+                        {auction.upload_status === 'uploaded' && (
+                          <div className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                            Uploaded
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </button>
                 </td>
 
@@ -324,7 +324,7 @@ export default function AuctionsTable({
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {auction.regs}
+                  {auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date).toLocaleDateString() : '-'}
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -440,8 +440,8 @@ export default function AuctionsTable({
 
             <div className="p-6">
               <p className="text-sm text-gray-600 mb-4">
-                Create a new auction with unsold items from "{selectedAuctionForPassed.name}".
-                The new auction will be named "{selectedAuctionForPassed.name} - Passed".
+                Create a new auction with unsold items from "{selectedAuctionForPassed.long_name}".
+                The new auction will be named "{selectedAuctionForPassed.long_name} - Passed".
               </p>
 
               {generateError && (

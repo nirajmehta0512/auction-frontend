@@ -172,7 +172,7 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
       const formData = new FormData()
       formData.append('image', selectedImage)
 
-      const response = await fetch('/api/items/ai-analyze', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/items/ai-analyze`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

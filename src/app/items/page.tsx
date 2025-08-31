@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Download, Upload, Filter, MoreVertical, Eye, Sparkles, RefreshCw, FileText, Share2, Printer, Check, Trophy, Trash2 } from 'lucide-react'
+import { Plus, Download, Upload, Filter, MoreVertical, Eye, Sparkles, RefreshCw, FileText, Share2, Printer, Check, Trophy, Trash2, Search, ChevronDown, Copy } from 'lucide-react'
 import { Artwork, ArtworksAPI, ArtworksResponse } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import ItemsTable from '@/components/items/ItemsTable'
@@ -15,6 +15,7 @@ import AIBulkGenerationModal from '@/components/items/AIBulkGenerationModal'
 import ArtworkSelection from '@/components/items/ArtworkSelection'
 import PDFCatalogGenerator from '@/components/items/PDFCatalogGenerator'
 import ImportExportDialog from '@/components/items/ImportExportDialog'
+import DuplicateDetectionModal from '@/components/items/DuplicateDetectionModal'
 import { 
   loadBrandGoogleSheetUrl,
   syncArtworksFromGoogleSheet 
@@ -47,7 +48,10 @@ export default function ItemsPage() {
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState(false)
   const [showGenerateAuctionModal, setShowGenerateAuctionModal] = useState(false)
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'pending'>('inventory')
+  const [showToolsDropdown, setShowToolsDropdown] = useState(false)
+  const [showAddDropdown, setShowAddDropdown] = useState(false)
   
   // Pagination and filtering state
   const [page, setPage] = useState(1)
@@ -243,107 +247,143 @@ export default function ItemsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
           <p className="text-gray-600 mt-1">Manage your auction items and export to major bidding platforms</p>
         </div>
         
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => router.push('/items/new')}
-            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Artwork
-          </button>
-
-          <button
-            onClick={() => setShowAIBulkModal(true)}
-            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            AI Bulk Generate
-          </button>
-          
-          <div className="flex items-center space-x-2">
+          {/* Primary Actions */}
+          <div className="relative">
             <button
-              onClick={() => setShowImportDialog(true)}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              onClick={() => setShowAddDropdown(!showAddDropdown)}
+              className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
+              <Plus className="h-4 w-4 mr-2" />
+              Add Item
+              <ChevronDown className="h-4 w-4 ml-2" />
             </button>
-
-            <button
-              onClick={() => setShowExportDialog(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </button>
-
-            <a
-              href="/inventory-form"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-              title="Open public Inventory Form"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Inventory Form
-            </a>
-
-            <button
-              onClick={() => setShowGoogleSheetsModal(true)}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              title="Sync with Google Sheets"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sync Sheets
-            </button>
+            
+            {showAddDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div className="py-2">
+                  <button
+                    onClick={() => {
+                      router.push('/items/new')
+                      setShowAddDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <Plus className="h-4 w-4 mr-3 text-gray-400" />
+                    <div>
+                      <div className="font-medium">Add Single Item</div>
+                      <div className="text-xs text-gray-500">Create one artwork manually</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAIBulkModal(true)
+                      setShowAddDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <Sparkles className="h-4 w-4 mr-3 text-purple-500" />
+                    <div>
+                      <div className="font-medium">AI Bulk Generate</div>
+                      <div className="text-xs text-gray-500">Generate multiple items with AI</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowImportDialog(true)
+                      setShowAddDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <Upload className="h-4 w-4 mr-3 text-green-500" />
+                    <div>
+                      <div className="font-medium">Import CSV</div>
+                      <div className="text-xs text-gray-500">Import from spreadsheet</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          
 
+          {/* Tools Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowToolsDropdown(!showToolsDropdown)}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              <MoreVertical className="h-4 w-4 mr-2" />
+              Tools
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </button>
+            
+            {showToolsDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div className="py-2">
+                  <button
+                    onClick={() => {
+                      setShowDuplicateModal(true)
+                      setShowToolsDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <Copy className="h-4 w-4 mr-3 text-orange-500" />
+                    <div>
+                      <div className="font-medium">Detect Duplicates</div>
+                      <div className="text-xs text-gray-500">Find duplicate or similar images</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExportDialog(true)
+                      setShowToolsDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <Download className="h-4 w-4 mr-3 text-blue-500" />
+                    <div>
+                      <div className="font-medium">Export Data</div>
+                      <div className="text-xs text-gray-500">Export to CSV or platforms</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowGoogleSheetsModal(true)
+                      setShowToolsDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-3 text-indigo-500" />
+                    <div>
+                      <div className="font-medium">Sync Google Sheets</div>
+                      <div className="text-xs text-gray-500">Sync with Google Sheets</div>
+                    </div>
+                  </button>
+                  <a
+                    href="/inventory-form"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    onClick={() => setShowToolsDropdown(false)}
+                  >
+                    <Eye className="h-4 w-4 mr-3 text-gray-500" />
+                    <div>
+                      <div className="font-medium">Public Form</div>
+                      <div className="text-xs text-gray-500">Open inventory submission form</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-            <span className="text-sm text-gray-600">Draft</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{counts.draft}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-            <span className="text-sm text-gray-600">Active</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{counts.active}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-            <span className="text-sm text-gray-600">Sold</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{counts.sold}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-            <span className="text-sm text-gray-600">Withdrawn</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{counts.withdrawn}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-gray-500 mr-2"></div>
-            <span className="text-sm text-gray-600">Passed</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{counts.passed}</p>
-        </div>
-      </div>
+
 
       {/* Error Message */}
       {error && (
@@ -407,22 +447,20 @@ export default function ItemsPage() {
         </div>
       )}
 
-      {/* Controls */}
+      {/* Enhanced Filters and Controls */}
       <div className="bg-white rounded-lg border mb-6 flex-1 flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
-                showFilters 
-                  ? 'bg-teal-100 text-teal-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
+        {/* Always-visible filter bar with improved layout */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <ItemsFilter
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            statusCounts={counts}
+          />
+        </div>
 
+        {/* Controls and Selection */}
+        <div className="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">Select:</span>
               <button
@@ -449,27 +487,27 @@ export default function ItemsPage() {
 
             {selectedItems.length > 0 && (
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm font-medium text-gray-700 bg-blue-100 px-2 py-1 rounded-full">
                   {selectedItems.length} selected
                 </span>
 
                 {/* Quick Bulk Delete Button */}
                 <button
                   onClick={() => handleBulkAction('delete')}
-                  className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
                   title="Withdraw Selected Items"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete {selectedItems.length} Items
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete {selectedItems.length}
                 </button>
 
                 <div className="relative">
                   <button
                     onClick={() => setShowBulkActions(!showBulkActions)}
-                    className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                    className="flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
                   >
-                    <MoreVertical className="h-4 w-4 mr-2" />
-                    More Actions
+                    <MoreVertical className="h-3 w-3 mr-1" />
+                    More
                   </button>
 
                   {showBulkActions && (
@@ -499,9 +537,9 @@ export default function ItemsPage() {
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">
-              {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total}
+              Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total.toLocaleString()} items
             </span>
             <select
               value={limit}
@@ -511,22 +549,12 @@ export default function ItemsPage() {
               }}
               className="border border-gray-300 rounded px-2 py-1 text-sm"
             >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
+              <option value={25}>25 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
             </select>
           </div>
         </div>
-
-        {/* Filters */}
-        {showFilters && (
-          <div className="px-6 py-4 border-b border-gray-200">
-            <ItemsFilter
-              filters={filters}
-              onFilterChange={handleFilterChange}
-            />
-          </div>
-        )}
 
         {/* Sub-tabs */}
         <div className="px-6 border-b border-gray-200">
@@ -702,6 +730,24 @@ export default function ItemsPage() {
             }}
           />
         </div>
+      )}
+
+      {/* Duplicate Detection Modal */}
+      {showDuplicateModal && (
+        <DuplicateDetectionModal
+          onClose={() => setShowDuplicateModal(false)}
+        />
+      )}
+
+      {/* Click outside to close dropdowns */}
+      {(showAddDropdown || showToolsDropdown) && (
+        <div
+          className="fixed inset-0 z-5"
+          onClick={() => {
+            setShowAddDropdown(false)
+            setShowToolsDropdown(false)
+          }}
+        />
       )}
     </div>
   )

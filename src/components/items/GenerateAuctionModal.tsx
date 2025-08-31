@@ -31,11 +31,11 @@ export default function GenerateAuctionModal({
   const [brandsLoading, setBrandsLoading] = useState(true)
   const [existingAuctions, setExistingAuctions] = useState<any[]>([])
   const [auctionsLoading, setAuctionsLoading] = useState(true)
-  
+
   // Mode selection: 'new' or 'existing'
   const [mode, setMode] = useState<'new' | 'existing'>('existing')
   const [selectedAuction, setSelectedAuction] = useState<any>(null)
-  
+
   // Form state for new auction
   const [auctionName, setAuctionName] = useState('')
   const [auctionDescription, setAuctionDescription] = useState('')
@@ -43,10 +43,58 @@ export default function GenerateAuctionModal({
   const [settlementDate, setSettlementDate] = useState('')
   const [catalogueLaunchDate, setCatalogueLaunchDate] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
-  
+
+  // Manual artwork ID input
+  const [manualArtworkIds, setManualArtworkIds] = useState('')
+  const [parsedArtworkIds, setParsedArtworkIds] = useState<string[]>([])
+  const [artworkInputMode, setArtworkInputMode] = useState<'selected' | 'manual'>('selected')
+
   // Duplicate check state
   const [duplicateArtworks, setDuplicateArtworks] = useState<any[]>([])
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+
+  // Parse artwork IDs from manual input
+  const parseArtworkIds = (input: string): string[] => {
+    if (!input.trim()) return []
+
+    const ids: Set<string> = new Set()
+    const parts = input.split(',').map(part => part.trim())
+
+    for (const part of parts) {
+      if (part.includes('-')) {
+        // Handle range (e.g., "1-20")
+        const [start, end] = part.split('-').map(s => parseInt(s.trim()))
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            ids.add(i.toString())
+          }
+        }
+      } else {
+        // Handle individual ID
+        const id = parseInt(part.trim())
+        if (!isNaN(id) && id > 0) {
+          ids.add(id.toString())
+        }
+      }
+    }
+
+    return Array.from(ids).sort((a, b) => parseInt(a) - parseInt(b))
+  }
+
+  // Update parsed IDs when manual input changes
+  useEffect(() => {
+    if (artworkInputMode === 'manual') {
+      const parsed = parseArtworkIds(manualArtworkIds)
+      setParsedArtworkIds(parsed)
+    }
+  }, [manualArtworkIds, artworkInputMode])
+
+  // Re-check duplicates when artwork IDs change
+  useEffect(() => {
+    if (selectedAuction && getCurrentArtworkIds().length > 0) {
+      checkForDuplicates(selectedAuction.id, getCurrentArtworkIds())
+    }
+  }, [selectedAuction, artworkInputMode, parsedArtworkIds, selectedArtworks])
 
   // Load brands and auctions on component mount
   useEffect(() => {
@@ -89,7 +137,7 @@ export default function GenerateAuctionModal({
     try {
       setAuctionsLoading(true)
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions?status=planned&limit=100`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auctions?limit=100`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
         },
@@ -110,7 +158,7 @@ export default function GenerateAuctionModal({
     }
   }
 
-  const checkForDuplicates = async (auctionId: string) => {
+  const checkForDuplicates = async (auctionId: string, artworkIds: string[] = getCurrentArtworkIds()) => {
     try {
       setCheckingDuplicates(true)
       const token = localStorage.getItem('token')
@@ -123,7 +171,7 @@ export default function GenerateAuctionModal({
       if (response.ok) {
         const data = await response.json()
         const existingArtworkIds = data.artworks?.map((artwork: any) => artwork.id.toString()) || []
-        const duplicates = selectedArtworks.filter(id => existingArtworkIds.includes(id))
+        const duplicates = artworkIds.filter(id => existingArtworkIds.includes(id))
         setDuplicateArtworks(duplicates)
       }
     } catch (err) {
@@ -131,6 +179,11 @@ export default function GenerateAuctionModal({
     } finally {
       setCheckingDuplicates(false)
     }
+  }
+
+  // Get the current artwork IDs based on input mode
+  const getCurrentArtworkIds = (): string[] => {
+    return artworkInputMode === 'manual' ? parsedArtworkIds : selectedArtworks
   }
 
   const handleAddToAuction = async () => {
@@ -152,8 +205,20 @@ export default function GenerateAuctionModal({
         return
       }
 
+      const artworkIds = getCurrentArtworkIds()
+      if (artworkIds.length === 0) {
+        setError('Please select or enter artwork IDs')
+        return
+      }
+
+      // Validate that we have artwork IDs
+      if (!artworkIds || artworkIds.length === 0) {
+        setError('Please select or enter artwork IDs')
+        return
+      }
+
       // Check for duplicates first
-      await checkForDuplicates(selectedAuction.id)
+      await checkForDuplicates(selectedAuction.id, artworkIds)
 
       if (duplicateArtworks.length > 0) {
         setError(`${duplicateArtworks.length} artworks are already in this auction. Please review and continue if you want to add duplicates.`)
@@ -168,7 +233,7 @@ export default function GenerateAuctionModal({
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : '',
         },
-        body: JSON.stringify({ artwork_ids: selectedArtworks.map(id => parseInt(id)) }),
+        body: JSON.stringify({ artwork_ids: artworkIds.map(id => parseInt(id)) }),
       })
 
       if (!response.ok) {
@@ -176,7 +241,7 @@ export default function GenerateAuctionModal({
         throw new Error(errorData.error || 'Failed to add artworks to auction')
       }
 
-      setSuccess(`Successfully added ${selectedArtworks.length} artworks to ${selectedAuction.short_name}`)
+      setSuccess(`Successfully added ${artworkIds.length} artworks to ${selectedAuction.short_name}`)
       
       setTimeout(() => {
         onComplete?.(selectedAuction.id)
@@ -211,9 +276,18 @@ export default function GenerateAuctionModal({
         return
       }
 
+      // Get current artwork IDs
+      const artworkIds = getCurrentArtworkIds()
+
+      // Validate that we have artwork IDs
+      if (!artworkIds || artworkIds.length === 0) {
+        setError('Please select or enter artwork IDs')
+        return
+      }
+
       // Generate short name from auction name (max 50 chars)
       const shortName = auctionName.trim().substring(0, 50)
-      
+
       // Create auction data matching the backend expected structure
       const auctionData = {
         type: auctionType,
@@ -223,9 +297,7 @@ export default function GenerateAuctionModal({
         settlement_date: settlementDate,
         catalogue_launch_date: catalogueLaunchDate || '',
         auction_days: [],
-        status: 'planned',
-        artwork_ids: selectedArtworks.map(id => parseInt(id)), // Convert string IDs to numbers
-        registrations_count: 0,
+        artwork_ids: artworkIds.map((id: string) => parseInt(id)), // Convert string IDs to numbers
         brand_code: selectedBrand
       }
 
@@ -302,12 +374,69 @@ export default function GenerateAuctionModal({
 
       <div className="mb-6">
         <p className="text-sm text-gray-600 mb-2">
-          Add {selectedArtworks.length} selected artwork(s) to an auction.
+          Add artworks to an auction.
         </p>
-        <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-          Selected artworks: {selectedArtworks.slice(0, 3).join(', ')}
-          {selectedArtworks.length > 3 && ` and ${selectedArtworks.length - 3} more...`}
+
+        {/* Artwork Input Mode Selection */}
+        <div className="mb-4">
+          <div className="flex space-x-4 mb-3">
+            <button
+              onClick={() => setArtworkInputMode('selected')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
+                artworkInputMode === 'selected'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Use Selected Artworks ({selectedArtworks.length})
+            </button>
+            <button
+              onClick={() => setArtworkInputMode('manual')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
+                artworkInputMode === 'manual'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Enter Artwork IDs
+            </button>
+          </div>
         </div>
+
+        {/* Selected Artworks Display */}
+        {artworkInputMode === 'selected' && (
+          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded mb-4">
+            Selected artworks: {selectedArtworks.slice(0, 3).join(', ')}
+            {selectedArtworks.length > 3 && ` and ${selectedArtworks.length - 3} more...`}
+          </div>
+        )}
+
+        {/* Manual Artwork ID Input */}
+        {artworkInputMode === 'manual' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Artwork IDs *
+            </label>
+            <textarea
+              value={manualArtworkIds}
+              onChange={(e) => setManualArtworkIds(e.target.value)}
+              placeholder="Enter artwork IDs (e.g., 1,2,3,10,12 or 1-20 for ranges)"
+              rows={3}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter individual IDs separated by commas, or use ranges (e.g., 1-20)
+            </p>
+
+            {/* Parsed IDs Display */}
+            {parsedArtworkIds.length > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                <strong>Parsed IDs:</strong> {parsedArtworkIds.join(', ')}
+                <span className="text-blue-600 ml-2">({parsedArtworkIds.length} total)</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mode Selection */}
@@ -364,7 +493,7 @@ export default function GenerateAuctionModal({
                     }`}
                     onClick={() => {
                       setSelectedAuction(auction)
-                      checkForDuplicates(auction.id)
+                      checkForDuplicates(auction.id, getCurrentArtworkIds())
                     }}
                   >
                     <div className="flex justify-between items-start">
@@ -552,7 +681,11 @@ export default function GenerateAuctionModal({
             <p><strong>Brand:</strong> {brands.find(b => b.code === selectedBrand)?.name}</p>
             <p><strong>Settlement Date:</strong> {formatDate(settlementDate)}</p>
             {catalogueLaunchDate && <p><strong>Catalogue Launch:</strong> {formatDate(catalogueLaunchDate)}</p>}
-            <p><strong>Lots:</strong> {selectedArtworks.length} artworks</p>
+            <p><strong>Lots:</strong> {getCurrentArtworkIds().length} artworks</p>
+            {artworkInputMode === 'manual' && parsedArtworkIds.length > 0 && (
+              <p><strong>Artwork IDs:</strong> {parsedArtworkIds.slice(0, 10).join(', ')}
+                {parsedArtworkIds.length > 10 && `... (${parsedArtworkIds.length} total)`}</p>
+            )}
           </div>
         </div>
       )}
@@ -569,7 +702,8 @@ export default function GenerateAuctionModal({
         <button
           onClick={handleAddToAuction}
           disabled={
-            loading || 
+            loading ||
+            getCurrentArtworkIds().length === 0 ||
             (mode === 'new' && (!auctionName.trim() || !settlementDate || !selectedBrand)) ||
             (mode === 'existing' && !selectedAuction)
           }

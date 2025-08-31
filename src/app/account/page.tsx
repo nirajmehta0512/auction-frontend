@@ -103,7 +103,7 @@ export default function AccountPage() {
 
     try {
       // Call password change API (this would need to be implemented in the backend)
-      const response = await fetch('/api/auth/change-password', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

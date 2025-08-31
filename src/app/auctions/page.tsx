@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import AuctionsTable from '@/components/auctions/AuctionsTable'
 import CSVUpload from '@/components/auctions/CSVUpload'
 import { Plus, Download, Upload, RefreshCw } from 'lucide-react'
-import { ArtworksAPI } from '@/lib/items-api'
-import { getAuctions, exportAuctionsCSV, deleteAuction } from '@/lib/auctions-api'
+
+import { getAuctions, exportAuctionsCSV, deleteAuction, getAuctionStatusCounts } from '@/lib/auctions-api'
 import { useBrand } from '@/lib/brand-context'
 import type { Auction } from '@/lib/auctions-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
@@ -18,12 +18,14 @@ import EOAImportDialog from '@/components/auctions/EOAImportDialog'
 const convertAuctionFormat = (auction: Auction) => ({
   id: auction.id,
   number: auction.id.toString().slice(-3),
-  status: auction.status as 'planned' | 'inProgress' | 'ended' | 'aftersale' | 'archived',
-  name: auction.short_name,
+  short_name: auction.short_name,
+  long_name: auction.long_name || auction.short_name,
   type: auction.type === 'timed' ? 'Timed' : auction.type === 'live' ? 'Live' : 'Private Sale',
   lots: auction.artwork_ids?.length || 0,
-  regs: auction.registrations_count || 0,
-  endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : ''
+  endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : '',
+  catalogue_launch_date: auction.catalogue_launch_date,
+  settlement_date: auction.settlement_date,
+  upload_status: auction.upload_status
 })
 
 interface FilterState {
@@ -49,9 +51,7 @@ export default function AuctionsPage() {
     total: 0,
     pages: 0
   })
-  const [showLAImageModal, setShowLAImageModal] = useState(false)
-  const [auctionIdForImages, setAuctionIdForImages] = useState('')
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
+
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
@@ -66,11 +66,9 @@ export default function AuctionsPage() {
     dateRange: 'all'
   })
   const [statusCounts, setStatusCounts] = useState({
-    planned: 0,
-    in_progress: 0,
-    ended: 0,
-    aftersale: 0,
-    archived: 0
+    future: 0,
+    present: 0,
+    past: 0
   })
 
   // Sort state
@@ -93,14 +91,10 @@ export default function AuctionsPage() {
         }
 
         // Apply filters to backend request
-        if (filters.status !== 'all') {
-          backendFilters.status = filters.status
-        }
-        
         if (filters.type !== 'all') {
           backendFilters.type = filters.type
         }
-        
+
         if (filters.search) {
           backendFilters.search = filters.search
         }
@@ -113,6 +107,23 @@ export default function AuctionsPage() {
         let filteredAuctions = response.auctions
 
         // Apply remaining client-side filters that backend doesn't support
+        if (filters.status !== 'all') {
+          filteredAuctions = filteredAuctions.filter(auction => {
+            const today = new Date()
+            const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+            const settlementDate = new Date(auction.settlement_date)
+
+            let auctionStatus = 'future'
+            if (today > settlementDate) {
+              auctionStatus = 'past'
+            } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
+              auctionStatus = 'present'
+            }
+
+            return auctionStatus === filters.status
+          })
+        }
+
         if (filters.specialist !== 'all') {
           filteredAuctions = filteredAuctions.filter(auction => auction.specialist_id === parseInt(filters.specialist))
         }
@@ -131,13 +142,17 @@ export default function AuctionsPage() {
           setPagination(response.pagination)
         }
         
-        // Calculate status counts from all auctions (get fresh data for counts)
-        const allAuctionsResponse = await getAuctions({
-          page: 1,
-          limit: 1000,
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
-        })
-        calculateStatusCounts(allAuctionsResponse.auctions)
+        // Calculate status counts using dedicated endpoint
+        try {
+          const countsResponse = await getAuctionStatusCounts(brand || undefined);
+          if (countsResponse.success) {
+            setStatusCounts(countsResponse.counts);
+          }
+        } catch (error) {
+          console.warn('Failed to fetch status counts:', error);
+          // Fallback to calculating from current page data
+          calculateStatusCounts(filteredAuctions);
+        }
       } catch (err: any) {
         console.error('Error loading auctions:', err)
         const msg = err?.message || 'Failed to load auctions'
@@ -186,16 +201,23 @@ export default function AuctionsPage() {
   // Helper function to calculate status counts
   const calculateStatusCounts = (auctions: any[]) => {
     const counts = {
-      planned: 0,
-      in_progress: 0,
-      ended: 0,
-      aftersale: 0,
-      archived: 0
+      future: 0,
+      present: 0,
+      past: 0
     }
 
+    const today = new Date()
+
     auctions.forEach(auction => {
-      if (auction.status && counts.hasOwnProperty(auction.status)) {
-        counts[auction.status as keyof typeof counts]++
+      const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+      const settlementDate = new Date(auction.settlement_date)
+
+      if (today > settlementDate) {
+        counts.past++
+      } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
+        counts.present++
+      } else {
+        counts.future++
       }
     })
 
@@ -341,13 +363,7 @@ export default function AuctionsPage() {
             <RefreshCw className="h-4 w-4" />
             <span>Sync Sheets</span>
           </button>
-          <button
-            onClick={() => setShowLAImageModal(true)}
-            className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-700 text-sm"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Upload LA Images</span>
-          </button>
+
           <button className="text-gray-600 hover:text-gray-700 text-sm">
             Show/Hide
           </button>
@@ -397,24 +413,16 @@ export default function AuctionsPage() {
           {/* Status Indicators */}
           <div className="flex items-center space-x-6 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-              <span className="text-gray-600">Planned</span>
+              <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded-full"></div>
+              <span className="text-gray-600">Future ({statusCounts.future})</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-gray-600">In Progress</span>
+              <div className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></div>
+              <span className="text-gray-600">Present ({statusCounts.present})</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-600">Ended</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <span className="text-gray-600">Aftersale</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-gray-600">Archived</span>
+              <div className="w-3 h-3 bg-red-100 border border-red-300 rounded-full"></div>
+              <span className="text-gray-600">Past ({statusCounts.past})</span>
             </div>
           </div>
 
@@ -512,48 +520,7 @@ export default function AuctionsPage() {
         </div>
       )}
 
-      {/* LiveAuctioneers Image Upload Modal */}
-      {showLAImageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-2">Upload Images to LiveAuctioneers</h3>
-            <p className="text-sm text-gray-600 mb-4">Provide an Auction ID to upload images for all items in this auction. Credentials come from Settings → Platforms.</p>
-            <label className="block text-sm text-gray-700 mb-1">Auction ID</label>
-            <input
-              value={auctionIdForImages}
-              onChange={(e) => setAuctionIdForImages(e.target.value)}
-              placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
-              className="w-full border rounded px-3 py-2 mb-4"
-            />
-            {uploadMsg && <div className="mb-3 text-xs text-gray-600">{uploadMsg}</div>}
-            <div className="flex items-center justify-end space-x-2">
-              <button onClick={() => setShowLAImageModal(false)} className="px-3 py-2 text-gray-700">Cancel</button>
-              <button
-                onClick={async () => {
-                  try {
-                    setUploadMsg('Uploading images...')
-                    const resp = await ArtworksAPI.uploadImagesViaFTPFromItems({
-                      brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined || 'MSABER',
-                      platform: 'liveauctioneers',
-                      auction_id: auctionIdForImages || undefined,
-                    })
-                    if (resp.success) {
-                      setUploadMsg(`Uploaded ${resp.uploaded || 0} image(s). ${resp.errors && resp.errors.length ? `Errors: ${resp.errors.length}` : ''}`)
-                    } else {
-                      setUploadMsg(`Error: ${resp.error || resp.details || 'Unknown error'}`)
-                    }
-                  } catch (e: any) {
-                    setUploadMsg(e.message || 'Error during upload')
-                  }
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Start Upload
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* EOA Import Dialog */}
       {showEOADialog && selectedAuctionForEOA && (

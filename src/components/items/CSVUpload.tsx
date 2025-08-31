@@ -407,10 +407,41 @@ export default function CSVUpload({ onUploadComplete, onClose, className = '' }:
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Import Successful!
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Successfully imported {importResult.imported_count} items
             </p>
-            <div className="space-x-3">
+
+            {/* Auto-sync Results */}
+            {importResult.auto_sync && (
+              <div className={`mt-4 p-4 rounded-lg border ${
+                importResult.auto_sync.success
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <div className="flex items-center justify-center mb-2">
+                  {importResult.auto_sync.success ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                  )}
+                  <h4 className={`font-medium ${
+                    importResult.auto_sync.success ? 'text-green-900' : 'text-yellow-900'
+                  }`}>
+                    Google Sheets Auto-Sync
+                  </h4>
+                </div>
+                <p className={`text-sm ${
+                  importResult.auto_sync.success ? 'text-green-700' : 'text-yellow-700'
+                }`}>
+                  {importResult.auto_sync.success
+                    ? `✅ Synced ${importResult.auto_sync.synced_count || 0} items to Google Sheets`
+                    : `⚠️ Auto-sync failed: ${importResult.auto_sync.message || 'Unknown error'}`
+                  }
+                </p>
+              </div>
+            )}
+
+            <div className="space-x-3 mt-6">
               <button
                 onClick={reset}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"

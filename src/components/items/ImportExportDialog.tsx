@@ -307,15 +307,27 @@ export default function ImportExportDialog({
         }
         
         setProgress('Fetching artworks for Google Sheets export...')
-        
-        // Get the actual artwork data for export
-        const artworksResponse = await ArtworksAPI.getArtworks({
-          ...(selectedItems.length > 0 ? {} : { limit: 1000 }),
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
-          sort_field: 'id',
-          sort_direction: 'asc'
-        })
-        
+
+        // For large exports, use the dedicated export endpoint instead of loading all items
+        let artworksResponse;
+        if (selectedItems.length > 0) {
+          // For selected items, get them individually
+          artworksResponse = await ArtworksAPI.getArtworks({
+            item_ids: selectedItems,
+            brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
+            sort_field: 'id',
+            sort_direction: 'asc'
+          });
+        } else {
+          // For all items, use a high limit to allow syncing all items
+          artworksResponse = await ArtworksAPI.getArtworks({
+            limit: 10000, // High limit for sync operations
+            brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
+            sort_field: 'id',
+            sort_direction: 'asc'
+          });
+        }
+
         if (!artworksResponse.success) {
           setError('Failed to fetch artworks for export')
           return

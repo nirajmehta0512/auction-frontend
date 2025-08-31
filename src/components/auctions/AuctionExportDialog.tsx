@@ -327,7 +327,7 @@ export default function AuctionExportDialog({
                       <div className="flex-1">
                         <div className="font-medium text-sm">{auction.short_name || auction.long_name}</div>
                         <div className="text-xs text-gray-500">
-                          ID: {auction.id} • {auction.type} • {auction.status} • {auction.artwork_ids?.length || 0} lots
+                          ID: {auction.id} • {auction.type} • {auction.upload_status} • {auction.artwork_ids?.length || 0} lots
                         </div>
                       </div>
                     </div>

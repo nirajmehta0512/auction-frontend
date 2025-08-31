@@ -540,7 +540,7 @@ export const exportClientsCSV = async (params: {
 };
 
 /**
- * Search clients by text (searches across multiple fields including display_id)
+ * Search clients by text (searches across multiple fields including display_id, tags, and bidder_notes)
  */
 export const searchClients = async (searchTerm: string, limit: number = 10): Promise<Client[]> => {
   const params = {

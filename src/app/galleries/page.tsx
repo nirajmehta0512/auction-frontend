@@ -155,7 +155,7 @@ export default function GalleriesPage() {
       setAiGenerating(true)
       
       // Call AI generation API for galleries
-      const response = await fetch('/api/galleries/generate-ai', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/galleries/generate-ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

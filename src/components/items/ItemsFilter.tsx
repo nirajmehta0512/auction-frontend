@@ -52,7 +52,7 @@ const statuses = [
 
 export default function ItemsFilter({ filters, onFilterChange, statusCounts }: ItemsFilterProps) {
   const { brand } = useBrand()
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [showFilters, setShowFilters] = useState(true)
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
   const [itemSuggestions, setItemSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
   const [loadingItems, setLoadingItems] = useState(false)
@@ -118,7 +118,8 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
     const loadBrands = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch('/api/brands', {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${backendUrl}/api/brands`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
@@ -147,164 +148,153 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
 
   const hasActiveFilters = filters.status !== 'all' || filters.category !== '' || filters.search !== '' || filters.brand !== ''
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow mb-6">
-      {/* Quick Status Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {statuses.map((status) => {
-          const count = status.value === 'all' 
-            ? Object.values(statusCounts || {}).reduce((sum, count) => sum + count, 0)
-            : statusCounts?.[status.value as keyof typeof statusCounts] || 0
-          
-          return (
-            <button
-              key={status.value}
-              onClick={() => onFilterChange({ status: status.value })}
-              className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === status.value
-                  ? 'bg-teal-100 text-teal-800 border-teal-200 border'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 border hover:bg-gray-100'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full mr-2 ${
-                status.value === 'all' ? 'bg-gray-400' :
-                status.value === 'draft' ? 'bg-yellow-500' :
-                status.value === 'active' ? 'bg-green-500' :
-                status.value === 'sold' ? 'bg-blue-500' :
-                status.value === 'withdrawn' ? 'bg-red-500' :
-                'bg-gray-400'
-              }`}></span>
-              {status.label}
-              <span className="ml-2 text-xs bg-white rounded-full px-2 py-0.5">
-                {count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Search and Advanced Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Search */}
-        <div className="flex-1">
-          <SearchableSelect
-            value={filters.search}
-            options={itemSuggestions}
-            placeholder={loadingItems ? "Loading items..." : "Search items..."}
-            onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
-            inputPlaceholder="Search by title, description, lot number, or artist..."
-            className="w-full"
-          />
-        </div>
-
-        {/* Category Filter */}
-        <div className="w-full lg:w-64">
-          <select
-            value={filters.category}
-            onChange={(e) => onFilterChange({ category: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Brand Filter */}
-        <div className="w-full lg:w-64">
-          <select
-            value={filters.brand || ''}
-            onChange={(e) => onFilterChange({ brand: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-          >
-            <option value="">All Brands</option>
-            {brands.map((brand) => (
-              <option key={brand.id} value={brand.code}>
-                {brand.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filter Toggle */}
+  // When filters are hidden, show only the toggle button
+  if (!showFilters) {
+    return (
+      <div className="flex items-center justify-center py-4">
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={() => setShowFilters(true)}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
         >
           <Filter className="h-4 w-4 mr-2" />
-          {isExpanded ? 'Less Filters' : 'More Filters'}
+          Show Filters
         </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header with hide toggle */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+        <button
+          onClick={() => setShowFilters(false)}
+          className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+        >
+          <X className="h-4 w-4 mr-1" />
+          Hide Filters
+        </button>
+      </div>
+
+      {/* Quick Status Filters with enhanced layout */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium text-gray-700">Filter by Status</h4>
+          <div className="text-xs text-gray-500">
+            Total: {Object.values(statusCounts || {}).reduce((sum, count) => sum + count, 0).toLocaleString()} items
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {statuses.map((status) => {
+            const count = status.value === 'all'
+              ? Object.values(statusCounts || {}).reduce((sum, count) => sum + count, 0)
+              : statusCounts?.[status.value as keyof typeof statusCounts] || 0
+
+            return (
+              <button
+                key={status.value}
+                onClick={() => onFilterChange({ status: status.value })}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filters.status === status.value
+                    ? 'bg-teal-100 text-teal-800 border-teal-200 border-2 shadow-sm'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 border hover:bg-gray-100 hover:border-gray-300'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full mr-2 ${
+                  status.value === 'all' ? 'bg-gray-400' :
+                  status.value === 'draft' ? 'bg-yellow-500' :
+                  status.value === 'active' ? 'bg-green-500' :
+                  status.value === 'sold' ? 'bg-blue-500' :
+                  status.value === 'withdrawn' ? 'bg-red-500' :
+                  'bg-gray-400'
+                }`}></span>
+                {status.label}
+                <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${
+                  filters.status === status.value
+                    ? 'bg-teal-200 text-teal-800'
+                    : 'bg-white text-gray-600'
+                }`}>
+                  {count.toLocaleString()}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Search and Filter</h4>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Search - takes more space */}
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Search Items</label>
+            <SearchableSelect
+              value={filters.search}
+              options={itemSuggestions}
+              placeholder={loadingItems ? "Loading items..." : "Search by title, description, ID, or artist..."}
+              onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
+              inputPlaceholder="Type to search..."
+              className="w-full"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+            <select
+              value={filters.category}
+              onChange={(e) => onFilterChange({ category: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Brand Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Brand</label>
+            <select
+              value={filters.brand || ''}
+              onChange={(e) => onFilterChange({ brand: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            >
+              <option value="">All Brands</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.code}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <button
-            onClick={handleClearFilters}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Clear All
-          </button>
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={handleClearFilters}
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear All Filters
+            </button>
+          </div>
         )}
       </div>
-
-      {/* Advanced Filters (Expandable) */}
-      {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price Range
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-                <input
-                  type="number"
-                  placeholder="Max"
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date Created
-              </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">Any time</option>
-                <option value="today">Today</option>
-                <option value="week">Past week</option>
-                <option value="month">Past month</option>
-                <option value="quarter">Past quarter</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Has Images
-              </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">Any</option>
-                <option value="yes">With images</option>
-                <option value="no">Without images</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex flex-wrap gap-2">
             <span className="text-sm text-gray-600">Active filters:</span>
-            
+
             {filters.status !== 'all' && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
                 Status: {statuses.find(s => s.value === filters.status)?.label}
@@ -316,7 +306,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
                 </button>
               </span>
             )}
-            
+
             {filters.category && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 Category: {filters.category}
@@ -328,7 +318,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
                 </button>
               </span>
             )}
-            
+
             {filters.search && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                 Search: "{filters.search}"

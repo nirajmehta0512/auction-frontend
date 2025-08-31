@@ -143,6 +143,24 @@ interface AuctionFormProps {
   initialSelectedArtworks?: number[];
 }
 
+// Helper function to convert API date format to datetime-local format
+const formatDateForInput = (dateString: string | undefined): string => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ''
+    // Convert to local timezone format for datetime-local input
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  } catch {
+    return ''
+  }
+}
+
 export default function AuctionForm({ auction, onSave, onCancel, initialSelectedArtworks = [] }: AuctionFormProps) {
   const [formData, setFormData] = useState<{
     type: string;
@@ -167,6 +185,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     time_zone: string;
     platform: string;
     brand_code: string;
+    upload_status: string;
   }>({
     type: auction?.type || 'sealed_bid',
     subtype: auction?.subtype || 'actual',
@@ -177,10 +196,10 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     description: auction?.description || '',
     important_notice: auction?.important_notice || '',
     title_image_url: auction?.title_image_url || '',
-    catalogue_launch_date: auction?.catalogue_launch_date || '',
-    aftersale_deadline: auction?.aftersale_deadline || '',
-    shipping_date: auction?.shipping_date || '',
-    settlement_date: auction?.settlement_date || '',
+    catalogue_launch_date: formatDateForInput(auction?.catalogue_launch_date),
+    aftersale_deadline: formatDateForInput(auction?.aftersale_deadline),
+    shipping_date: formatDateForInput(auction?.shipping_date),
+    settlement_date: formatDateForInput(auction?.settlement_date),
     auction_days: auction?.auction_days || [{ day: 1, date: '', start_time: '', end_time: '', first_lot: 1, description: '' }],
     sale_events: auction?.sale_events || [],
     auctioneer_declaration: auction?.auctioneer_declaration || '',
@@ -189,7 +208,8 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     estimates_visibility: auction?.estimates_visibility || 'use_global',
     time_zone: auction?.time_zone || 'UTC',
     platform: auction?.platform || 'liveauctioneers',
-    brand_code: auction?.brand_code || 'MSABER'
+    brand_code: auction?.brand_code || 'MSABER',
+    upload_status: auction?.upload_status || 'not_uploaded'
   })
 
   interface User {
@@ -222,7 +242,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
       try {
         setLoading(true)
         const [usersResponse, brandsResponse] = await Promise.all([
-          fetch('/api/users', {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           }).then(res => res.json()),
           fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/brands`, {
@@ -472,8 +492,8 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                 </div>
               </div>
 
-              {/* Target Reserve, Specialist, Platform and Brand */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Target Reserve, Specialist, Platform, Brand and Upload Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <Label htmlFor="target_reserve">Target Reserve</Label>
                   <Input
@@ -529,6 +549,18 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                         {brand.name}
                       </SelectItem>
                     ))}
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="upload_status">Upload Status</Label>
+                  <Select
+                    value={formData.upload_status}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, upload_status: value }))}
+                  >
+                    <SelectItem value="not_uploaded">Not Uploaded</SelectItem>
+                    <SelectItem value="uploaded">Uploaded</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
                   </Select>
                 </div>
               </div>

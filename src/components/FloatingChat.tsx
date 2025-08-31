@@ -59,7 +59,7 @@ export default function FloatingChat({ className = '' }: FloatingChatProps) {
       const token = localStorage.getItem('token')
       if (!token) return
 
-      const response = await fetch('/api/internal-communication/conversations', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/internal-communication/conversations`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -280,7 +280,7 @@ export default function FloatingChat({ className = '' }: FloatingChatProps) {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/internal-communication/messages', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/internal-communication/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

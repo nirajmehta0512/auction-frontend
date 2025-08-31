@@ -11,7 +11,6 @@ interface FiltersType {
   sort_direction: 'asc' | 'desc';
   client_type?: string;
   platform?: string;
-  tags?: string;
   registration_date?: 'all' | '30days' | '3months' | '6months' | '1year';
 }
 
@@ -23,10 +22,7 @@ interface ClientsFilterProps {
 export default function ClientsFilter({ filters, onFilterChange }: ClientsFilterProps) {
   const [searchSuggestions, setSearchSuggestions] = useState<Client[]>([])
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
-  const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
-  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
-  const tagTimeout = useRef<NodeJS.Timeout | null>(null)
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onFilterChange({ search: e.target.value });
@@ -69,40 +65,6 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
     setShowSearchSuggestions(false)
   }
 
-  const onTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    onFilterChange({ tags: value })
-    if (tagTimeout.current) clearTimeout(tagTimeout.current)
-    if (!value || value.trim() === '') {
-      setTagSuggestions([])
-      setShowTagSuggestions(false)
-      return
-    }
-    tagTimeout.current = setTimeout(async () => {
-      try {
-        const res = await fetchClients({ tags: value, limit: 12, status: 'active' })
-        const tokens = new Set<string>()
-          ; (res.data || []).forEach(c => {
-            const t = (c.tags || '').split(',').map(s => s.trim()).filter(Boolean)
-            t.forEach(tok => {
-              if (tok.toLowerCase().includes(value.toLowerCase())) tokens.add(tok)
-            })
-          })
-        const list = Array.from(tokens).slice(0, 8)
-        setTagSuggestions(list)
-        setShowTagSuggestions(list.length > 0)
-      } catch {
-        setTagSuggestions([])
-        setShowTagSuggestions(false)
-      }
-    }, 200)
-  }
-
-  const selectTag = (tag: string) => {
-    onFilterChange({ tags: tag })
-    setShowTagSuggestions(false)
-  }
-
   const selectSearchSuggestion = (client: Client) => {
     // Prefer email/phone/name for quick search
     const text = client.id ? String(client.id) : client.email || client.phone_number || `${client.first_name} ${client.last_name}`
@@ -117,7 +79,6 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
       if (!containerRef.current) return
       if (!containerRef.current.contains(ev.target as Node)) {
         setShowSearchSuggestions(false)
-        setShowTagSuggestions(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -244,35 +205,7 @@ export default function ClientsFilter({ filters, onFilterChange }: ClientsFilter
           </select>
         </div>
 
-        {/* Tags Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tags
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Filter by tags..."
-              value={filters.tags || ''}
-              onChange={onTagInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            />
-            {showTagSuggestions && tagSuggestions.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-auto">
-                {tagSuggestions.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => selectTag(t)}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+
       </div>
     </div>
   )

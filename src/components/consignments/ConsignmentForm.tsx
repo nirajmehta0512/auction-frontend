@@ -182,7 +182,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
           fetchClients({ limit: 1000 }),
           ArtworksAPI.getArtworks({ limit: 1000 }),
           ArtistsAPI.getArtists({ limit: 1000 }),
-          fetch('/api/users', {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           }).then(res => res.json())
         ])

@@ -9,7 +9,7 @@ import { ArtworksAPI } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
-import { getAuctionStatusColor } from '@/lib/constants'
+
 import type { Auction } from '@/lib/auctions-api'
 
 interface AuctionArtwork {
@@ -125,8 +125,34 @@ export default function AuctionViewPage() {
     }).format(amount)
   }
 
-  // Using the constants helper function
-  const getStatusColor = getAuctionStatusColor
+  // Dynamic status calculation based on dates
+  const getDynamicStatusLabel = (auction: Auction) => {
+    const today = new Date()
+    const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+    const settlementDate = new Date(auction.settlement_date)
+
+    if (today > settlementDate) {
+      return 'Past'
+    } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
+      return 'Present'
+    } else {
+      return 'Future'
+    }
+  }
+
+  const getDynamicStatusColor = (auction: Auction) => {
+    const today = new Date()
+    const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+    const settlementDate = new Date(auction.settlement_date)
+
+    if (today > settlementDate) {
+      return 'bg-red-500 text-white'
+    } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
+      return 'bg-green-500 text-white'
+    } else {
+      return 'bg-blue-500 text-white'
+    }
+  }
 
   const handleImportEOA = () => {
     setShowEOADialog(true)
@@ -182,8 +208,8 @@ export default function AuctionViewPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(auction.status || 'unknown')}`}>
-                {auction.status ? auction.status.charAt(0).toUpperCase() + auction.status.slice(1) : 'Unknown'}
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDynamicStatusColor(auction)}`}>
+                {getDynamicStatusLabel(auction)}
               </span>
               <button
                 onClick={handleImportEOA}
@@ -348,17 +374,12 @@ export default function AuctionViewPage() {
                   </span>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Registrations</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {auction.registrations_count || 0}
-                  </span>
-                </div>
+
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Published</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {auction.status === 'in_progress' ? 'Yes' : 'No'}
+                    {getDynamicStatusLabel(auction) === 'Present' ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>

@@ -67,9 +67,9 @@ export default function NewRefundPage() {
     const loadInitialData = async () => {
         try {
             const [clientsData, itemsData, auctionsData] = await Promise.all([
-                fetchClients({ limit: 1000 }),
-                ArtworksAPI.getArtworks({ limit: 1000 }),
-                getAuctions({ limit: 1000 })
+                fetchClients({ limit: 5000 }),
+                ArtworksAPI.getArtworks({ limit: 5000 }),
+                getAuctions({ limit: 5000 })
             ])
             setClients(clientsData.data || [])
             setItems(itemsData.data || [])

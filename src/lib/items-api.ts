@@ -1,8 +1,9 @@
 // frontend/src/lib/items-api.ts
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
   ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : '';
-  // : 'http://localhost:3001/api';
+  : 'http://localhost:3001/api';
+
+console.log('🔗 ITEMS API URL:', API_BASE_URL);
 
 import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 
@@ -417,6 +418,11 @@ export class ArtworksAPI {
     errors?: string[];
     existing_lot_numbers?: string[];
     duplicate_lot_numbers?: string[];
+    auto_sync?: {
+      success: boolean;
+      message?: string;
+      synced_count?: number;
+    };
   }> {
     const response = await fetch(`${API_BASE_URL}/items/upload/csv`, {
       method: 'POST',
@@ -465,6 +471,58 @@ export class ArtworksAPI {
       body: JSON.stringify(params),
     })
     return response.json()
+  }
+
+  // Detect duplicate images among items
+  static async detectDuplicateImages(params: {
+    brand_code?: string;
+    similarity_threshold?: number; // 0.8 = 80% similarity
+    check_range?: 'all' | 'last_30_days' | 'last_7_days' | 'custom';
+    custom_date_range?: { start_date: string; end_date: string };
+    status_filter?: string[];
+  } = {}): Promise<{
+    success: boolean;
+    duplicates?: {
+      group_id: string;
+      similarity_score: number;
+      items: {
+        id: string;
+        title: string;
+        lot_num: string;
+        image_url: string;
+        status: string;
+        created_at: string;
+      }[];
+    }[];
+    total_groups?: number;
+    total_items_checked?: number;
+    error?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/items/detect-duplicates`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(params),
+    });
+
+    await handleApiError(response);
+    return response.json();
+  }
+
+  // Get duplicate detection status (for long-running operations)
+  static async getDuplicateDetectionStatus(taskId: string): Promise<{
+    success: boolean;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    progress?: number;
+    result?: any;
+    error?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/items/detect-duplicates/status/${taskId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    await handleApiError(response);
+    return response.json();
   }
 }
 
