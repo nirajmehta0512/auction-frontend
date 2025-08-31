@@ -1,7 +1,7 @@
 // frontend/src/app/auctions/[id]/invoices/page.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Plus, FileText } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
@@ -24,13 +24,43 @@ export default function AuctionInvoicesPage() {
   const [error, setError] = useState<string | null>(null)
   const [showEOADialog, setShowEOADialog] = useState(false)
 
-  useEffect(() => {
-    if (auctionId) {
-      loadAuctionAndInvoices()
+  const loadBuyerInvoices = useCallback(async () => {
+    try {
+      setBuyerLoading(true)
+      const response = await getAuctionInvoices(auctionId, {
+        type: 'buyer',
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+      })
+
+      if (response.success) {
+        setBuyerInvoices(response.data.invoices)
+      }
+    } catch (err: any) {
+      console.error('Error loading buyer invoices:', err)
+    } finally {
+      setBuyerLoading(false)
     }
   }, [auctionId, brand])
 
-  const loadAuctionAndInvoices = async () => {
+  const loadVendorInvoices = useCallback(async () => {
+    try {
+      setVendorLoading(true)
+      const response = await getAuctionInvoices(auctionId, {
+        type: 'vendor',
+        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+      })
+
+      if (response.success) {
+        setVendorInvoices(response.data.invoices)
+      }
+    } catch (err: any) {
+      console.error('Error loading vendor invoices:', err)
+    } finally {
+      setVendorLoading(false)
+    }
+  }, [auctionId, brand])
+
+  const loadAuctionAndInvoices = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -41,14 +71,14 @@ export default function AuctionInvoicesPage() {
         limit: 100,
         brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
-      
+
       const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
-      
+
       if (!foundAuction) {
         setError('Auction not found')
         return
       }
-      
+
       setAuction(foundAuction)
 
       // Load invoices for this auction
@@ -61,55 +91,13 @@ export default function AuctionInvoicesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [auctionId, brand, loadBuyerInvoices, loadVendorInvoices])
 
-  const loadBuyerInvoices = async () => {
-    try {
-      setBuyerLoading(true)
-      const response = await getAuctionInvoices(auctionId, {
-        page: 1,
-        limit: 100,
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined,
-        type: 'buyer'
-      })
-
-      if (response.success) {
-        setBuyerInvoices(response.data.invoices || [])
-      } else {
-        console.error('Error loading buyer invoices:', response.message)
-        setError(response.message || 'Failed to load buyer invoices')
-      }
-    } catch (err: any) {
-      console.error('Error loading buyer invoices:', err)
-      setError(err.message || 'Failed to load buyer invoices')
-    } finally {
-      setBuyerLoading(false)
+  useEffect(() => {
+    if (auctionId) {
+      loadAuctionAndInvoices()
     }
-  }
-
-  const loadVendorInvoices = async () => {
-    try {
-      setVendorLoading(true)
-      const response = await getAuctionInvoices(auctionId, {
-        page: 1,
-        limit: 100,
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined,
-        type: 'vendor'
-      })
-
-      if (response.success) {
-        setVendorInvoices(response.data.invoices || [])
-      } else {
-        console.error('Error loading vendor invoices:', response.message)
-        setError(response.message || 'Failed to load vendor invoices')
-      }
-    } catch (err: any) {
-      console.error('Error loading vendor invoices:', err)
-      setError(err.message || 'Failed to load vendor invoices')
-    } finally {
-      setVendorLoading(false)
-    }
-  }
+  }, [auctionId, brand, loadAuctionAndInvoices])
 
   const handleRefreshBuyer = () => {
     loadBuyerInvoices()
@@ -119,10 +107,7 @@ export default function AuctionInvoicesPage() {
     loadVendorInvoices()
   }
 
-  const handleRefresh = () => {
-    loadBuyerInvoices()
-    loadVendorInvoices()
-  }
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -131,13 +116,7 @@ export default function AuctionInvoicesPage() {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+
 
   if (loading) {
     return (

@@ -2,8 +2,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { X, Download, Search, Globe, AlertCircle, CheckCircle, Filter } from 'lucide-react'
-import { getAuctions } from '@/lib/auctions-api'
+import { X, Download, Search, Globe, AlertCircle, CheckCircle, Filter, FileText, Image as ImageIcon, Package } from 'lucide-react'
+import { getAuctions, exportAuctionToPlatform, exportAuctionImagesToPlatform } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import type { Auction } from '@/lib/auctions-api'
 
@@ -28,7 +28,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
     label: 'Our Database',
     description: 'Full format with all available artwork fields',
     csvHeaders: [
-      'id', 'lot_num', 'title', 'description', 'low_est', 'high_est', 'start_price', 'condition', 'reserve', 'consignor',
+      'id', 'lot_num', 'title', 'description', 'low_est', 'high_est', 'start_price', 'condition', 'reserve', 'consignment_id',
       'status', 'category', 'subcategory', 'dimensions', 'weight', 'materials', 'artist_maker', 'period_age', 'provenance', 'auction_id',
       'artist_id', 'school_id', 'dimensions_inches', 'dimensions_cm', 'dimensions_with_frame_inches', 'dimensions_with_frame_cm',
       'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
@@ -70,9 +70,14 @@ export default function AuctionExportDialog({
 }: AuctionExportDialogProps) {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>('database')
   const [loading, setLoading] = useState(false)
+  const [exportProgress, setExportProgress] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  
+
+  // Export options
+  const [exportCSV, setExportCSV] = useState(true)
+  const [exportImages, setExportImages] = useState(false)
+
   // Auction selection state
   const [auctions, setAuctions] = useState<Auction[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -133,54 +138,90 @@ export default function AuctionExportDialog({
       setLoading(true)
       setError('')
       setSuccess('')
+      setExportProgress('')
 
       if (selectedAuctionIds.length === 0) {
         setError('Please select at least one auction to export')
         return
       }
 
-      // Get artworks for the current brand (since auction-artwork relationship was removed)
-      // In practice, you might want to restore the auction-artwork relationship or use a different approach
-      let artworkIds: string[] = []
-      
-      try {
-        const artworksResponse = await ArtworksAPI.getArtworks({
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
-          limit: 1000, // Get all artworks for the brand
-          status: 'active'
-        })
-        
-        if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
-          artworkIds = artworksResponse.data
-            .filter(artwork => artwork.id)
-            .map(artwork => artwork.id!)
-        }
-      } catch (artworkErr) {
-        console.warn('Failed to fetch artworks:', artworkErr)
-      }
-
-      if (artworkIds.length === 0) {
-        setError('No active artworks found for export')
+      if (!exportCSV && !exportImages) {
+        setError('Please select at least one export option (CSV or Images)')
         return
       }
 
-      // Export artworks using the same logic as the items page
-      await ArtworksAPI.exportCSV({
-        platform: selectedPlatform as any,
-        item_ids: artworkIds
+      // Get selected auctions to extract their artwork_ids
+      const selectedAuctions = auctions.filter(auction => selectedAuctionIds.includes(auction.id))
+
+      // Collect all artwork_ids from selected auctions
+      let artworkIds: string[] = []
+      selectedAuctions.forEach(auction => {
+        if (auction.artwork_ids && Array.isArray(auction.artwork_ids)) {
+          artworkIds.push(...auction.artwork_ids.map(id => id.toString()))
+        }
       })
 
+      // Remove duplicates
+      artworkIds = [...new Set(artworkIds)]
+
+      if (artworkIds.length === 0) {
+        setError('No artworks found in the selected auction(s)')
+        return
+      }
+
+      console.log(`Exporting ${artworkIds.length} artworks from ${selectedAuctionIds.length} auction(s)`)
+      let exportCount = 0
+      const totalExports = (exportCSV ? 1 : 0) + (exportImages ? selectedAuctionIds.length : 0)
+
+      // Export CSV if selected
+      if (exportCSV) {
+        setExportProgress(`Generating CSV file for ${artworkIds.length} artworks...`)
+        try {
+          await exportAuctionToPlatform(selectedAuctionIds[0].toString(), selectedPlatform as any)
+          exportCount++
+          setExportProgress(`CSV exported successfully (${artworkIds.length} artworks, ${exportCount}/${totalExports})`)
+        } catch (csvError) {
+          console.error('CSV export error:', csvError)
+          const errorMessage = csvError instanceof Error ? csvError.message : 'Unknown error'
+          setError(`CSV export failed: ${errorMessage}`)
+          return
+        }
+      }
+
+      // Export images for each auction if selected
+      if (exportImages) {
+        for (let i = 0; i < selectedAuctionIds.length; i++) {
+          const auctionId = selectedAuctionIds[i]
+          const auction = selectedAuctions.find(a => a.id === auctionId)
+          const auctionArtworkIds = auction?.artwork_ids || []
+
+          setExportProgress(`Processing ${auctionArtworkIds.length} lots for "${auction?.short_name || `Auction ${auctionId}`}" (${i + 1}/${selectedAuctionIds.length})...`)
+
+          try {
+            await exportAuctionImagesToPlatform(auctionId.toString(), selectedPlatform as any)
+            exportCount++
+            setExportProgress(`Images exported for "${auction?.short_name || `Auction ${auctionId}`}" (${auctionArtworkIds.length} lots processed, ${exportCount}/${totalExports})`)
+          } catch (imageError) {
+            console.error('Image export error:', imageError)
+            const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error'
+            setError(`Image export failed for "${auction?.short_name || `Auction ${auctionId}`}": ${errorMessage}`)
+            return
+          }
+        }
+      }
+
       setSuccess(`Successfully exported ${artworkIds.length} artworks from ${selectedAuctionIds.length} auction(s) for ${platformConfigs[selectedPlatform].label}`)
-      
+
       setTimeout(() => {
         onClose()
-      }, 2000)
+      }, 3000)
 
     } catch (err: any) {
       console.error('Export error:', err)
       setError(err.message || 'Failed to export artworks')
     } finally {
       setLoading(false)
+      setExportProgress('')
     }
   }
 
@@ -190,7 +231,14 @@ export default function AuctionExportDialog({
     <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Export Auction Artworks to Platform</h3>
+          <h3 className="text-lg font-semibold">
+            Export Auction Artworks
+            {(exportCSV || exportImages) && (
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                ({exportCSV && 'CSV'} {exportCSV && exportImages && '+ '}{exportImages && 'Images'})
+              </span>
+            )}
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -296,6 +344,43 @@ export default function AuctionExportDialog({
           </div>
         )}
 
+        {/* Export Options */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Select Export Options:
+          </label>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-csv"
+                checked={exportCSV}
+                onChange={(e) => setExportCSV(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                disabled={loading}
+              />
+              <label htmlFor="export-csv" className="flex items-center space-x-2 text-sm">
+                <FileText className="h-4 w-4 text-blue-600" />
+                <span>Export CSV File</span>
+              </label>
+            </div>
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-images"
+                checked={exportImages}
+                onChange={(e) => setExportImages(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                disabled={loading}
+              />
+              <label htmlFor="export-images" className="flex items-center space-x-2 text-sm">
+                <Package className="h-4 w-4 text-green-600" />
+                <span>Export Images ZIP</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         {/* Platform Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -337,6 +422,16 @@ export default function AuctionExportDialog({
           </div>
         </div>
 
+        {/* Progress Indicator */}
+        {loading && exportProgress && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-blue-800 text-sm font-medium">{exportProgress}</span>
+            </div>
+          </div>
+        )}
+
         {/* Status Messages */}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
@@ -364,18 +459,18 @@ export default function AuctionExportDialog({
         </button>
         <button
           onClick={handleExport}
-          disabled={loading || selectedAuctionIds.length === 0}
+          disabled={loading || selectedAuctionIds.length === 0 || (!exportCSV && !exportImages)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
         >
           {loading ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Exporting...
+              {exportProgress || 'Exporting...'}
             </>
           ) : (
             <>
               <Download className="h-4 w-4 mr-2" />
-              Export Artworks to {config.label}
+              Export {exportCSV && 'CSV'} {exportCSV && exportImages && '+ '}{exportImages && 'Images'} to {config.label}
             </>
           )}
         </button>

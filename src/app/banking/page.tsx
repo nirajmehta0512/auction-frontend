@@ -1,7 +1,7 @@
 // frontend/src/app/banking/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,8 +10,7 @@ import { Plus, Search, Download, Eye, Check, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import * as BankingAPI from '@/lib/banking-api'
 import { useBrand } from '@/lib/brand-context'
-
-import { BankingTransaction } from '@/lib/banking-api'
+import type { BankingTransaction } from '@/lib/banking-api'
 
 export default function BankingPage() {
   const { brand } = useBrand()
@@ -23,7 +22,7 @@ export default function BankingPage() {
   const [accountFilter, setAccountFilter] = useState('')
   const [reconciledFilter, setReconciledFilter] = useState('')
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
       const [transactionsData, accountsData] = await Promise.all([
@@ -43,11 +42,11 @@ export default function BankingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, typeFilter, accountFilter, reconciledFilter, brand])
 
   useEffect(() => {
     loadData()
-  }, [searchTerm, typeFilter, accountFilter, reconciledFilter, brand])
+  }, [searchTerm, typeFilter, accountFilter, reconciledFilter, brand, loadData])
 
   const handleReconcile = async (id: string) => {
     try {

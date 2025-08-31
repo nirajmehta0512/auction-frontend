@@ -1,7 +1,6 @@
 // frontend/src/app/artists/new/page.tsx
 "use client"
 
-import { Metadata } from 'next'
 import ArtistForm from '@/components/artists/ArtistForm'
 
 export default function NewArtistPage() {

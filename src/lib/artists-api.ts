@@ -65,13 +65,15 @@ export interface AIGenerateResponse {
   data: Partial<Artist>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 export class ArtistsAPI {
   private static async makeRequest(endpoint: string, options: RequestInit = {}) {
     const token = localStorage.getItem('token');
-    
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
@@ -148,7 +150,7 @@ export class ArtistsAPI {
     });
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/artists/export/csv?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/artists/export/csv?${params.toString()}`, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
       },

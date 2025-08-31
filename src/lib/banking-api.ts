@@ -1,5 +1,7 @@
 // frontend/src/lib/banking-api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {

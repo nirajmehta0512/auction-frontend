@@ -9,7 +9,7 @@ import type { Auction } from '@/lib/auctions-api'
 export default function NewAuctionPage() {
   const router = useRouter()
 
-  const handleSave = (auction: Auction) => {
+  const handleSave = (_auction: Auction) => {
     // Redirect to auctions list or auction detail page after successful save
     router.push('/auctions')
   }

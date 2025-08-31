@@ -155,7 +155,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
     try {
       const apiUrl = getApiBaseUrl()
       const token = localStorage.getItem('token')
-      const response = await fetch(`${apiUrl}/api/brands`, {
+      const response = await fetch(`${apiUrl}/brands`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

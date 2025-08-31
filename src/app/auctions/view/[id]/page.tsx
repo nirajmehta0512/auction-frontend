@@ -1,9 +1,9 @@
 // frontend/src/app/auctions/view/[id]/page.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Calendar, Clock, MapPin, Users, Trophy, ExternalLink, Download, Upload, FileText } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload, FileText } from 'lucide-react'
 import { getAuctions } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
@@ -38,13 +38,7 @@ export default function AuctionViewPage() {
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
 
-  useEffect(() => {
-    if (auctionId) {
-      loadAuctionDetails()
-    }
-  }, [auctionId, brand])
-
-  const loadAuctionDetails = async () => {
+  const loadAuctionDetails = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -55,22 +49,22 @@ export default function AuctionViewPage() {
         limit: 100, // Get all auctions to find the one we want
         brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
       })
-      
+
       const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
-      
+
       if (!foundAuction) {
         setError('Auction not found')
         return
       }
-      
+
       setAuction(foundAuction)
 
       // Load artworks for this auction using the auction's artwork_ids array
       console.log('Loading artworks for auction ID:', auctionId)
-      
+
       if (foundAuction.artwork_ids && Array.isArray(foundAuction.artwork_ids) && foundAuction.artwork_ids.length > 0) {
         console.log('Found artwork IDs in auction:', foundAuction.artwork_ids)
-        
+
         const artworksResponse = await ArtworksAPI.getArtworks({
           item_ids: foundAuction.artwork_ids.map(id => id.toString()), // Use the artwork_ids from auction
           page: 1,
@@ -104,7 +98,13 @@ export default function AuctionViewPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [auctionId, brand])
+
+  useEffect(() => {
+    if (auctionId) {
+      loadAuctionDetails()
+    }
+  }, [auctionId, brand, loadAuctionDetails])
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set'

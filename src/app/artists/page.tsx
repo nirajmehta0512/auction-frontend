@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Download, Upload, Filter, Sparkles } from 'lucide-react'
+import { Plus, Download, Filter } from 'lucide-react'
 import { Artist, ArtistsAPI, ArtistsResponse } from '@/lib/artists-api'
 import ArtistsTable from '@/components/artists/ArtistsTable'
 import ArtistsFilter from '@/components/artists/ArtistsFilter'
@@ -21,11 +21,11 @@ export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([])
   const [showFilters, setShowFilters] = useState(true)
   const [selectedArtists, setSelectedArtists] = useState<string[]>([])
-  const [showBulkActions, setShowBulkActions] = useState(false)
+
   
   // Pagination and filtering state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(25)
+  const [limit] = useState(25)
   const [total, setTotal] = useState(0)
   const [filters, setFilters] = useState<FilterState>({
     status: 'active',
@@ -42,7 +42,7 @@ export default function ArtistsPage() {
   })
 
   // Load artists
-  const loadArtists = async () => {
+  const loadArtists = useCallback(async () => {
     try {
       setLoading(true)
       const response: ArtistsResponse = await ArtistsAPI.getArtists({
@@ -65,11 +65,11 @@ export default function ArtistsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters, page, limit, sortField, sortDirection])
 
   useEffect(() => {
     loadArtists()
-  }, [page, limit, filters, sortField, sortDirection])
+  }, [page, limit, filters, sortField, sortDirection, loadArtists])
 
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
     setFilters(prev => ({ ...prev, ...newFilters }))
@@ -122,7 +122,6 @@ export default function ArtistsPage() {
       }
 
       setSelectedArtists([])
-      setShowBulkActions(false)
       loadArtists()
     } catch (err: any) {
       setError(err.message || 'Failed to perform bulk action')

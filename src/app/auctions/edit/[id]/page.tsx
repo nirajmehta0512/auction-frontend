@@ -1,13 +1,13 @@
 // frontend/src/app/auctions/edit/[id]/page.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import AuctionForm from '@/components/auctions/AuctionForm'
 import { getAuction } from '@/lib/auctions-api'
 import type { Auction } from '@/lib/auctions-api'
-import { ArtworksAPI } from '@/lib/items-api'
+
 
 export default function EditAuctionPage() {
   const router = useRouter()
@@ -19,21 +19,15 @@ export default function EditAuctionPage() {
   const [auction, setAuction] = useState<Auction | null>(null)
   const [selectedArtworks, setSelectedArtworks] = useState<number[]>([])
 
-  useEffect(() => {
-    if (auctionId) {
-      loadAuction()
-    }
-  }, [auctionId])
-
-  const loadAuction = async () => {
+  const loadAuction = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
       // Load auction data
       const auctionData = await getAuction(auctionId)
-        setAuction(auctionData)
-        
+      setAuction(auctionData)
+
       // Load artworks for this auction to get selected IDs from auction.artwork_ids
       if (auctionData.artwork_ids && Array.isArray(auctionData.artwork_ids)) {
         setSelectedArtworks(auctionData.artwork_ids)
@@ -46,9 +40,15 @@ export default function EditAuctionPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [auctionId])
 
-  const handleSave = (updatedAuction: Auction) => {
+  useEffect(() => {
+    if (auctionId) {
+      loadAuction()
+    }
+  }, [auctionId, loadAuction])
+
+  const handleSave = (_updatedAuction: Auction) => {
     // Redirect to auctions list after successful save
     router.push('/auctions')
   }

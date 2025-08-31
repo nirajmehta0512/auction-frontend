@@ -62,13 +62,15 @@ export interface AIGenerateResponse {
   };
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 export class GalleriesAPI {
   private static async makeRequest(endpoint: string, options: RequestInit = {}) {
     const token = localStorage.getItem('token');
-    
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : '',
@@ -138,7 +140,7 @@ export class GalleriesAPI {
     });
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/galleries/export/csv?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/galleries/export/csv?${params.toString()}`, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
       },
@@ -164,7 +166,7 @@ export class GalleriesAPI {
     formData.append('file', file);
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/galleries/import/csv`, {
+    const response = await fetch(`${API_BASE_URL}/galleries/import/csv`, {
       method: 'POST',
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',

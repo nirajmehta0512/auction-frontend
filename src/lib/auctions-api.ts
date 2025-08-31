@@ -455,4 +455,107 @@ export async function generatePassedAuction(
   }
 
   return response.json();
-} 
+}
+
+// Export auction data to platform-specific CSV format
+export async function exportAuctionToPlatform(
+  auctionId: string,
+  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom'
+): Promise<void> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export/${platform}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error exporting auction: ${response.statusText}`);
+  }
+
+  // Create blob and download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `auction_${auctionId}_${platform}_export_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+// Export auction images to platform-specific ZIP format
+export async function exportAuctionImagesToPlatform(
+  auctionId: string,
+  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' | 'database'
+): Promise<void> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export-images/${platform}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error exporting images: ${response.statusText}`);
+  }
+
+  // Create blob and download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `auction_${auctionId}_images_${platform}_${new Date().toISOString().split('T')[0]}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+// Platform export information
+export interface PlatformInfo {
+  id: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' | 'database';
+  name: string;
+  imageFormat: string;
+  description: string;
+}
+
+export const PLATFORM_OPTIONS: PlatformInfo[] = [
+  {
+    id: 'liveauctioneers',
+    name: 'Live Auctioneers',
+    imageFormat: '1_1.jpg, 1_2.jpg, 1_3.jpg, 1_4.jpg',
+    description: 'Format: 1_1.jpg, 1_2.jpg, 1_3.jpg, 1_4.jpg'
+  },
+  {
+    id: 'easy_live',
+    name: 'EasyLive',
+    imageFormat: '1.jpg, 1-2.jpg, 1-3.jpg, 2.jpg, 2-2.jpg',
+    description: 'Format: 1.jpg, 1-2.jpg, 1-3.jpg, 2.jpg, 2-2.jpg, 2-3.jpg'
+  },
+  {
+    id: 'the_saleroom',
+    name: 'The Saleroom',
+    imageFormat: '1.jpg, 1-2.jpg, 1-3.jpg, 1-4.jpg, 1-5.jpg',
+    description: 'Format: 1.jpg, 1-2.jpg, 1-3.jpg, 1-4.jpg, 1-5.jpg'
+  },
+  {
+    id: 'invaluable',
+    name: 'Invaluable',
+    imageFormat: '1_1.jpg, 1_2.jpg, 1_3.jpg',
+    description: 'Format: 1_1.jpg, 1_2.jpg, 1_3.jpg (similar to Live Auctioneers)'
+  },
+  {
+    id: 'database',
+    name: 'Database',
+    imageFormat: 'lot_1_img_1.jpg, lot_1_img_2.jpg',
+    description: 'Database format: lot_1_img_1.jpg, lot_1_img_2.jpg'
+  }
+];

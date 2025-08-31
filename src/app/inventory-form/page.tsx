@@ -2,6 +2,7 @@
 "use client"
 
 import React, { useState } from 'react'
+import { getApiBaseUrl } from '@/lib/google-sheets-api'
 
 interface ClientInfo {
   first_name?: string
@@ -33,8 +34,8 @@ interface PublicItemInput {
 }
 
 async function submitPublicInventory(payload: any) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-  const res = await fetch(`${apiUrl}/api/public/inventory/submit`, {
+  const apiUrl = getApiBaseUrl()
+  const res = await fetch(`${apiUrl}/public/inventory/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

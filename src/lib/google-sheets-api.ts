@@ -241,7 +241,7 @@ export const syncClientsFromGoogleSheet = async (
     console.log('Using API URL:', apiUrl);
     console.log('Selected brand for empty fields:', selectedBrand);
 
-    const response = await fetch(`${apiUrl}/api/clients/sync-google-sheet`, {
+    const response = await fetch(`${apiUrl}/clients/sync-google-sheet`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
@@ -287,7 +287,7 @@ export const loadBrandGoogleSheetUrl = async (
 
     console.log(`Loading Google Sheets URL for type: ${type}`);
 
-    const response = await fetch(`${apiUrl}/api/app-settings/google-sheets/${type}`, {
+    const response = await fetch(`${apiUrl}/app-settings/google-sheets/${type}`, {
       headers
     });
 
@@ -325,7 +325,7 @@ export const saveBrandGoogleSheetUrl = async (
 
     console.log(`Saving Google Sheets URL for type: ${type}`);
 
-    const response = await fetch(`${apiUrl}/api/app-settings/google-sheets`, {
+    const response = await fetch(`${apiUrl}/app-settings/google-sheets`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -366,7 +366,7 @@ export const syncArtworksFromGoogleSheet = async (
     console.log('Target platform:', platform);
     console.log('Sync back to sheets:', syncBack);
 
-    const response = await fetch(`${apiUrl}/api/items/sync-google-sheet`, {
+    const response = await fetch(`${apiUrl}/items/sync-google-sheet`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -430,7 +430,7 @@ export const syncArtworksToGoogleSheet = async (
     console.log('Syncing artworks TO Google Sheet:', targetSheetUrl);
     console.log('Artworks to sync:', artworks.length);
 
-    const response = await fetch(`${apiUrl}/api/items/sync-to-google-sheet`, {
+    const response = await fetch(`${apiUrl}/items/sync-to-google-sheet`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 

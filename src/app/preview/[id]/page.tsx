@@ -185,7 +185,7 @@ export default function ArtworkPreviewPage() {
                       className="w-full h-full object-cover cursor-zoom-in"
                       onClick={() => setShowFullscreenImage(true)}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder-artwork.jpg'
+                        (e.target as HTMLImageElement).src = '/placeholder-artwork.svg'
                       }}
                     />
                     <button
@@ -248,7 +248,7 @@ export default function ArtworkPreviewPage() {
                       alt={`${item.title} - ${index + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder-artwork.jpg'
+                        (e.target as HTMLImageElement).src = '/placeholder-artwork.svg'
                       }}
                     />
                   </button>

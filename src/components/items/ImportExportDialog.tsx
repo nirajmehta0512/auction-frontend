@@ -35,7 +35,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
     label: 'Our Database',
     description: 'Full format with all available fields',
     csvHeaders: [
-      'id', 'title', 'description', 'low_est', 'high_est', 'start_price', 'reserve', 'condition', 'consignor',
+      'id', 'title', 'description', 'low_est', 'high_est', 'start_price', 'reserve', 'condition', 'consignment_id',
       'status', 'category', 'subcategory', 'height_inches', 'width_inches', 'height_cm', 'width_cm',
       'height_with_frame_inches', 'width_with_frame_inches', 'height_with_frame_cm', 'width_with_frame_cm',
       'weight', 'materials', 'artist_maker', 'period_age', 'provenance',
@@ -103,6 +103,39 @@ export default function ImportExportDialog({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [syncBackToSheets, setSyncBackToSheets] = useState(false)
 
+  // Helper function to check for multiline content in CSV
+  const checkForMultilineContent = (csvText: string): boolean => {
+    if (!csvText) return false
+
+    const lines = csvText.split('\n')
+    let inQuotes = false
+    let multilineDetected = false
+
+    for (const line of lines) {
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+
+        if (char === '"') {
+          if (!inQuotes) {
+            inQuotes = true
+          } else if (i < line.length - 1 && line[i + 1] === '"') {
+            // Escaped quote, skip next
+            i++
+          } else {
+            inQuotes = false
+          }
+        }
+      }
+
+      // If we're still in quotes at end of line, this is multiline
+      if (inQuotes) {
+        multilineDetected = true
+      }
+    }
+
+    return multilineDetected
+  }
+
   // Google Sheets configuration
   const [hasGoogleSheetConfig, setHasGoogleSheetConfig] = useState(false)
   const [showUrlConfig, setShowUrlConfig] = useState(false)
@@ -162,17 +195,23 @@ export default function ImportExportDialog({
     try {
       setLoading(true)
       setError('')
-      
+
       const result = await ArtworksAPI.validateCSV(csvData, platform as any)
-      
+
       if (result.success && result.validation_result) {
         const { total_rows, valid_rows, errors } = result.validation_result
         setProgress(`Validation complete: ${valid_rows}/${total_rows} rows valid`)
-        
+
+        // Check for multiline content and show informational message
+        const hasMultilineContent = checkForMultilineContent(csvData)
+        if (hasMultilineContent) {
+          setProgress(`✅ Multiline content detected and supported. Validation complete: ${valid_rows}/${total_rows} rows valid`)
+        }
+
         if (errors.length > 0) {
           setError(`Validation errors: ${errors.slice(0, 3).join(', ')}${errors.length > 3 ? '...' : ''}`)
         }
-        
+
         return result.validation_result
       } else {
         setError(result.error || 'Validation failed')
@@ -272,7 +311,9 @@ export default function ImportExportDialog({
         // Get the actual artwork data for export
         const artworksResponse = await ArtworksAPI.getArtworks({
           ...(selectedItems.length > 0 ? {} : { limit: 1000 }),
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB'
+          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB',
+          sort_field: 'id',
+          sort_direction: 'asc'
         })
         
         if (!artworksResponse.success) {
@@ -280,10 +321,17 @@ export default function ImportExportDialog({
           return
         }
         
-        // Filter to selected items if any are selected
-        const artworksToExport = selectedItems.length > 0 
+        // Filter to selected items if any are selected, then sort by ID
+        let artworksToExport = selectedItems.length > 0
           ? artworksResponse.data.filter(artwork => selectedItems.includes(artwork.id!))
           : artworksResponse.data
+
+        // Sort by ID ascending to ensure consistent ordering
+        artworksToExport = artworksToExport.sort((a, b) => {
+          const idA = typeof a.id === 'string' ? parseInt(a.id) : (a.id || 0);
+          const idB = typeof b.id === 'string' ? parseInt(b.id) : (b.id || 0);
+          return idA - idB;
+        })
         
         if (artworksToExport.length === 0) {
           setError('No artworks to export')
@@ -299,7 +347,7 @@ export default function ImportExportDialog({
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
         
-        const response = await fetch(`${apiUrl}/api/items/sync-to-google-sheet`, {
+        const response = await fetch(`${apiUrl}/items/sync-to-google-sheet`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -437,42 +485,48 @@ export default function ImportExportDialog({
             <div className="text-xs text-gray-600">
               <div><strong>Required fields:</strong> {currentConfig.requiredFields.join(', ')}</div>
               <div className="mt-1"><strong>Total fields:</strong> {currentConfig.csvHeaders.length}</div>
+              <div className="mt-1 flex items-center">
+                <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                <strong>✅ Multiline text supported:</strong> Titles and descriptions with line breaks are properly handled
+              </div>
             </div>
-            
+
             <button
               onClick={downloadTemplate}
               className="mt-2 text-xs text-teal-600 hover:text-teal-700 underline"
             >
               Download {currentConfig.label} Template
             </button>
-            {/* Drive folder mapping for images */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Google Drive Folder URL (optional)</label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={driveFolderUrl}
-                  onChange={(e) => setDriveFolderUrl(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-                <button
-                  onClick={handlePreviewDriveMapping}
-                  disabled={previewLoading || !driveFolderUrl.trim()}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
-                >
-                  {previewLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full mr-1"></div>
-                      Loading...
-                    </div>
-                  ) : (
-                    'Preview'
-                  )}
-                </button>
+            {/* Drive folder mapping for images - only show for import */}
+            {mode === 'import' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Google Drive Folder URL (optional)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={driveFolderUrl}
+                    onChange={(e) => setDriveFolderUrl(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={handlePreviewDriveMapping}
+                    disabled={previewLoading || !driveFolderUrl.trim()}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
+                  >
+                    {previewLoading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full mr-1"></div>
+                        Loading...
+                      </div>
+                    ) : (
+                      'Preview'
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">If provided, images will be mapped by item id (e.g., files starting with 12*, 12-A, 12 (A), 12-1, 12 (1) map to item id 12).</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">If provided, images will be mapped by item id (e.g., files starting with 12*, 12-A, 12 (A) map to item id 12).</p>
-            </div>
+            )}
           </div>
 
           {/* CSV File Upload */}
@@ -488,9 +542,13 @@ export default function ImportExportDialog({
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
               {csvFile && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected: {csvFile.name} ({(csvFile.size / 1024).toFixed(1)} KB)
-                </p>
+                <div className="mt-2 text-sm text-gray-600">
+                  <p>Selected: {csvFile.name} ({(csvFile.size / 1024).toFixed(1)} KB)</p>
+                  <div className="flex items-center mt-1">
+                    <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                    <span className="text-xs">Multiline titles and descriptions are fully supported</span>
+                  </div>
+                </div>
               )}
             </div>
           )}

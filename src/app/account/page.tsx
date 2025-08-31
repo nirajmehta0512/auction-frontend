@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { User, Lock, Mail, Phone, MapPin, Calendar, Shield, Key } from 'lucide-react'
+import { User, Lock, Mail, Calendar, Shield, Key } from 'lucide-react'
 
 interface CurrentUser {
   id: number
