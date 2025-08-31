@@ -150,6 +150,8 @@ const handleApiError = async (response: Response) => {
 export class ArtworksAPI {
   // Get all artworks with optional filtering and pagination
   static async getArtworks(params: GetArtworksParams = {}): Promise<ArtworksResponse> {
+    console.log('🔍 ITEMS API: getArtworks called with params:', params);
+    console.log('🔍 ITEMS API: API_BASE_URL:', API_BASE_URL);
     // Check if user is super admin
     const isSuperAdmin = (): boolean => {
       if (typeof window !== 'undefined') {
@@ -178,13 +180,22 @@ export class ArtworksAPI {
       }
     });
 
-    const response = await fetch(`${API_BASE_URL}/items?${queryParams}`, {
+    const fullUrl = `${API_BASE_URL}/items?${queryParams}`;
+    console.log('🔍 ITEMS API: Fetching from URL:', fullUrl);
+    console.log('🔍 ITEMS API: Headers:', getAuthHeaders());
+
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
 
+    console.log('🔍 ITEMS API: Response status:', response.status);
+    console.log('🔍 ITEMS API: Response ok:', response.ok);
+
     await handleApiError(response);
-    return response.json();
+    const result = await response.json();
+    console.log('🔍 ITEMS API: Response data:', result);
+    return result;
   }
 
   // Get specific artwork by ID

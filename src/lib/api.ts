@@ -69,7 +69,7 @@ class ApiClient {
 
   // Health check
   async healthCheck() {
-    return this.request<{ status: string; timestamp: string }>('/health');
+    return this.request<{ message: string; status: string; timestamp: string; environment: string }>('/');
   }
 }
 

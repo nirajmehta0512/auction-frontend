@@ -408,7 +408,7 @@ class RealtimeChatService {
     private async checkBackendHealth(): Promise<boolean> {
         try {
             const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const healthUrl = `${backendUrl}/health`;
+            const healthUrl = `${backendUrl}/`;
 
             const response = await fetch(healthUrl, {
                 method: 'GET',
