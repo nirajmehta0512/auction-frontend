@@ -152,25 +152,7 @@ export class ArtworksAPI {
   static async getArtworks(params: GetArtworksParams = {}): Promise<ArtworksResponse> {
     console.log('🔍 ITEMS API: getArtworks called with params:', params);
     console.log('🔍 ITEMS API: API_BASE_URL:', API_BASE_URL);
-    // Check if user is super admin
-    const isSuperAdmin = (): boolean => {
-      if (typeof window !== 'undefined') {
-        const userRole = localStorage.getItem('user_role');
-        return userRole === 'super_admin';
-      }
-      return false;
-    };
-
-    // Only require brand_code for non-super-admin users
-    if (!isSuperAdmin() && !params.brand_code && typeof window !== 'undefined') {
-      const savedBrand = localStorage.getItem('brand_code');
-      if (savedBrand) {
-        params = { ...params, brand_code: savedBrand as 'MSABER' | 'AURUM' | 'METSAB' };
-      } else {
-        // Default to MSABER if no brand code is provided for non-super admin
-        params = { ...params, brand_code: 'MSABER' };
-      }
-    }
+    // Brand code filtering ignored for now
     
     const queryParams = new URLSearchParams();
     

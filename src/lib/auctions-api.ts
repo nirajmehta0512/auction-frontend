@@ -87,17 +87,8 @@ const isSuperAdmin = (): boolean => {
 // Get all auctions
 export async function getAuctions(filters: AuctionFilters = {}): Promise<AuctionResponse> {
   const token = getAuthToken();
-  
-  // Only require brand_code for non-super-admin users
-  if (!isSuperAdmin() && !filters.brand_code && typeof window !== 'undefined') {
-    const savedBrand = localStorage.getItem('brand_code');
-    if (savedBrand) {
-      filters = { ...filters, brand_code: savedBrand as 'MSABER' | 'AURUM' | 'METSAB' };
-    } else {
-      // For non-super admin users, default to MSABER if no brand is set
-      filters = { ...filters, brand_code: 'MSABER' };
-    }
-  }
+
+  // Brand code filtering ignored for now
   
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
@@ -157,9 +148,7 @@ export async function getAuctionStatusCounts(brandCode?: string): Promise<Auctio
   const token = getAuthToken();
 
   const params = new URLSearchParams();
-  if (brandCode) {
-    params.append('brand_code', brandCode);
-  }
+  // Brand code parameter ignored for now
 
   const response = await fetch(`${API_BASE_URL}/auctions/counts/status?${params}`, {
     headers: {
