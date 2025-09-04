@@ -338,9 +338,9 @@ export default function AuctionsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
-      <div className="bg-slate-700 px-3 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+      <div className="bg-slate-700 px-2 py-3 sm:px-4 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 w-full">
         <h1 className="text-lg sm:text-2xl font-semibold text-white">Auctions</h1>
         <button 
           onClick={() => router.push('/auctions/new')}
@@ -360,8 +360,8 @@ export default function AuctionsPage() {
       />
 
       {/* Table Actions */}
-      <div className="bg-white px-3 sm:px-6 py-3 border-b border-gray-200">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+      <div className="bg-white px-2 sm:px-4 py-3 border-b border-gray-200 w-full">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full max-w-full">
           <button
             onClick={handleExportCSV}
             className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
@@ -404,7 +404,7 @@ export default function AuctionsPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="mx-3 sm:mx-6 mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mx-2 sm:mx-4 mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg w-auto max-w-full">
           <p className="text-red-800 text-sm">{error}</p>
           <button 
             onClick={() => setError(null)}
@@ -440,8 +440,8 @@ export default function AuctionsPage() {
       </div>
 
       {/* Footer with Status Indicators and Pagination */}
-      <div className="bg-white border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
-        <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+      <div className="bg-white border-t border-gray-200 px-2 sm:px-4 py-3 sm:py-4 w-full">
+        <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 w-full max-w-full">
           {/* Status Indicators */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6 text-xs sm:text-sm">
             <div className="flex items-center space-x-1 sm:space-x-2">

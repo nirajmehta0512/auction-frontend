@@ -48,6 +48,16 @@
   body {
     @apply overflow-x-hidden;
   }
+  
+  /* Ensure main layout container doesn't overflow */
+  .main-layout {
+    @apply min-h-screen w-full max-w-full overflow-x-hidden;
+  }
+  
+  /* Responsive page container */
+  .page-container {
+    @apply w-full max-w-full mx-auto px-2 sm:px-4 lg:px-6;
+  }
 }
 
 /* Custom component styles */

@@ -375,9 +375,9 @@ export default function ConsignmentsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
-      <div className="bg-slate-700 px-3 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+      <div className="bg-slate-700 px-2 py-3 sm:px-4 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 w-full">
         <h1 className="text-lg sm:text-2xl font-semibold text-white">Consignments</h1>
         <button 
           onClick={() => router.push('/consignments/new')}
@@ -390,8 +390,8 @@ export default function ConsignmentsPage() {
       </div>
 
       {/* Table Actions */}
-      <div className="bg-white px-3 sm:px-6 py-3 border-b border-gray-200">
-        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="bg-white px-2 sm:px-4 py-3 border-b border-gray-200 w-full">
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between w-full max-w-full">
           <div className="flex items-center">
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -451,8 +451,8 @@ export default function ConsignmentsPage() {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white px-3 sm:px-6 py-4 border-b border-gray-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
+        <div className="bg-white px-2 sm:px-4 py-4 border-b border-gray-200 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end w-full max-w-full">
             <div className="sm:col-span-2 lg:col-span-2">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Search</label>
               <SearchableSelect
@@ -488,7 +488,7 @@ export default function ConsignmentsPage() {
       )}
 
       {/* Consignments Table Container with proper spacing */}
-      <div className="flex-1 bg-white mx-3 sm:mx-6 my-4 sm:my-6 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="flex-1 bg-white mx-2 sm:mx-4 my-4 sm:my-6 rounded-lg shadow-sm border border-gray-200 overflow-hidden w-auto max-w-full">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-500 text-sm">Loading consignments...</div>
@@ -510,8 +510,8 @@ export default function ConsignmentsPage() {
             </div>
             
             {/* Pagination */}
-            <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4 bg-gray-50">
-              <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <div className="border-t border-gray-200 px-2 sm:px-4 py-3 sm:py-4 bg-gray-50 w-full">
+              <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between w-full max-w-full">
                 <span className="text-xs sm:text-sm text-gray-600">
                   {`( Items: ${consignments.length} )`}
                 </span>

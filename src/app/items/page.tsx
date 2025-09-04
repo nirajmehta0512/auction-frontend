@@ -249,9 +249,9 @@ export default function ItemsPage() {
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="h-screen flex flex-col p-3 sm:p-6 lg:p-8">
+    <div className="h-screen flex flex-col p-2 sm:p-4 lg:p-6 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0 w-full max-w-full">
         <div className="text-center sm:text-left">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your auction items and export to major bidding platforms</p>
@@ -460,7 +460,7 @@ export default function ItemsPage() {
       {/* Enhanced Filters and Controls */}
       <div className="bg-white rounded-lg border mb-6 flex-1 flex flex-col">
         {/* Always-visible filter bar with improved layout */}
-        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+        <div className="px-2 sm:px-4 py-3 sm:py-4 border-b border-gray-200 w-full">
           <ItemsFilter
             filters={filters}
             onFilterChange={handleFilterChange}
@@ -471,7 +471,7 @@ export default function ItemsPage() {
         </div>
 
         {/* Controls and Selection */}
-        <div className="px-3 sm:px-6 py-3 border-b border-gray-200 bg-gray-50">
+        <div className="px-2 sm:px-4 py-3 border-b border-gray-200 bg-gray-50 w-full">
           {/* Top Pagination */}
           {totalPages > 1 && (
             <div className="mb-3 pb-3 border-b border-gray-200">
@@ -652,7 +652,7 @@ export default function ItemsPage() {
         </div>
 
         {/* Sub-tabs */}
-        <div className="px-3 sm:px-6 border-b border-gray-200">
+        <div className="px-2 sm:px-4 border-b border-gray-200 w-full">
           <div className="flex gap-2">
             <button onClick={()=>setActiveSubTab('inventory')} className={`px-3 py-2 text-xs sm:text-sm ${activeSubTab==='inventory'?'border-b-2 border-teal-600 text-teal-700':'text-gray-600'}`}>Inventory</button>
             <button onClick={()=>setActiveSubTab('pending')} className={`px-3 py-2 text-xs sm:text-sm ${activeSubTab==='pending'?'border-b-2 border-teal-600 text-teal-700':'text-gray-600'}`}>Pending</button>
@@ -687,8 +687,8 @@ export default function ItemsPage() {
 
         {/* Bottom Pagination */}
         {totalPages > 1 && (
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200">
-            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="px-2 sm:px-4 py-3 sm:py-4 border-t border-gray-200 w-full">
+            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between w-full max-w-full">
               <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
                 <span className="text-xs sm:text-sm text-gray-600">
                   Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total.toLocaleString()} items

@@ -209,10 +209,10 @@ export default function Sidebar() {
   return (
     <div className={cn(
       "bg-white border-r border-gray-200 flex flex-col h-full shadow-sm transition-all duration-300",
-      isCollapsed ? "w-16" : "w-72"
+      isCollapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
@@ -239,7 +239,7 @@ export default function Sidebar() {
       {/* Main Navigation */}
       <div className="flex-1 overflow-y-auto py-6">
         {!isCollapsed && (
-          <div className="px-6 mb-4">
+          <div className="px-4 mb-4">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Navigation
             </span>

@@ -15,6 +15,7 @@ import { getBrands, Brand } from '@/lib/brands-api'
 import { useBrand } from '@/lib/brand-context'
 import ImageUploadField from './ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
+import { createClient } from '@/lib/supabase/client'
 
 interface ItemFormProps {
   itemId?: string
@@ -82,11 +83,15 @@ interface FormData {
   // New certification fields
   condition_report: string
   gallery_certification: boolean
+  gallery_certification_file: string
   gallery_id: string
   artist_certification: boolean
+  artist_certification_file: string
   certified_artist_id: string
   artist_family_certification: boolean
+  artist_family_certification_file: string
   restoration_done: boolean
+  restoration_done_file: string
   restoration_by: string
 
   // Brand field
@@ -146,11 +151,15 @@ const initialFormData: FormData = {
   include_artist_signature_style: false,
   condition_report: '',
   gallery_certification: false,
+  gallery_certification_file: '',
   gallery_id: '',
   artist_certification: false,
+  artist_certification_file: '',
   certified_artist_id: '',
   artist_family_certification: false,
+  artist_family_certification_file: '',
   restoration_done: false,
+  restoration_done_file: '',
   restoration_by: '',
   brand_id: '',
   image_file_1: '',
@@ -251,6 +260,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const [loadingGalleries, setLoadingGalleries] = useState(false)
   const [loadingBrands, setLoadingBrands] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
+  const [pendingCertificationFiles, setPendingCertificationFiles] = useState<Record<string, File>>({})
 
   // Load artists, schools, auctions, clients and consignments data
   useEffect(() => {
@@ -706,11 +716,15 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       include_artist_signature_style: Boolean((data as any).include_artist_signature_style) || false,
       condition_report: (data as any).condition_report || '',
       gallery_certification: (data as any).gallery_certification || false,
+      gallery_certification_file: (data as any).gallery_certification_file || '',
       gallery_id: (data as any).gallery_id || '',
       artist_certification: (data as any).artist_certification || false,
+      artist_certification_file: (data as any).artist_certification_file || '',
       certified_artist_id: (data as any).certified_artist_id || '',
       artist_family_certification: (data as any).artist_family_certification || false,
+      artist_family_certification_file: (data as any).artist_family_certification_file || '',
       restoration_done: (data as any).restoration_done || false,
+      restoration_done_file: (data as any).restoration_done_file || '',
       restoration_by: (data as any).restoration_by || '',
       brand_id: (data as any).brand_id?.toString() || '',
       image_file_1: data.image_file_1 || '',
@@ -772,11 +786,15 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       include_artist_signature_style: aiData.include_artist_signature_style || false,
       condition_report: aiData.condition_report || '',
       gallery_certification: aiData.gallery_certification || false,
+      gallery_certification_file: aiData.gallery_certification_file || '',
       gallery_id: aiData.gallery_id || '',
       artist_certification: aiData.artist_certification || false,
+      artist_certification_file: aiData.artist_certification_file || '',
       certified_artist_id: aiData.certified_artist_id || '',
       artist_family_certification: aiData.artist_family_certification || false,
+      artist_family_certification_file: aiData.artist_family_certification_file || '',
       restoration_done: aiData.restoration_done || false,
+      restoration_done_file: aiData.restoration_done_file || '',
       restoration_by: aiData.restoration_by || '',
       brand_id: aiData.brand_id || '',
       image_file_1: '',
@@ -961,6 +979,23 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     setValidationErrors([])
   }
 
+  const handleCertificationFileUpload = (certificationType: 'gallery_certification_file' | 'artist_certification_file' | 'artist_family_certification_file' | 'restoration_done_file', file: File) => {
+    // Create preview URL for the file
+    const previewUrl = URL.createObjectURL(file)
+    
+    // Update form data with preview URL
+    setFormData(prev => ({
+      ...prev,
+      [certificationType]: previewUrl
+    }))
+    
+    // Store pending file
+    setPendingCertificationFiles(prev => ({
+      ...prev,
+      [certificationType]: file
+    }))
+  }
+
   // Get count of filled image slots
   const getFilledSlotsCount = (): number => {
     let count = 0
@@ -1025,6 +1060,54 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }
   }
 
+  const uploadPendingCertificationFiles = async (tempItemId: string): Promise<Record<string, string>> => {
+    const uploadedFiles: Record<string, string> = {}
+
+    if (Object.keys(pendingCertificationFiles).length === 0) {
+      return uploadedFiles
+    }
+
+    try {
+      for (const [fieldKey, file] of Object.entries(pendingCertificationFiles)) {
+        console.log(`Uploading certification file for ${fieldKey}...`)
+        
+        // Create a unique filename
+        const fileExtension = file.name.split('.').pop() || 'pdf'
+        const fileName = `certification_${tempItemId}_${fieldKey}_${Date.now()}.${fileExtension}`
+        
+        // Upload to Supabase Storage
+        const supabase = createClient()
+        const { data, error } = await supabase.storage
+          .from('items')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (error) {
+          console.error(`Error uploading ${fieldKey}:`, error)
+          throw new Error(`Failed to upload ${fieldKey}: ${error.message}`)
+        }
+
+        // Get the public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('items')
+          .getPublicUrl(fileName)
+
+        uploadedFiles[fieldKey] = publicUrlData.publicUrl
+        console.log(`Successfully uploaded ${fieldKey}: ${publicUrlData.publicUrl}`)
+      }
+
+      // Clear the pending files
+      setPendingCertificationFiles({})
+      
+      return uploadedFiles
+    } catch (error) {
+      console.error('Error uploading certification files:', error)
+      throw error
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -1081,18 +1164,24 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       setSaving(true)
       setError(null)
 
-      // Handle image uploads if there are pending files
-      if (Object.keys(pendingImages).length > 0) {
+      // Handle file uploads if there are pending files
+      if (Object.keys(pendingImages).length > 0 || Object.keys(pendingCertificationFiles).length > 0) {
         const tempItemId = itemId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
         try {
           const uploadedImageUrls = await uploadPendingImages(tempItemId)
+          const uploadedCertificationFileUrls = await uploadPendingCertificationFiles(tempItemId)
 
           // Update artwork data with uploaded image URLs
           Object.entries(uploadedImageUrls).forEach(([fieldName, url]) => {
             if (fieldName.startsWith('image_file_')) {
               (artworkData as any)[fieldName] = url
             }
+          })
+
+          // Update artwork data with uploaded certification file URLs
+          Object.entries(uploadedCertificationFileUrls).forEach(([fieldName, url]) => {
+            (artworkData as any)[fieldName] = url
           })
 
           // Clear pending images
@@ -1662,20 +1751,41 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                   </div>
                   {formData.gallery_certification && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
-                      <SearchableSelect
-                        value={formData.gallery_id}
-                        onChange={(value) => handleInputChange('gallery_id', value?.toString() || '')}
-                        options={galleries.map(gallery => ({
-                          value: gallery.id || '',
-                          label: gallery.name,
-                          description: gallery.location ? `${gallery.location}${gallery.country ? `, ${gallery.country}` : ''}` : gallery.country || ''
-                        }))}
-                        placeholder={loadingGalleries ? "Loading galleries..." : "Search galleries..."}
-                        inputPlaceholder="Search by gallery name or location..."
-                        className="w-full"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
+                        <SearchableSelect
+                          value={formData.gallery_id}
+                          onChange={(value) => handleInputChange('gallery_id', value?.toString() || '')}
+                          options={galleries.map(gallery => ({
+                            value: gallery.id || '',
+                            label: gallery.name,
+                            description: gallery.location ? `${gallery.location}${gallery.country ? `, ${gallery.country}` : ''}` : gallery.country || ''
+                          }))}
+                          placeholder={loadingGalleries ? "Loading galleries..." : "Search galleries..."}
+                          inputPlaceholder="Search by gallery name or location..."
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleCertificationFileUpload('gallery_certification_file', file)
+                            }
+                          }}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {formData.gallery_certification_file && (
+                          <div className="mt-2 text-xs text-green-600">
+                            ✓ File uploaded
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1695,29 +1805,50 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                   </div>
                   {formData.artist_certification && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Which Artist?</label>
-                      <select
-                        value={formData.certified_artist_id}
-                        onChange={(e) => handleInputChange('certified_artist_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        disabled={loadingArtistsSchools}
-                      >
-                        <option value="">Select artist...</option>
-                        {artists.map((artist) => (
-                          <option key={artist.id} value={artist.id}>
-                            {artist.name}
-                            {artist.birth_year && ` (${artist.birth_year}${artist.death_year ? `-${artist.death_year}` : '-'})`}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Which Artist?</label>
+                        <select
+                          value={formData.certified_artist_id}
+                          onChange={(e) => handleInputChange('certified_artist_id', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          disabled={loadingArtistsSchools}
+                        >
+                          <option value="">Select artist...</option>
+                          {artists.map((artist) => (
+                            <option key={artist.id} value={artist.id}>
+                              {artist.name}
+                              {artist.birth_year && ` (${artist.birth_year}${artist.death_year ? `-${artist.death_year}` : '-'})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleCertificationFileUpload('artist_certification_file', file)
+                            }
+                          }}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {formData.artist_certification_file && (
+                          <div className="mt-2 text-xs text-green-600">
+                            ✓ File uploaded
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Artist Family Certification */}
                 <div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 mb-3">
                     <input
                       type="checkbox"
                       id="artist_family_certification"
@@ -1729,6 +1860,27 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Artist Family Certification
                     </label>
                   </div>
+                  {formData.artist_family_certification && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleCertificationFileUpload('artist_family_certification_file', file)
+                          }
+                        }}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {formData.artist_family_certification_file && (
+                        <div className="mt-2 text-xs text-green-600">
+                          ✓ File uploaded
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Restoration */}
@@ -1746,15 +1898,36 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                   </div>
                   {formData.restoration_done && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Done by (Person/Company)</label>
-                      <input
-                        type="text"
-                        value={formData.restoration_by}
-                        onChange={(e) => handleInputChange('restoration_by', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="Name of person or company who did the restoration"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Done by (Person/Company)</label>
+                        <input
+                          type="text"
+                          value={formData.restoration_by}
+                          onChange={(e) => handleInputChange('restoration_by', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Name of person or company who did the restoration"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Restoration Documentation (optional)</label>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleCertificationFileUpload('restoration_done_file', file)
+                            }
+                          }}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {formData.restoration_done_file && (
+                          <div className="mt-2 text-xs text-green-600">
+                            ✓ File uploaded
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -45,11 +45,15 @@ export interface Artwork {
 
   // Certification fields
   artist_certification?: boolean;
+  artist_certification_file?: string;
   artist_family_certification?: boolean;
+  artist_family_certification_file?: string;
   gallery_certification?: boolean;
+  gallery_certification_file?: string;
   gallery_id?: string;
   certified_artist_id?: string;
   restoration_done?: boolean;
+  restoration_done_file?: string;
   restoration_by?: string;
   condition_report?: string;
 
