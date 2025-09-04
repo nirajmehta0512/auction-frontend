@@ -49,7 +49,7 @@ interface TableColumn {
 const columns: TableColumn[] = [
   { key: 'id', label: 'Client ID', sortable: true, width: 'w-24' },
   { key: 'display_name', label: 'Name / Company', sortable: false, width: 'w-64' },
-  { key: 'contact_info', label: 'Contact Info', sortable: false, width: 'w-64' },
+  { key: 'contact_info', label: 'Contact Info', sortable: false, width: 'w-70' },
   { key: 'client_type', label: 'Type', sortable: false, width: 'w-20' },
   { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-24' },
   { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-24' },
