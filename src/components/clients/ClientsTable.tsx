@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
+import {
   fetchClients,
-  deleteClient, 
+  deleteClient,
   bulkActionClients,
   formatClientDisplay,
   getClientFullName,
   getClientDisplayName,
   getClientTypeDisplay,
   getClientTypeColor,
-  type Client, 
+  type Client,
   type ClientsResponse,
   type BulkActionRequest
 } from '@/lib/clients-api';
@@ -49,14 +49,13 @@ interface TableColumn {
 const columns: TableColumn[] = [
   { key: 'id', label: 'Client ID', sortable: true, width: 'w-24' },
   { key: 'display_name', label: 'Name / Company', sortable: false, width: 'w-64' },
-  { key: 'email', label: 'Email', sortable: true, width: 'w-48' },
+  { key: 'email', label: 'Email', sortable: true, width: 'w-40' },
   { key: 'phone_number', label: 'Phone', sortable: false, width: 'w-32' },
-  { key: 'client_type', label: 'Type', sortable: false, width: 'w-32' },
-  { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-28' },
-  { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-28' },
-  { key: 'status', label: 'Status', sortable: true, width: 'w-24' },
+  { key: 'client_type', label: 'Type', sortable: false, width: 'w-20' },
+  { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-24' },
+  { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-24' },
   { key: 'created_at', label: 'Created', sortable: true, width: 'w-32' },
-  { key: 'actions', label: 'Actions', sortable: false, width: 'w-32' }
+  { key: 'actions', label: 'Actions', sortable: false, width: 'w-24' }
 ];
 
 // Utility function to get status styling
@@ -455,7 +454,7 @@ export default function ClientsTable({
                       </td>
 
                       {/* Email */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-gray-500 break-words whitespace-normal max-w-0">
                         {client.email || '-'}
                       </td>
 
@@ -487,33 +486,30 @@ export default function ClientsTable({
                         }
                       </td>
 
-                      {/* Status */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={getStatusStyling(client.status || 'active')}>
-                          {client.status?.charAt(0).toUpperCase() + (client.status?.slice(1) || '') || 'Active'}
-                        </span>
-                      </td>
-
-                      {/* Created Date */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(client.created_at)}
+                      {/* Created Date & Status */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-gray-500">{formatDate(client.created_at)}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1 inline-block ${getStatusStyling(client.status || 'active')}`}>
+                            {client.status?.charAt(0).toUpperCase() + (client.status?.slice(1) || '') || 'Active'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-
+                        <div className="flex flex-col space-y-1">
                           {onClientEdit && (
                             <button
                               onClick={() => onClientEdit(client)}
-                              className="text-indigo-600 hover:text-indigo-900"
+                              className="text-indigo-600 hover:text-indigo-900 text-sm"
                             >
                               Edit
                             </button>
                           )}
                           <button
                             onClick={() => handleDeleteClient(client.id as number, false)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 text-sm"
                           >
                             Delete
                           </button>

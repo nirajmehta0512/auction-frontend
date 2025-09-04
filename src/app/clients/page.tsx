@@ -581,7 +581,6 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                 </div>
               )}
               
-              <div className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">* Times are shown in UTC timezone.</div>
             </div>
           </div>
         </div>
