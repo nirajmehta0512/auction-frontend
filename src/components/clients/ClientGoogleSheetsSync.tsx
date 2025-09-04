@@ -225,7 +225,15 @@ export default function ClientGoogleSheetsSync({
         {hasUrlConfig && !showUrlConfig && (
           <div className="text-sm text-gray-600">
             <p>✓ Google Sheets URL configured</p>
-            <p className="text-xs text-gray-500 mt-1 truncate">{googleSheetUrl}</p>
+            <a
+              href={googleSheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1 block truncate cursor-pointer transition-colors"
+              title="Open Google Sheets (opens in new tab)"
+            >
+              {googleSheetUrl}
+            </a>
           </div>
         )}
         

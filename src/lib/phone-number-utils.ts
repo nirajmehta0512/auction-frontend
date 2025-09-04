@@ -284,6 +284,37 @@ export class PhoneNumberUtils {
   }
 
   /**
+   * Get country code (e.g., 'US', 'IN', 'PK') from phone number
+   * @param phoneNumber - The phone number to analyze
+   * @returns Country code or empty string if not found
+   */
+  public static getCountryCode(phoneNumber: string | undefined): string {
+    if (!phoneNumber) return '';
+
+    PhoneNumberUtils.initializeMaps();
+
+    // Remove + prefix and any non-numeric characters except spaces and hyphens
+    const cleanNumber = phoneNumber.replace(/^\+/, '').replace(/[^\d]/g, '');
+
+    if (!cleanNumber) return '';
+
+    // Sort calling codes by length (longest first) to match the most specific code
+    const sortedCodes = Array.from(PhoneNumberUtils.CALLING_CODE_MAP.keys())
+      .sort((a, b) => b.length - a.length);
+
+    for (const code of sortedCodes) {
+      if (cleanNumber.startsWith(code)) {
+        const country = PhoneNumberUtils.getBestCountryForCallingCode(code);
+        if (country) {
+          return country.code;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  /**
    * Get country information from phone number
    * @param phoneNumber - The phone number to analyze
    * @returns CountryInfo object or null if not found

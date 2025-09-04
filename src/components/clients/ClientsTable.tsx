@@ -462,10 +462,10 @@ export default function ClientsTable({
                           <div className="text-gray-600 break-words whitespace-normal max-w-0">
                             {client.email || '-'}
                           </div>
-                          {/* Phone with flag */}
+                          {/* Phone with country code */}
                           {client.phone_number && (
                             <div className="flex items-center gap-1 text-gray-600">
-                              <span className="text-lg">{PhoneNumberUtils.getCountryFlag(client.phone_number)}</span>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">{PhoneNumberUtils.getCountryCode(client.phone_number) || 'UNK'}</span>
                               <span className="whitespace-nowrap">{formatPhoneNumber(client.phone_number)}</span>
                             </div>
                           )}

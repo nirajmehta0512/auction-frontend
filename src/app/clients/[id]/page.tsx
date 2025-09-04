@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import ExportShareModal from '@/components/ExportShareModal'
 import { useExportShare } from '@/hooks/useExportShare'
+import { PhoneNumberUtils } from '@/lib/phone-number-utils'
 
 interface ClientStats {
   totalPurchases: number
@@ -352,7 +353,21 @@ export default function ClientViewPage() {
                     <Phone className="h-4 w-4 text-gray-400 mr-3" />
                     <div>
                       <p className="text-sm text-gray-600">Phone</p>
-                      <p className="font-medium text-gray-900">{client.phone_number || 'Not provided'}</p>
+                      <div className="flex items-center gap-2">
+                        {client.phone_number && (
+                          <>
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                              {PhoneNumberUtils.getCountryCode(client.phone_number) || 'UNK'}
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {client.phone_number.startsWith('+') ? client.phone_number : `+${client.phone_number}`}
+                            </span>
+                          </>
+                        )}
+                        {!client.phone_number && (
+                          <p className="font-medium text-gray-900">Not provided</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {client.secondary_email && (
@@ -369,7 +384,14 @@ export default function ClientViewPage() {
                       <Phone className="h-4 w-4 text-gray-400 mr-3" />
                       <div>
                         <p className="text-sm text-gray-600">Secondary Phone</p>
-                        <p className="font-medium text-gray-900">{client.secondary_phone_number}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                            {PhoneNumberUtils.getCountryCode(client.secondary_phone_number) || 'UNK'}
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {client.secondary_phone_number.startsWith('+') ? client.secondary_phone_number : `+${client.secondary_phone_number}`}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
