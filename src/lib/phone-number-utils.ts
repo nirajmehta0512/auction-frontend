@@ -311,7 +311,12 @@ export class PhoneNumberUtils {
       }
     }
 
-    return '';
+    // Default to US for numbers without country code
+    if (cleanNumber.length === 10) {
+      return 'US';
+    }
+
+    return 'UNK';
   }
 
   /**

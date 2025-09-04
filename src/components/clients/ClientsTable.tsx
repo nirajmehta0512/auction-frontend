@@ -465,7 +465,7 @@ export default function ClientsTable({
                           {/* Phone with country code */}
                           {client.phone_number && (
                             <div className="flex items-center gap-1 text-gray-600 flex-shrink-0">
-                              <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">{PhoneNumberUtils.getCountryCode(client.phone_number) || 'UNK'}</span>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">{PhoneNumberUtils.getCountryCode(client.phone_number) || 'US'}</span>
                               <span className="whitespace-nowrap">{formatPhoneNumber(client.phone_number)}</span>
                             </div>
                           )}
