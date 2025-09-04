@@ -338,12 +338,12 @@ export default function FloatingChat({ className = '' }: FloatingChatProps) {
         setIsOpen(true)
         requestNotificationPermission()
       }}
-      className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-40 ${
+      className={`fixed bottom-6 right-6 w-12 h-12 rounded-full shadow-lg z-40 ${
         isConnected ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'
       } ${className}`}
       size="sm"
     >
-      <MessageCircle className="w-6 h-6 text-white" />
+      <MessageCircle className="w-5 h-5 text-white" />
       {unreadCount > 0 && (
         <Badge 
           className="absolute -top-2 -right-2 min-w-[20px] h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs"

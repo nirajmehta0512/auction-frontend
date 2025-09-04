@@ -101,8 +101,8 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
 
-      // Get selected brand code or undefined for 'all'
-      const brandCode = selectedBrandId === 'all' ? undefined : brands.find(b => b.id.toString() === selectedBrandId)?.code
+      // Get selected brand code or null for 'all' (explicitly request all brands)
+      const brandCode = selectedBrandId === 'all' ? null : brands.find(b => b.id.toString() === selectedBrandId)?.code
 
       const data = await getDashboardStats(dateFrom || undefined, dateTo || undefined, brandCode)
       setStats(data)

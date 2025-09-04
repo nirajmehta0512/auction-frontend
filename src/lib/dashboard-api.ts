@@ -93,11 +93,22 @@ export interface DashboardStats {
 }
 
 // Get dashboard statistics
-export async function getDashboardStats(dateFrom?: string, dateTo?: string, brandCode?: string): Promise<DashboardStats> {
+export async function getDashboardStats(dateFrom?: string, dateTo?: string, brandCode?: string | null): Promise<DashboardStats> {
   const token = getAuthToken();
 
   // Use provided brandCode, or fall back to user context for non-super-admin
-  const finalBrandCode = brandCode !== undefined ? brandCode : (isSuperAdmin() ? undefined : localStorage.getItem('brand_code') || 'MSABER');
+  // If brandCode is explicitly set to null/undefined (meaning "all"), don't fall back to user context
+  let finalBrandCode: string | undefined;
+  if (brandCode === null || brandCode === undefined) {
+    // Explicitly requested "all brands" - don't filter by brand
+    finalBrandCode = undefined;
+  } else if (brandCode !== '') {
+    // Specific brand requested
+    finalBrandCode = brandCode;
+  } else {
+    // Empty string means fall back to user context (legacy behavior)
+    finalBrandCode = isSuperAdmin() ? undefined : localStorage.getItem('brand_code') || 'MSABER';
+  }
 
   const queryParams = new URLSearchParams();
   if (dateFrom) queryParams.append('date_from', dateFrom);

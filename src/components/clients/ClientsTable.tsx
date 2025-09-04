@@ -502,14 +502,16 @@ export default function ClientsTable({
                           {onClientEdit && (
                             <button
                               onClick={() => onClientEdit(client)}
-                              className="text-indigo-600 hover:text-indigo-900 text-sm"
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:text-indigo-800 active:bg-indigo-200 transition-colors cursor-pointer"
+                              title="Edit client"
                             >
                               Edit
                             </button>
                           )}
                           <button
                             onClick={() => handleDeleteClient(client.id as number, false)}
-                            className="text-red-600 hover:text-red-900 text-sm"
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-800 active:bg-red-200 transition-colors cursor-pointer"
+                            title="Delete client"
                           >
                             Delete
                           </button>

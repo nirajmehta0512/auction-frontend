@@ -6,7 +6,7 @@ import { Plus, Download, AlertCircle, Upload, RefreshCw } from 'lucide-react'
 import ClientsFilter from '@/components/clients/ClientsFilter'
 import ClientsTable from '@/components/clients/ClientsTable'
 import CSVUpload from '@/components/clients/CSVUpload'
-import { fetchClients, exportClientsCSV, bulkActionClients, deleteClient, testBackendConnectivity, type Client, type ClientsResponse, type BulkActionRequest } from '@/lib/clients-api'
+import { fetchClients, exportClientsCSV, bulkActionClients, deleteClient, type Client, type ClientsResponse, type BulkActionRequest } from '@/lib/clients-api'
 import { useBrand } from '@/lib/brand-context'
 import { 
   syncClientsFromGoogleSheet, 
@@ -81,21 +81,6 @@ export default function ClientsPage() {
     }
   }
 
-  // Debug function to test backend connectivity
-  const testConnectivity = async () => {
-    try {
-      console.log('🔧 Starting backend connectivity test...')
-      const result = await testBackendConnectivity()
-      if (result.success) {
-        alert(`✅ Backend is reachable!\n\n${result.message}\n\nDetails: ${JSON.stringify(result.details, null, 2)}`)
-      } else {
-        alert(`❌ Backend connectivity failed!\n\n${result.message}\n\nDetails: ${JSON.stringify(result.details, null, 2)}`)
-      }
-    } catch (error: any) {
-      console.error('❌ Connectivity test error:', error)
-      alert(`❌ Connectivity test failed: ${error.message}`)
-    }
-  }
 
   // Enhanced Google Sheets sync with pre-refresh and post-save sync
   const syncWithGoogleSheet = async (autoSync = false, customUrl?: string, selectedBrandCode?: string) => {
@@ -428,7 +413,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center space-x-1"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer"
+                title="Toggle filters"
               >
                 <span>🔍 {showFilters ? 'Hide' : 'Show'} filter</span>
               </button>
@@ -436,7 +422,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
               {selectedClients.length > 0 && (
                 <button
                   onClick={handleBulkDelete}
-                  className="text-red-600 hover:text-red-700 text-xs sm:text-sm font-medium"
+                  className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-800 active:bg-red-200 transition-colors cursor-pointer"
+                  title="Delete selected clients"
                 >
                   Delete Selected ({selectedClients.length})
                 </button>
@@ -446,18 +433,20 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowCSVUpload(true)}
-                className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm flex items-center space-x-1"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer"
+                title="Import clients from CSV"
               >
-                <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 <span className="hidden sm:inline">CSV Import</span>
                 <span className="sm:hidden">Import</span>
               </button>
               <button
                 onClick={handleExportCSV}
                 disabled={false}
-                className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm flex items-center space-x-1 disabled:opacity-50"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export clients to CSV"
               >
-                <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 <span className="hidden sm:inline">CSV Export</span>
                 <span className="sm:hidden">Export</span>
               </button>
@@ -468,14 +457,6 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                 <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Google Sheets</span>
                 <span className="sm:hidden">Sheets</span>
-              </button>
-              <button
-                onClick={testConnectivity}
-                className="flex items-center px-2 py-1 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-xs sm:text-sm"
-                title="Test backend connectivity"
-              >
-                <span className="hidden sm:inline">🔧 Debug API</span>
-                <span className="sm:hidden">🔧</span>
               </button>
             </div>
           </div>
@@ -547,7 +528,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                       disabled={pagination.page === 1}
-                      className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
+                      title="Previous page"
                     >
                       Previous
                     </button>
@@ -562,7 +544,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
                       disabled={pagination.page === pagination.pages}
-                      className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
+                      title="Next page"
                     >
                       Next
                     </button>
@@ -635,14 +618,16 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowBrandSelector(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer"
+                title="Cancel selection"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBrandSync}
                 disabled={!selectedBrandForSync}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                title="Sync with selected brand"
               >
                 Sync
               </button>
@@ -678,7 +663,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                   setShowUrlEditor(false)
                   setShowBrandSelector(false)
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer"
+                title="Cancel URL configuration"
               >
                 Cancel
               </button>
@@ -688,7 +674,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                     alert('Please enter a valid URL')
                     return
                   }
-                  
+
                   const brandToSave = selectedBrandForSync || brand
                   const success = await saveGoogleSheetUrl(brandToSave, editingSheetUrl)
                   if (success) {
@@ -699,7 +685,8 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                   }
                 }}
                 disabled={!editingSheetUrl}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                title="Save URL and sync data"
               >
                 Save & Sync
               </button>
