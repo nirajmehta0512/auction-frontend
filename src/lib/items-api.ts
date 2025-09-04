@@ -86,6 +86,13 @@ export interface Artwork {
   // Brand field (for multi-tenant support)
   brand_id?: number;
   brand_name?: string;
+
+  // Brand relation (when included from API)
+  brands?: {
+    id: number;
+    name: string;
+    code: string;
+  };
 }
 
 export interface ArtworksResponse {

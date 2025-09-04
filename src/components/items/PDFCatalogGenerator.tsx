@@ -80,6 +80,7 @@ export default function PDFCatalogGenerator({
   const [previewMode, setPreviewMode] = useState(false)
   const [enrichedArtworks, setEnrichedArtworks] = useState<ArtworkPreviewData[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [loadingImages, setLoadingImages] = useState(false)
 
   // Load additional data for artworks (artists, clients, etc.)
   useEffect(() => {
@@ -151,6 +152,75 @@ export default function PDFCatalogGenerator({
     }))
   }
 
+  // Helper function to load image from URL and convert to base64
+  const loadImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
+    try {
+      // Create a timeout promise
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 10000) // 10 second timeout
+      })
+
+      // Create the fetch promise
+      const fetchPromise = (async () => {
+        const response = await fetch(imageUrl, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
+
+        if (!response.ok) {
+          console.warn(`Failed to load image: ${imageUrl} (${response.status})`)
+          return null
+        }
+
+        const contentLength = response.headers.get('content-length')
+        if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
+          console.warn(`Image too large: ${imageUrl} (${contentLength} bytes)`)
+          return null
+        }
+
+        const blob = await response.blob()
+
+        // Check blob size
+        if (blob.size > 10 * 1024 * 1024) { // 10MB limit
+          console.warn(`Image blob too large: ${imageUrl} (${blob.size} bytes)`)
+          return null
+        }
+
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => {
+            console.warn(`Error reading image blob: ${imageUrl}`)
+            resolve(null)
+          }
+          reader.readAsDataURL(blob)
+        })
+      })()
+
+      // Race between fetch and timeout
+      return await Promise.race([fetchPromise, timeoutPromise]) as string | null
+
+    } catch (error) {
+      console.warn(`Error loading image ${imageUrl}:`, error)
+      return null
+    }
+  }
+
+  // Helper function to get the best available image URL
+  const getBestImageUrl = (artwork: ArtworkPreviewData): string | null => {
+    // Try image_file_1 first, then fall back to others
+    const imageFields = ['image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5']
+    for (const field of imageFields) {
+      const url = (artwork as any)[field]
+      if (url && url.trim() && !url.includes('blob:')) { // Skip blob URLs as they're temporary
+        return url
+      }
+    }
+    return null
+  }
+
   const generatePDF = async (action: 'download' | 'share' | 'print' | 'preview') => {
     try {
       setGenerating(true)
@@ -163,9 +233,41 @@ export default function PDFCatalogGenerator({
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 15
       const contentWidth = pageWidth - (margin * 2)
-      
+
       let currentY = margin
       let pageNumber = 1
+
+      // Pre-load images for better performance
+      setLoadingImages(true)
+      const previewData = generatePreviewData()
+      const imagePromises = previewData.map(async (artwork) => {
+        const imageUrl = getBestImageUrl(artwork)
+        if (imageUrl && options.includeImages) {
+          const base64Image = await loadImageAsBase64(imageUrl)
+          return { artworkId: artwork.id, imageUrl, base64Image }
+        }
+        return null
+      })
+
+      // Wait for all images to load (with timeout)
+      const imageResults = await Promise.allSettled(imagePromises)
+      const loadedImages = new Map()
+
+      let loadedCount = 0
+      imageResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value && result.value.base64Image) {
+          loadedImages.set(result.value.artworkId, result.value.base64Image)
+          loadedCount++
+        }
+      })
+
+      setLoadingImages(false)
+      console.log(`Loaded ${loadedCount} images out of ${previewData.length} artworks`)
+
+      // Show success message if images were loaded
+      if (options.includeImages && loadedCount > 0) {
+        console.log(`✅ Successfully loaded ${loadedCount} images for PDF catalog`)
+      }
 
       // Modern color palette
       const colors = {
@@ -257,100 +359,135 @@ export default function PDFCatalogGenerator({
         addHeader()
       }
 
-      const previewData = generatePreviewData()
-
       if (options.layoutType === 'table') {
-        // Table layout
-        const rowHeight = 20
-        const colWidths = [25, 60, 30, 35, 30] // Lot, Title, Artist, Estimate, Dimensions
-        const tableHeaders = ['Lot', 'Title', 'Artist', 'Estimate', 'Dimensions']
-        
+        // Table layout with image support
+        const rowHeight = options.includeImages ? 35 : 20 // Taller rows if images are included
+        const colWidths = options.includeImages
+          ? [20, 35, 55, 25, 30, 25] // Image, Lot, Title, Artist, Estimate, Dimensions
+          : [25, 60, 30, 35, 30] // Lot, Title, Artist, Estimate, Dimensions
+        const tableHeaders = options.includeImages
+          ? ['Image', 'Lot', 'Title', 'Artist', 'Estimate', 'Dimensions']
+          : ['Lot', 'Title', 'Artist', 'Estimate', 'Dimensions']
+
         // Draw table header
         let tableY = currentY
         doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2])
         doc.rect(margin, tableY, contentWidth, rowHeight, 'F')
-        
+
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(10)
         doc.setFont(undefined, 'bold')
-        
+
         let colX = margin + 2
         tableHeaders.forEach((header, index) => {
-          doc.text(header, colX, tableY + 13)
+          doc.text(header, colX, tableY + (rowHeight/2) + 2)
           colX += colWidths[index]
         })
-        
+
         tableY += rowHeight
         doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
         doc.setFont(undefined, 'normal')
         doc.setFontSize(8)
-        
+
         previewData.forEach((artwork, index) => {
           // Check if we need a new page
           if (tableY + rowHeight > pageHeight - 30) {
             addFooter()
             addNewPage()
             tableY = currentY
-            
+
             // Redraw header on new page
             doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2])
             doc.rect(margin, tableY, contentWidth, rowHeight, 'F')
             doc.setTextColor(255, 255, 255)
             doc.setFontSize(10)
             doc.setFont(undefined, 'bold')
-            
+
             colX = margin + 2
             tableHeaders.forEach((header, index) => {
-              doc.text(header, colX, tableY + 13)
+              doc.text(header, colX, tableY + (rowHeight/2) + 2)
               colX += colWidths[index]
             })
-            
+
             tableY += rowHeight
             doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
             doc.setFont(undefined, 'normal')
             doc.setFontSize(8)
           }
-          
+
           // Draw row background (alternate colors)
           if (index % 2 === 0) {
             doc.setFillColor(colors.light[0], colors.light[1], colors.light[2])
             doc.rect(margin, tableY, contentWidth, rowHeight, 'F')
           }
-          
+
           // Draw borders
           doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2])
           doc.setLineWidth(0.2)
           doc.rect(margin, tableY, contentWidth, rowHeight)
-          
+
           // Draw cell content
           colX = margin + 2
-          
+
+          // Image column (if enabled)
+          if (options.includeImages) {
+            const imageData = loadedImages.get(artwork.id)
+            if (imageData) {
+              try {
+                // Determine image format from base64 data
+                let format = 'JPEG'
+                if (imageData.includes('data:image/png')) {
+                  format = 'PNG'
+                } else if (imageData.includes('data:image/gif')) {
+                  format = 'GIF'
+                } else if (imageData.includes('data:image/webp')) {
+                  format = 'WEBP'
+                }
+
+                // Add image (thumbnail size for table)
+                doc.addImage(imageData, format, colX, tableY + 2, 16, 16)
+              } catch (error) {
+                console.warn(`Failed to add table image for artwork ${artwork.id}:`, error)
+                // Fallback to placeholder
+                doc.setFontSize(6)
+                doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
+                doc.text('IMG', colX + 8, tableY + 10, { align: 'center' })
+              }
+            } else {
+              // No image placeholder
+              doc.setFontSize(6)
+              doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
+              doc.text('No IMG', colX + 8, tableY + 10, { align: 'center' })
+            }
+            colX += colWidths[0]
+          }
+
           // Lot number
           if (artwork.id) {
-            doc.text(artwork.id, colX, tableY + 13)
+            doc.text(artwork.id, colX, tableY + (rowHeight/2) + 2)
           }
-          colX += colWidths[0]
-          
+          colX += colWidths[options.includeImages ? 1 : 0]
+
           // Title (truncated)
           if (artwork.title) {
-            const titleText = artwork.title.length > 25 ? artwork.title.substring(0, 25) + '...' : artwork.title
-            doc.text(titleText, colX, tableY + 13)
+            const titleText = artwork.title.length > (options.includeImages ? 25 : 30) ? artwork.title.substring(0, (options.includeImages ? 25 : 30)) + '...' : artwork.title
+            doc.text(titleText, colX, tableY + (rowHeight/2) + 2)
           }
-          colX += colWidths[1]
-          
+          colX += colWidths[options.includeImages ? 2 : 1]
+
           // Artist
           if (artwork.artist?.name) {
-            const artistText = artwork.artist.name.length > 15 ? artwork.artist.name.substring(0, 15) + '...' : artwork.artist.name
-            doc.text(artistText, colX, tableY + 13)
+            const artistText = artwork.artist.name.length > (options.includeImages ? 12 : 15) ? artwork.artist.name.substring(0, (options.includeImages ? 12 : 15)) + '...' : artwork.artist.name
+            doc.text(artistText, colX, tableY + (rowHeight/2) + 2)
           }
-          colX += colWidths[2]
-          
+          colX += colWidths[options.includeImages ? 3 : 2]
+
           // Estimate
           if (artwork.low_est && artwork.high_est) {
-            doc.text(`$${artwork.low_est.toLocaleString()}-${artwork.high_est.toLocaleString()}`, colX, tableY + 13)
+            doc.text(`$${artwork.low_est.toLocaleString()}-${artwork.high_est.toLocaleString()}`, colX, tableY + (rowHeight/2) + 2)
           }
-          colX += colWidths[3]
-          
+          colX += colWidths[options.includeImages ? 4 : 3]
+
           // Dimensions
           let dimension = ''
           if (artwork.height_inches && artwork.width_inches) {
@@ -359,13 +496,13 @@ export default function PDFCatalogGenerator({
             dimension = `${artwork.height_cm}cm × ${artwork.width_cm}cm`
           }
           if (dimension) {
-            const dimText = dimension.length > 12 ? dimension.substring(0, 12) + '...' : dimension
-            doc.text(dimText, colX, tableY + 13)
+            const dimText = dimension.length > (options.includeImages ? 10 : 12) ? dimension.substring(0, (options.includeImages ? 10 : 12)) + '...' : dimension
+            doc.text(dimText, colX, tableY + (rowHeight/2) + 2)
           }
-          
+
           tableY += rowHeight
         })
-        
+
       } else {
         // Card layout (existing code)
         let itemsOnCurrentPage = 0
@@ -400,14 +537,43 @@ export default function PDFCatalogGenerator({
           // Reset text color
           doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
 
-          // Image placeholder
-          if (options.includeImages && artwork.image_file_1) {
+          // Image handling
+          if (options.includeImages) {
             const imageWidth = options.layoutType === 'detailed' ? 40 : 30
             const imageHeight = options.layoutType === 'detailed' ? 35 : 25
-            drawBorder(margin + 5, cardY + 20, imageWidth, imageHeight)
-            doc.setFontSize(8)
-            doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
-            doc.text('IMAGE', margin + 5 + imageWidth/2, cardY + 20 + imageHeight/2, { align: 'center' })
+            const imageData = loadedImages.get(artwork.id)
+
+            if (imageData) {
+              try {
+                // Determine image format from base64 data
+                let format = 'JPEG'
+                if (imageData.includes('data:image/png')) {
+                  format = 'PNG'
+                } else if (imageData.includes('data:image/gif')) {
+                  format = 'GIF'
+                } else if (imageData.includes('data:image/webp')) {
+                  format = 'WEBP'
+                }
+
+                // Add actual image
+                doc.addImage(imageData, format, margin + 5, cardY + 20, imageWidth, imageHeight)
+                // Draw border around image
+                drawBorder(margin + 5, cardY + 20, imageWidth, imageHeight)
+              } catch (error) {
+                console.warn(`Failed to add card image for artwork ${artwork.id}:`, error)
+                // Fallback to placeholder if image fails to load
+                drawBorder(margin + 5, cardY + 20, imageWidth, imageHeight)
+                doc.setFontSize(8)
+                doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
+                doc.text('IMG', margin + 5 + imageWidth/2, cardY + 20 + imageHeight/2, { align: 'center' })
+              }
+            } else {
+              // No image available
+              drawBorder(margin + 5, cardY + 20, imageWidth, imageHeight)
+              doc.setFontSize(6)
+              doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
+              doc.text('No Image', margin + 5 + imageWidth/2, cardY + 20 + imageHeight/2, { align: 'center' })
+            }
           }
 
           // Content area
@@ -670,8 +836,22 @@ export default function PDFCatalogGenerator({
                         __html: artwork.previewText.replace(/<br\s*\/?>/gi, '<br>') 
                       }}
                     />
-                    {options.includeImages && artwork.image_file_1 && (
-                      <div className="mt-2 text-xs text-gray-500">[Image placeholder]</div>
+                    {options.includeImages && getBestImageUrl(artwork) && (
+                      <div className="mt-2">
+                        <img
+                          src={getBestImageUrl(artwork) || ''}
+                          alt={artwork.title || 'Artwork'}
+                          className="w-16 h-16 object-cover border border-gray-300 rounded"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            const parent = target.parentElement
+                            if (parent) {
+                              parent.innerHTML = '<div class="text-xs text-gray-500">[Image failed to load]</div>'
+                            }
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -688,38 +868,38 @@ export default function PDFCatalogGenerator({
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => generatePDF('preview')}
-              disabled={generating}
+              disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
             >
               <Eye className="h-4 w-4 mr-2" />
-              Preview PDF
+              {loadingImages ? 'Loading Images...' : 'Preview PDF'}
             </button>
-            
+
             <button
               onClick={() => generatePDF('download')}
-              disabled={generating}
+              disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
             >
               <Download className="h-4 w-4 mr-2" />
-              {generating ? 'Generating...' : 'Download PDF'}
+              {loadingImages ? 'Loading Images...' : generating ? 'Generating...' : 'Download PDF'}
             </button>
 
             <button
               onClick={() => generatePDF('share')}
-              disabled={generating}
+              disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               <Share2 className="h-4 w-4 mr-2" />
-              Share PDF
+              {loadingImages ? 'Loading Images...' : 'Share PDF'}
             </button>
 
             <button
               onClick={() => generatePDF('print')}
-              disabled={generating}
+              disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >
               <Printer className="h-4 w-4 mr-2" />
-              Print PDF
+              {loadingImages ? 'Loading Images...' : 'Print PDF'}
             </button>
           </div>
         </div>

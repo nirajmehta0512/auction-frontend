@@ -86,16 +86,21 @@ export default function SearchableSelect<T = string | number>({
     if (enableDynamicSearch) {
       searchTimeoutRef.current = setTimeout(() => {
         handleDynamicSearch(newQuery)
+        // Also trigger onChange callback for real-time filtering
+        if (onChange && newQuery.trim()) {
+          onChange(newQuery.trim() as T)
+        }
       }, 300) // 300ms debounce
     }
-  }, [enableDynamicSearch, handleDynamicSearch])
+  }, [enableDynamicSearch, handleDynamicSearch, onChange])
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
         setOpen(false)
-        setQuery('')
+        // Keep current query and dynamic options when closing dropdown
+        // Don't clear the search term - user might want to continue searching
         setDynamicOptions([])
       }
     }

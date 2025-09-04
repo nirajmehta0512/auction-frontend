@@ -233,7 +233,7 @@ export default function ItemsTable({
                         {item.title}
                       </div>
                       <div className="text-gray-500 text-xs truncate">
-                        {item.brand_name ? item.brand_name : 'not assigned yet'}
+                        {item.brands?.name || item.brand_name || 'not assigned yet'}
                       </div>
                       {(item.artist_id || item.school_id) && (
                         <div className="text-gray-500 text-xs truncate">
