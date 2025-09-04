@@ -281,7 +281,7 @@ export default function AuctionsTable({
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <button
                     onClick={() => handleView(auction.id)}
-                    className="text-teal-600 hover:text-teal-700 font-medium hover:underline"
+                    className="text-teal-600 hover:text-teal-700 font-medium hover:underline transition-colors cursor-pointer"
                   >
                     {auction.number}
                   </button>
@@ -292,7 +292,7 @@ export default function AuctionsTable({
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => handleView(auction.id)}
-                    className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline text-left"
+                    className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline transition-colors cursor-pointer text-left"
                   >
                     <div className="flex flex-col">
                       <span>{auction.long_name}</span>
@@ -318,7 +318,7 @@ export default function AuctionsTable({
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-teal-600 font-medium cursor-pointer hover:text-teal-700">
+                  <span className="text-sm text-teal-600 font-medium cursor-pointer hover:text-teal-700 hover:underline transition-colors">
                     {auction.lots}
                   </span>
                 </td>

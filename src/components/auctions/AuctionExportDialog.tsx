@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Download, Search, Globe, AlertCircle, CheckCircle, Filter, FileText, Image as ImageIcon, Package } from 'lucide-react'
 import { getAuctions, exportAuctionToPlatform, exportAuctionImagesToPlatform } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import type { Auction } from '@/lib/auctions-api'
 
@@ -14,6 +15,19 @@ interface AuctionExportDialogProps {
 }
 
 type Platform = 'database' | 'liveauctioneers' | 'easylive' | 'thesaleroom' | 'invaluable'
+
+interface Artwork {
+  id: number
+  lot_num: string
+  title: string
+  description: string
+  artist_maker: string
+  image_file_1?: string
+  image_file_2?: string
+  image_file_3?: string
+  status: string
+  auction_name?: string
+}
 
 interface PlatformConfig {
   label: string
@@ -68,7 +82,7 @@ export default function AuctionExportDialog({
   selectedAuctions = [],
   brand = 'MSABER'
 }: AuctionExportDialogProps) {
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform>('database')
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['database'])
   const [loading, setLoading] = useState(false)
   const [exportProgress, setExportProgress] = useState('')
   const [error, setError] = useState('')
@@ -85,20 +99,51 @@ export default function AuctionExportDialog({
   const [showAuctionList, setShowAuctionList] = useState(true)
   const [auctionsLoading, setAuctionsLoading] = useState(true)
 
+  // Artwork selection state
+  const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [selectedArtworkIds, setSelectedArtworkIds] = useState<number[]>([])
+  const [artworksLoading, setArtworksLoading] = useState(false)
+  const [showArtworkList, setShowArtworkList] = useState(false)
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Get brand ID from brand code
+  const getBrandId = (brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const response = await getBrands()
+        if (response.success) {
+          setBrands(response.data)
+        }
+      } catch (err: any) {
+        console.error('Error loading brands:', err)
+      }
+    }
+    loadBrands()
+  }, [])
+
   // Load auctions on component mount
   useEffect(() => {
-    loadAuctions()
-  }, [brand])
+    if (brands.length > 0) {
+      loadAuctions()
+    }
+  }, [brand, brands.length])
 
   const loadAuctions = async () => {
     try {
       setAuctionsLoading(true)
+      const brandId = getBrandId(brand)
       const response = await getAuctions({
         page: 1,
         limit: 100,
         sort_field: 'created_at',
         sort_direction: 'desc',
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
       setAuctions(response.auctions)
     } catch (err) {
@@ -106,6 +151,54 @@ export default function AuctionExportDialog({
       setError('Failed to load auctions')
     } finally {
       setAuctionsLoading(false)
+    }
+  }
+
+  const loadArtworksFromSelectedAuctions = async () => {
+    if (selectedAuctionIds.length === 0) {
+      setArtworks([])
+      return
+    }
+
+    try {
+      setArtworksLoading(true)
+      const allArtworks: Artwork[] = []
+
+      // Load artworks from each selected auction
+      for (const auctionId of selectedAuctionIds) {
+        try {
+          const response = await fetch(`/api/auctions/${auctionId}/artworks`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.artworks && Array.isArray(data.artworks)) {
+              // Add lot numbers based on position in auction
+              const artworksWithLotNumbers = data.artworks.map((artwork: any, index: number) => ({
+                ...artwork,
+                lot_num: (index + 1).toString(),
+                auction_name: data.auction.short_name || data.auction.long_name
+              }))
+              allArtworks.push(...artworksWithLotNumbers)
+            }
+          }
+        } catch (err) {
+          console.error(`Error loading artworks for auction ${auctionId}:`, err)
+        }
+      }
+
+      setArtworks(allArtworks)
+      // Auto-select all artworks by default
+      setSelectedArtworkIds(allArtworks.map(artwork => artwork.id))
+    } catch (err) {
+      console.error('Error loading artworks:', err)
+      setError('Failed to load artworks')
+    } finally {
+      setArtworksLoading(false)
     }
   }
 
@@ -133,6 +226,52 @@ export default function AuctionExportDialog({
     setSelectedAuctionIds([])
   }
 
+  // Platform selection functions
+  const togglePlatformSelection = (platform: Platform) => {
+    setSelectedPlatforms(prev =>
+      prev.includes(platform)
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    )
+  }
+
+  const selectAllPlatforms = () => {
+    setSelectedPlatforms(Object.keys(platformConfigs) as Platform[])
+  }
+
+  const clearPlatformSelection = () => {
+    setSelectedPlatforms([])
+  }
+
+  // Artwork selection functions
+  const toggleArtworkSelection = (artworkId: number) => {
+    setSelectedArtworkIds(prev =>
+      prev.includes(artworkId)
+        ? prev.filter(id => id !== artworkId)
+        : [...prev, artworkId]
+    )
+  }
+
+  const selectAllArtworks = () => {
+    setSelectedArtworkIds(artworks.map(artwork => artwork.id))
+  }
+
+  const clearArtworkSelection = () => {
+    setSelectedArtworkIds([])
+  }
+
+  // Effect to load artworks when auction selection changes
+  useEffect(() => {
+    if (selectedAuctionIds.length > 0) {
+      loadArtworksFromSelectedAuctions()
+      setShowArtworkList(true)
+    } else {
+      setArtworks([])
+      setSelectedArtworkIds([])
+      setShowArtworkList(false)
+    }
+  }, [selectedAuctionIds])
+
   const handleExport = async () => {
     try {
       setLoading(true)
@@ -145,72 +284,72 @@ export default function AuctionExportDialog({
         return
       }
 
+      if (selectedPlatforms.length === 0) {
+        setError('Please select at least one platform to export to')
+        return
+      }
+
+      if (selectedArtworkIds.length === 0) {
+        setError('Please select at least one artwork to export')
+        return
+      }
+
       if (!exportCSV && !exportImages) {
         setError('Please select at least one export option (CSV or Images)')
         return
       }
 
-      // Get selected auctions to extract their artwork_ids
-      const selectedAuctions = auctions.filter(auction => selectedAuctionIds.includes(auction.id))
+      console.log(`Exporting ${selectedArtworkIds.length} artworks to ${selectedPlatforms.length} platforms`)
+      let totalExports = 0
+      let completedExports = 0
 
-      // Collect all artwork_ids from selected auctions
-      let artworkIds: string[] = []
-      selectedAuctions.forEach(auction => {
-        if (auction.artwork_ids && Array.isArray(auction.artwork_ids)) {
-          artworkIds.push(...auction.artwork_ids.map(id => id.toString()))
-        }
-      })
+      // Calculate total exports needed
+      if (exportCSV) totalExports += selectedPlatforms.length
+      if (exportImages) totalExports += selectedPlatforms.length * selectedAuctionIds.length
 
-      // Remove duplicates
-      artworkIds = [...new Set(artworkIds)]
-
-      if (artworkIds.length === 0) {
-        setError('No artworks found in the selected auction(s)')
-        return
-      }
-
-      console.log(`Exporting ${artworkIds.length} artworks from ${selectedAuctionIds.length} auction(s)`)
-      let exportCount = 0
-      const totalExports = (exportCSV ? 1 : 0) + (exportImages ? selectedAuctionIds.length : 0)
-
-      // Export CSV if selected
+      // Export CSV for each selected platform
       if (exportCSV) {
-        setExportProgress(`Generating CSV file for ${artworkIds.length} artworks...`)
-        try {
-          await exportAuctionToPlatform(selectedAuctionIds[0].toString(), selectedPlatform as any)
-          exportCount++
-          setExportProgress(`CSV exported successfully (${artworkIds.length} artworks, ${exportCount}/${totalExports})`)
-        } catch (csvError) {
-          console.error('CSV export error:', csvError)
-          const errorMessage = csvError instanceof Error ? csvError.message : 'Unknown error'
-          setError(`CSV export failed: ${errorMessage}`)
-          return
-        }
-      }
-
-      // Export images for each auction if selected
-      if (exportImages) {
-        for (let i = 0; i < selectedAuctionIds.length; i++) {
-          const auctionId = selectedAuctionIds[i]
-          const auction = selectedAuctions.find(a => a.id === auctionId)
-          const auctionArtworkIds = auction?.artwork_ids || []
-
-          setExportProgress(`Processing ${auctionArtworkIds.length} lots for "${auction?.short_name || `Auction ${auctionId}`}" (${i + 1}/${selectedAuctionIds.length})...`)
-
+        for (const platform of selectedPlatforms) {
+          setExportProgress(`Generating CSV file for ${selectedArtworkIds.length} artworks to ${platformConfigs[platform].label}...`)
           try {
-            await exportAuctionImagesToPlatform(auctionId.toString(), selectedPlatform as any)
-            exportCount++
-            setExportProgress(`Images exported for "${auction?.short_name || `Auction ${auctionId}`}" (${auctionArtworkIds.length} lots processed, ${exportCount}/${totalExports})`)
-          } catch (imageError) {
-            console.error('Image export error:', imageError)
-            const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error'
-            setError(`Image export failed for "${auction?.short_name || `Auction ${auctionId}`}": ${errorMessage}`)
+            await exportAuctionToPlatform(selectedAuctionIds[0].toString(), platform as any)
+            completedExports++
+            setExportProgress(`CSV exported to ${platformConfigs[platform].label} (${selectedArtworkIds.length} artworks, ${completedExports}/${totalExports})`)
+          } catch (csvError) {
+            console.error(`CSV export error for ${platform}:`, csvError)
+            const errorMessage = csvError instanceof Error ? csvError.message : 'Unknown error'
+            setError(`CSV export failed for ${platformConfigs[platform].label}: ${errorMessage}`)
             return
           }
         }
       }
 
-      setSuccess(`Successfully exported ${artworkIds.length} artworks from ${selectedAuctionIds.length} auction(s) for ${platformConfigs[selectedPlatform].label}`)
+      // Export images for each auction and platform combination
+      if (exportImages) {
+        for (const auctionId of selectedAuctionIds) {
+          const auction = auctions.find(a => a.id === auctionId)
+          const auctionArtworks = artworks.filter(artwork => artwork.auction_name === (auction?.short_name || auction?.long_name))
+          const selectedAuctionArtworks = auctionArtworks.filter(artwork => selectedArtworkIds.includes(artwork.id))
+
+          for (const platform of selectedPlatforms) {
+            setExportProgress(`Processing ${selectedAuctionArtworks.length} lots for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label}...`)
+
+            try {
+              await exportAuctionImagesToPlatform(auctionId.toString(), platform as any)
+              completedExports++
+              setExportProgress(`Images exported for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label} (${selectedAuctionArtworks.length} lots processed, ${completedExports}/${totalExports})`)
+            } catch (imageError) {
+              console.error(`Image export error for ${platform}:`, imageError)
+              const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error'
+              setError(`Image export failed for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label}: ${errorMessage}`)
+              return
+            }
+          }
+        }
+      }
+
+      const platformNames = selectedPlatforms.map(p => platformConfigs[p].label).join(', ')
+      setSuccess(`Successfully exported ${selectedArtworkIds.length} artworks from ${selectedAuctionIds.length} auction(s) to ${platformNames}`)
 
       setTimeout(() => {
         onClose()
@@ -225,7 +364,9 @@ export default function AuctionExportDialog({
     }
   }
 
-  const config = platformConfigs[selectedPlatform]
+  // Get the first selected platform for display purposes
+  const firstSelectedPlatform = selectedPlatforms.length > 0 ? selectedPlatforms[0] : 'database'
+  const config = platformConfigs[firstSelectedPlatform]
 
   return (
     <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -249,11 +390,14 @@ export default function AuctionExportDialog({
 
         <div className="mb-4">
           <p className="text-sm text-gray-600 mb-2">
-            Select auctions and export their artworks to a specific platform format.
+            Select auctions, choose specific artworks, and export to multiple platforms simultaneously.
           </p>
-          <p className="text-xs text-gray-500">
-            Brand: {brand}
-          </p>
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>Brand: {brand}</p>
+            <p>• Select multiple auctions to combine their artworks</p>
+            <p>• Choose specific artworks from selected auctions</p>
+            <p>• Export to multiple platforms at once</p>
+          </div>
         </div>
       </div>
 
@@ -344,6 +488,83 @@ export default function AuctionExportDialog({
           </div>
         )}
 
+        {/* Artwork Selection */}
+        {showArtworkList && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Select Artworks ({artworks.length} available):
+              </label>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={selectAllArtworks}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                  disabled={artworksLoading}
+                >
+                  Select All
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={clearArtworkSelection}
+                  className="text-xs text-gray-600 hover:text-gray-700"
+                  disabled={artworksLoading}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
+              {artworksLoading ? (
+                <div className="p-4 text-center">
+                  <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <span className="text-sm text-gray-600">Loading artworks...</span>
+                </div>
+              ) : artworks.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  No artworks found in selected auctions
+                </div>
+              ) : (
+                artworks.map((artwork) => (
+                  <div
+                    key={artwork.id}
+                    className={`p-3 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 ${
+                      selectedArtworkIds.includes(artwork.id) ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
+                    onClick={() => toggleArtworkSelection(artwork.id)}
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedArtworkIds.includes(artwork.id)}
+                        onChange={() => toggleArtworkSelection(artwork.id)}
+                        className="mr-3"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          Lot {artwork.lot_num}: {artwork.title}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {artwork.auction_name} • {artwork.artist_maker} • ID: {artwork.id}
+                        </div>
+                      </div>
+                      {artwork.image_file_1 && (
+                        <ImageIcon className="h-4 w-4 text-green-600 ml-2" />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {selectedArtworkIds.length > 0 && (
+              <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-800">
+                {selectedArtworkIds.length} artwork(s) selected
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Export Options */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -383,21 +604,44 @@ export default function AuctionExportDialog({
 
         {/* Platform Selection */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Select Export Platform:
-          </label>
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Select Export Platforms:
+            </label>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={selectAllPlatforms}
+                className="text-xs text-blue-600 hover:text-blue-700"
+              >
+                Select All
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={clearPlatformSelection}
+                className="text-xs text-gray-600 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {Object.entries(platformConfigs).map(([platform, config]) => (
               <div
                 key={platform}
                 className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                  selectedPlatform === platform
+                  selectedPlatforms.includes(platform as Platform)
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => setSelectedPlatform(platform as Platform)}
+                onClick={() => togglePlatformSelection(platform as Platform)}
               >
                 <div className="flex items-center space-x-2 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedPlatforms.includes(platform as Platform)}
+                    onChange={() => togglePlatformSelection(platform as Platform)}
+                    className="mr-2"
+                  />
                   <Globe className="h-4 w-4 text-blue-600" />
                   <span className="font-medium text-sm">{config.label}</span>
                 </div>
@@ -405,22 +649,41 @@ export default function AuctionExportDialog({
               </div>
             ))}
           </div>
+          {selectedPlatforms.length > 0 && (
+            <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+              {selectedPlatforms.length} platform(s) selected: {selectedPlatforms.map(p => platformConfigs[p].label).join(', ')}
+            </div>
+          )}
         </div>
 
         {/* Platform Details */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium text-sm mb-2">Export Details for {config.label}:</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div>
-              <p className="font-medium text-gray-700 mb-1">CSV Headers:</p>
-              <p className="text-gray-600">{config.csvHeaders.slice(0, 5).join(', ')}...</p>
-            </div>
-            <div>
-              <p className="font-medium text-gray-700 mb-1">Required Fields:</p>
-              <p className="text-gray-600">{config.requiredFields.join(', ')}</p>
+        {selectedPlatforms.length > 0 && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">
+              Export Details for Selected Platforms ({selectedPlatforms.length}):
+            </h4>
+            <div className="space-y-3">
+              {selectedPlatforms.map(platform => {
+                const platformConfig = platformConfigs[platform]
+                return (
+                  <div key={platform} className="border-b border-gray-200 pb-3 last:border-b-0 last:pb-0">
+                    <h5 className="font-medium text-sm text-blue-700 mb-1">{platformConfig.label}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <p className="font-medium text-gray-700 mb-1">CSV Headers:</p>
+                        <p className="text-gray-600">{platformConfig.csvHeaders.slice(0, 5).join(', ')}...</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-700 mb-1">Required Fields:</p>
+                        <p className="text-gray-600">{platformConfig.requiredFields.join(', ')}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Progress Indicator */}
         {loading && exportProgress && (
@@ -459,7 +722,7 @@ export default function AuctionExportDialog({
         </button>
         <button
           onClick={handleExport}
-          disabled={loading || selectedAuctionIds.length === 0 || (!exportCSV && !exportImages)}
+          disabled={loading || selectedAuctionIds.length === 0 || selectedPlatforms.length === 0 || selectedArtworkIds.length === 0 || (!exportCSV && !exportImages)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
         >
           {loading ? (
@@ -470,7 +733,7 @@ export default function AuctionExportDialog({
           ) : (
             <>
               <Download className="h-4 w-4 mr-2" />
-              Export {exportCSV && 'CSV'} {exportCSV && exportImages && '+ '}{exportImages && 'Images'} to {config.label}
+              Export {exportCSV && 'CSV'} {exportCSV && exportImages && '+ '}{exportImages && 'Images'} to {selectedPlatforms.length} Platform{selectedPlatforms.length > 1 ? 's' : ''}
             </>
           )}
         </button>

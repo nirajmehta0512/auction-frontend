@@ -42,8 +42,12 @@ export interface Auction {
   time_zone?: string;
   platform?: string;
   upload_status?: string;
-  brand_code?: string;
   brand_id?: number;
+  brand?: {
+    id: number;
+    code: string;
+    name: string;
+  };
   total_estimate_low?: number;
   total_estimate_high?: number;
   total_sold_value?: number;
@@ -62,7 +66,7 @@ export interface AuctionFilters {
   limit?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  brand_code?: string;
+  brand_id?: number;
 }
 
 export interface AuctionResponse {
@@ -144,11 +148,13 @@ export interface AuctionStatusCountsResponse {
   counts: AuctionStatusCounts;
 }
 
-export async function getAuctionStatusCounts(brandCode?: string): Promise<AuctionStatusCountsResponse> {
+export async function getAuctionStatusCounts(brandId?: number): Promise<AuctionStatusCountsResponse> {
   const token = getAuthToken();
 
   const params = new URLSearchParams();
-  // Brand code parameter ignored for now
+  if (brandId) {
+    params.append('brand_id', brandId.toString());
+  }
 
   const response = await fetch(`${API_BASE_URL}/auctions/counts/status?${params}`, {
     headers: {
@@ -364,7 +370,7 @@ export interface EOAImportResponse {
 // Get invoices for an auction
 export async function getAuctionInvoices(
   auctionId: string,
-  options: { page?: number; limit?: number; brand_code?: string; type?: 'buyer' | 'vendor' } = {}
+  options: { page?: number; limit?: number; brand_id?: number; type?: 'buyer' | 'vendor' } = {}
 ): Promise<InvoicesResponse> {
   const token = getAuthToken();
 
@@ -433,7 +439,7 @@ export async function exportEOACsv(auctionId: string): Promise<Blob> {
 export async function generateInvoicePdf(
   invoiceId: number,
   type: 'internal' | 'final',
-  brandCode?: string
+  brandId?: number
 ): Promise<Blob> {
   const token = getAuthToken();
 
@@ -445,7 +451,7 @@ export async function generateInvoicePdf(
     },
     body: JSON.stringify({
       type,
-      brand_code: brandCode
+      brand_id: brandId
     })
   });
 

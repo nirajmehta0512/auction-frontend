@@ -24,10 +24,6 @@ export interface Client {
   secondary_email?: string;
   secondary_phone_number?: string;
   instagram_url?: string;
-  // Deprecated flags removed in favor of client_type
-  // is_vendor?: boolean;
-  // is_buyer?: boolean;
-  // is_supplier?: boolean; // Third-party suppliers not related to auctions
   client_type?: 'buyer' | 'vendor' | 'supplier' | 'buyer_vendor'; // Combined field for easier filtering
   default_vat_scheme?: string;
   default_ldl?: string;
@@ -143,10 +139,11 @@ export interface CSVUploadResponse {
 // Utility function to format client display (MSA-XXX format)
 export const formatClientDisplay = (client: Client): string => {
   // Compute dynamically from brand code (brand_code or brand) + id
+  console.log('🔍 Client:', client.brand_code, client.brand, client.brand_id);
   const rawBrand = client.brand_code || client.brand || '';
   const prefix = rawBrand.trim().length > 0
     ? rawBrand.trim().toUpperCase().slice(0, 3)
-    : 'MSA';
+    : '';
   return client.id ? `${prefix}-${client.id.toString().padStart(3, '0')}` : 'Unknown';
 };
 

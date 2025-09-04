@@ -11,6 +11,7 @@ import { getAuctions, Auction } from '@/lib/auctions-api'
 import { fetchClients, Client, getClientDisplayName, formatClientDisplay } from '@/lib/clients-api'
 import { getConsignments, type Consignment } from '@/lib/consignments-api'
 import { GalleriesAPI, Gallery } from '@/lib/galleries-api'
+import { getBrands, Brand } from '@/lib/brands-api'
 import { useBrand } from '@/lib/brand-context'
 import ImageUploadField from './ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
@@ -88,6 +89,9 @@ interface FormData {
   restoration_done: boolean
   restoration_by: string
 
+  // Brand field
+  brand_id: string
+
   // Image fields
   image_file_1: string
   image_file_2: string
@@ -148,6 +152,7 @@ const initialFormData: FormData = {
   artist_family_certification: false,
   restoration_done: false,
   restoration_by: '',
+  brand_id: '',
   image_file_1: '',
   image_file_2: '',
   image_file_3: '',
@@ -232,11 +237,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const [clients, setClients] = useState<Client[]>([])
   const [consignments, setConsignments] = useState<Consignment[]>([])
   const [galleries, setGalleries] = useState<Gallery[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
   const [loadingArtistsSchools, setLoadingArtistsSchools] = useState(false)
   const [loadingAuctions, setLoadingAuctions] = useState(false)
+
+  // Get brand ID from brand code
+  const getBrandId = (brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }
   const [loadingClients, setLoadingClients] = useState(false)
   const [loadingConsignments, setLoadingConsignments] = useState(false)
   const [loadingGalleries, setLoadingGalleries] = useState(false)
+  const [loadingBrands, setLoadingBrands] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
 
   // Load artists, schools, auctions, clients and consignments data
@@ -248,12 +261,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         setLoadingClients(true)
         setLoadingConsignments(true)
         setLoadingGalleries(true)
+        setLoadingBrands(true)
 
-        const [artistsResponse, schoolsResponse, auctionsResponse, clientsResponse, consignmentsResponse, galleriesResponse] = await Promise.all([
+        const [artistsResponse, schoolsResponse, auctionsResponse, clientsResponse, consignmentsResponse, galleriesResponse, brandsResponse] = await Promise.all([
           ArtistsAPI.getArtists({ status: 'active', limit: 1000 }),
           SchoolsAPI.getSchools({ status: 'active', limit: 1000 }),
           getAuctions({
-            brand_code: (brand as 'MSABER' | 'AURUM' | 'METSAB') || 'MSABER',
+            brand_id: getBrandId(brand) || getBrandId('MSABER'),
             limit: 1000,
             sort_field: 'created_at',
             sort_direction: 'desc'
@@ -270,7 +284,8 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           GalleriesAPI.getGalleries({
             status: 'active',
             limit: 1000
-          })
+          }),
+          getBrands()
         ])
 
         if (artistsResponse.success) {
@@ -291,6 +306,9 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         if (galleriesResponse.success) {
           setGalleries(galleriesResponse.data)
         }
+        if (brandsResponse.success) {
+          setBrands(brandsResponse.data)
+        }
       } catch (err) {
         console.error('Failed to load data:', err)
       } finally {
@@ -299,6 +317,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         setLoadingClients(false)
         setLoadingConsignments(false)
         setLoadingGalleries(false)
+        setLoadingBrands(false)
       }
     }
 
@@ -576,6 +595,17 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       }))
   }
 
+  // Helper function to create brand options for SearchableSelect
+  const createBrandOptions = (): SearchableOption[] => {
+    return brands
+      .filter(brand => brand.id) // Ensure id exists
+      .map(brand => ({
+        value: brand.id!.toString(),
+        label: brand.name,
+        description: `${brand.code} - ${brand.contact_email || 'No email'}`
+      }))
+  }
+
   // Load item data if editing or handle AI data
   useEffect(() => {
     if (mode === 'edit' && itemId) {
@@ -617,14 +647,32 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
 
   const populateFormData = (data: Partial<Artwork>) => {
+    // Auto-generate start_price and reserve if low_est exists but they're missing
+    let startPrice = data.start_price?.toString() || ''
+    let reservePrice = data.reserve?.toString() || ''
+
+    if (data.low_est && !data.start_price) {
+      const lowEst = data.low_est
+      startPrice = generateStartPrice(lowEst).toString()
+    }
+
+    if ((data.low_est || data.start_price) && !data.reserve) {
+      if (data.start_price) {
+        reservePrice = data.start_price.toString()
+      } else if (data.low_est) {
+        const startPriceNum = generateStartPrice(data.low_est)
+        reservePrice = startPriceNum.toString()
+      }
+    }
+
     setFormData({
       title: data.title || '',
       description: data.description || '',
       low_est: data.low_est?.toString() || '',
       high_est: data.high_est?.toString() || '',
-      start_price: data.start_price?.toString() || '',
+      start_price: startPrice,
       condition: data.condition || '',
-      reserve: data.reserve?.toString() || '',
+      reserve: reservePrice,
       vendor_id: (data as any).vendor_id?.toString() || '',
       buyer_id: (data as any).buyer_id?.toString() || '',
       consignment_id: data.consignment_id?.toString() || '',
@@ -664,6 +712,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       artist_family_certification: (data as any).artist_family_certification || false,
       restoration_done: (data as any).restoration_done || false,
       restoration_by: (data as any).restoration_by || '',
+      brand_id: (data as any).brand_id?.toString() || '',
       image_file_1: data.image_file_1 || '',
       image_file_2: data.image_file_2 || '',
       image_file_3: data.image_file_3 || '',
@@ -729,6 +778,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       artist_family_certification: aiData.artist_family_certification || false,
       restoration_done: aiData.restoration_done || false,
       restoration_by: aiData.restoration_by || '',
+      brand_id: aiData.brand_id || '',
       image_file_1: '',
       image_file_2: '',
       image_file_3: '',
@@ -786,11 +836,25 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     })
 
     // Auto-calculate start price when low_est changes
-    if (field === 'low_est' && typeof value === 'string' && value && !formData.start_price) {
+    if (field === 'low_est' && typeof value === 'string' && value) {
       const lowEst = parseFloat(value)
       if (!isNaN(lowEst)) {
         const startPrice = generateStartPrice(lowEst)
-        setFormData(prev => ({ ...prev, start_price: startPrice.toString() }))
+        const reservePrice = startPrice // Reserve = start price
+        setFormData(prev => ({
+          ...prev,
+          start_price: startPrice.toString(),
+          reserve: reservePrice.toString()
+        }))
+      }
+    }
+
+    // Auto-calculate reserve price when start_price changes
+    if (field === 'start_price' && typeof value === 'string' && value) {
+      const startPrice = parseFloat(value)
+      if (!isNaN(startPrice)) {
+        const reservePrice = startPrice // Reserve = start price
+        setFormData(prev => ({ ...prev, reserve: reservePrice.toString() }))
       }
     }
 
@@ -993,6 +1057,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       period_age: formData.period_age || undefined,
       provenance: formData.provenance || undefined,
       consignment_id: formData.consignment_id ? parseInt(formData.consignment_id) : undefined,
+      brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
       image_file_1: formData.image_file_1 || undefined,
       image_file_2: formData.image_file_2 || undefined,
       image_file_3: formData.image_file_3 || undefined,
@@ -1172,6 +1237,26 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-blue-900 mb-4">Client & Consignment Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand
+                    </label>
+                    <SearchableSelect
+                      value={formData.brand_id}
+                      options={brands.length > 0 ? createBrandOptions() : []}
+                      placeholder={loadingBrands ? "Loading brands..." : "Select brand..."}
+                      onChange={(value) => handleInputChange('brand_id', value?.toString() || '')}
+                      disabled={loadingBrands || brands.length === 0}
+                      inputPlaceholder="Search brands..."
+                    />
+                    {loadingBrands && (
+                      <p className="text-xs text-gray-500 mt-1">Loading brands...</p>
+                    )}
+                    {!loadingBrands && createBrandOptions().length === 0 && (
+                      <p className="text-xs text-orange-500 mt-1">No brands found. Please create brands first.</p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Consignment (Optional)

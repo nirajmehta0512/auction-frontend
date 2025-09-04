@@ -240,11 +240,14 @@ export default function ItemsTable({
                   <td className="px-6 py-4 text-sm text-gray-900">
                     <div className="max-w-xs">
                       <div
-                        className="font-medium truncate cursor-pointer hover:text-blue-600 hover:underline"
+                        className="font-medium truncate cursor-pointer hover:text-blue-600 hover:underline transition-colors"
                         onClick={() => handlePreview(item.id!)}
                         title="Click to preview"
                       >
                         {item.title}
+                      </div>
+                      <div className="text-gray-500 text-xs truncate">
+                        {item.brand_name ? item.brand_name : 'not assigned yet'}
                       </div>
                       {(item.artist_id || item.school_id) && (
                         <div className="text-gray-500 text-xs truncate">

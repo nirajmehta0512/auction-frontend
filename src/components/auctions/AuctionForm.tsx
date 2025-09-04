@@ -184,7 +184,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     estimates_visibility: string;
     time_zone: string;
     platform: string;
-    brand_code: string;
+    brand_id?: number;
     upload_status: string;
   }>({
     type: auction?.type || 'sealed_bid',
@@ -208,7 +208,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     estimates_visibility: auction?.estimates_visibility || 'use_global',
     time_zone: auction?.time_zone || 'UTC',
     platform: auction?.platform || 'liveauctioneers',
-    brand_code: auction?.brand_code || 'MSABER',
+    brand_id: auction?.brand_id || auction?.brand?.id,
     upload_status: auction?.upload_status || 'not_uploaded'
   })
 
@@ -539,13 +539,14 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="brand_code">Brand</Label>
+                  <Label htmlFor="brand_id">Brand</Label>
                   <Select
-                    value={formData.brand_code}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand_code: value }))}
+                    value={formData.brand_id?.toString() || ''}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, brand_id: value ? parseInt(value) : undefined }))}
                   >
+                    <SelectItem value="">No brand selected</SelectItem>
                     {brands.map((brand) => (
-                      <SelectItem key={brand.id} value={brand.code}>
+                      <SelectItem key={brand.id} value={brand.id.toString()}>
                         {brand.name}
                       </SelectItem>
                     ))}

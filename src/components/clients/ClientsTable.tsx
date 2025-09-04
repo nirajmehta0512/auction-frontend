@@ -442,7 +442,7 @@ export default function ClientsTable({
                       {/* Name / Company */}
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div className="flex flex-col">
-                          <Link href={`/clients/${client.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">
+                          <Link href={`/clients/${client.id}`} className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition-colors cursor-pointer">
                             {getClientFullName(client)}
                           </Link>
                           {client.company_name && (

@@ -3,8 +3,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload, FileText } from 'lucide-react'
+import {
+  ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload,
+  FileText, Package, Edit
+} from 'lucide-react'
 import { getAuctions } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
@@ -30,13 +34,20 @@ export default function AuctionViewPage() {
   const params = useParams()
   const { brand } = useBrand()
   const auctionId = params.id as string
-  
+
   const [auction, setAuction] = useState<Auction | null>(null)
   const [artworks, setArtworks] = useState<AuctionArtwork[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Get brand ID from brand code
+  const getBrandId = useCallback((brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }, [brands])
 
   const loadAuctionDetails = useCallback(async () => {
     try {
@@ -44,10 +55,11 @@ export default function AuctionViewPage() {
       setError(null)
 
       // Load auction details
+      const brandId = getBrandId(brand)
       const auctionsResponse = await getAuctions({
         page: 1,
         limit: 100, // Get all auctions to find the one we want
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
 
       const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
@@ -60,35 +72,27 @@ export default function AuctionViewPage() {
       setAuction(foundAuction)
 
       // Load artworks for this auction using the auction's artwork_ids array
-      console.log('Loading artworks for auction ID:', auctionId)
-
       if (foundAuction.artwork_ids && Array.isArray(foundAuction.artwork_ids) && foundAuction.artwork_ids.length > 0) {
-        console.log('Found artwork IDs in auction:', foundAuction.artwork_ids)
-
         const artworksResponse = await ArtworksAPI.getArtworks({
-          item_ids: foundAuction.artwork_ids.map(id => id.toString()), // Use the artwork_ids from auction
+          item_ids: foundAuction.artwork_ids.map(id => id.toString()),
           page: 1,
           limit: 1000,
-          status: 'all', // Include all statuses
+          status: 'all',
           brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' || 'MSABER'
         })
 
-        console.log('Auction artworks response:', artworksResponse)
         if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
-          // Filter artworks with valid IDs and convert to the expected type
           const auctionArtworks = artworksResponse.data
-            .filter(artwork => artwork.id) // Filter out items without IDs
+            .filter(artwork => artwork.id)
             .map(artwork => ({
               ...artwork,
-              id: artwork.id! // Assert that id exists since we filtered for it
+              id: artwork.id!
             }))
           setArtworks(auctionArtworks)
         } else {
-          console.warn('No artworks found or invalid response format:', artworksResponse)
           setArtworks([])
         }
       } else {
-        console.log('No artwork_ids found in auction:', foundAuction)
         setArtworks([])
       }
 
@@ -98,13 +102,28 @@ export default function AuctionViewPage() {
     } finally {
       setLoading(false)
     }
-  }, [auctionId, brand])
+  }, [auctionId, brand, getBrandId])
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const response = await getBrands()
+        if (response.success) {
+          setBrands(response.data)
+        }
+      } catch (err: any) {
+        console.error('Error loading brands:', err)
+      }
+    }
+    loadBrands()
+  }, [])
 
   useEffect(() => {
-    if (auctionId) {
+    if (auctionId && brands.length > 0) {
       loadAuctionDetails()
     }
-  }, [auctionId, brand, loadAuctionDetails])
+  }, [auctionId, loadAuctionDetails, brands.length])
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set'
@@ -125,7 +144,6 @@ export default function AuctionViewPage() {
     }).format(amount)
   }
 
-  // Dynamic status calculation based on dates
   const getDynamicStatusLabel = (auction: Auction) => {
     const today = new Date()
     const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
@@ -159,9 +177,13 @@ export default function AuctionViewPage() {
   }
 
   const handleGenerateInvoice = () => {
-    // Navigate to auction invoice view page
     router.push(`/auctions/${auctionId}/invoices`)
   }
+
+  // const handleViewLiveAuction = () => {
+  //   const liveAuctionUrl = `https://liveauctioneers.com/catalog/${auctionId}`
+  //   window.open(liveAuctionUrl, '_blank')
+  // }
 
   if (loading) {
     return (
@@ -191,47 +213,89 @@ export default function AuctionViewPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      {/* Header with Compact Actions */}
+      <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/auctions')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{auction.long_name || auction.short_name}</h1>
-                <p className="text-gray-600">{auction.short_name}</p>
+          <div className="py-6">
+            {/* Title Section */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => router.push('/auctions')}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">{auction.long_name || auction.short_name}</h1>
+                  <p className="text-gray-600 mt-1">{auction.short_name}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium shadow-sm ${getDynamicStatusColor(auction)}`}>
+                  <div className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse"></div>
+                  {getDynamicStatusLabel(auction)}
+                </span>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDynamicStatusColor(auction)}`}>
-                {getDynamicStatusLabel(auction)}
-              </span>
-              <button
-                onClick={handleImportEOA}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
+
+            {/* Compact Actions Bar */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">Quick Actions:</span>
+              </div>
+
+              {/* Primary Actions */}
+              {/* <button
+                onClick={handleViewLiveAuction}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Import EOA
-              </button>
+                <Eye className="h-4 w-4 mr-2" />
+                View Live
+              </button> */}
+
               <button
-                onClick={handleGenerateInvoice}
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center"
+                onClick={() => router.push(`/auctions/edit/${auctionId}`)}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
               >
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Invoice
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Auction
               </button>
+
               <button
-                onClick={() => setShowExportDialog(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+                onClick={() => router.push('/items')}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm border border-gray-300"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export Auction
+                <Package className="h-4 w-4 mr-2" />
+                Manage Items
               </button>
+
+              {/* Secondary Actions */}
+              <div className="border-l border-gray-300 pl-3 ml-2 flex items-center space-x-2">
+                <button
+                  onClick={handleImportEOA}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Import EOA
+                </button>
+
+                <button
+                  onClick={handleGenerateInvoice}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Invoice
+                </button>
+
+                <button
+                  onClick={() => setShowExportDialog(true)}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Export
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -239,193 +303,307 @@ export default function AuctionViewPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Auction Details */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Basic Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold mb-4">Auction Information</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Start Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.catalogue_launch_date || auction.settlement_date)}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <Clock className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">End Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.settlement_date)}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Preview Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.shipping_date || auction.catalogue_launch_date)}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <Trophy className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Settlement Date</p>
-                    <p className="text-sm text-gray-600">{formatDate(auction.settlement_date)}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {auction.description && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Description</h3>
-                  <p className="text-sm text-gray-600">{auction.description}</p>
-                </div>
-              )}
-            </div>
+        <div className="space-y-8">
 
-            {/* Auction Artworks */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Featured Artworks</h2>
-                <span className="text-sm text-gray-600">
-                  Showing first 2 items
-                </span>
+          {/* Auction Information and Quick Stats - Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            {/* Auction Information */}
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="bg-white border-b border-gray-100 px-6 py-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Auction Information</h2>
+                    <p className="text-sm text-gray-500">Event details and timeline</p>
+                  </div>
+                </div>
               </div>
-              
-              {artworks.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">No artworks assigned to this auction yet.</p>
-              ) : (
+
+              {/* Content */}
+              <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {artworks.map((artwork) => (
-                    <div key={artwork.id} className="border border-gray-200 rounded-lg p-4">
-                      {/* Artwork Image */}
-                      <div className="aspect-square bg-gray-100 rounded-lg mb-4 overflow-hidden">
-                        {artwork.image_file_1 ? (
-                          <img
-                            src={artwork.image_file_1}
-                            alt={artwork.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <Trophy className="h-12 w-12" />
-                          </div>
-                        )}
+                  {/* Catalogue Launch */}
+                  <div className="group hover:bg-white hover:shadow-sm rounded-lg p-4 transition-all duration-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                        <Calendar className="h-6 w-6 text-green-600" />
                       </div>
-                      
-                      {/* Artwork Details */}
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between">
-                          <h3 className="font-medium text-gray-900 text-sm">{artwork.title}</h3>
-                          <span className="text-xs text-gray-500">Lot {artwork.lot_num}</span>
-                        </div>
-                        
-                        {artwork.artist_maker && (
-                          <p className="text-sm text-gray-600">{artwork.artist_maker}</p>
-                        )}
-                        
-                        {(artwork.low_est || artwork.high_est) && (
-                          <p className="text-sm font-medium text-gray-900">
-                            Est: {formatCurrency(artwork.low_est)} - {formatCurrency(artwork.high_est)}
-                          </p>
-                        )}
-                        
-                        {artwork.dimensions && (
-                          <p className="text-xs text-gray-500">{artwork.dimensions}</p>
-                        )}
-                        
-                        {artwork.condition && (
-                          <p className="text-xs text-gray-500">Condition: {artwork.condition}</p>
-                        )}
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Catalogue Launch</h3>
+                        <p className="text-gray-600 text-sm mb-2">When bidding opens</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {formatDate(auction.catalogue_launch_date || auction.settlement_date)}
+                        </p>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Settlement Date */}
+                  <div className="group hover:bg-white hover:shadow-sm rounded-lg p-4 transition-all duration-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center group-hover:bg-red-200 transition-colors">
+                        <Clock className="h-6 w-6 text-red-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Settlement Date</h3>
+                        <p className="text-gray-600 text-sm mb-2">Final bidding deadline</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {formatDate(auction.settlement_date)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview Date */}
+                  <div className="group hover:bg-white hover:shadow-sm rounded-lg p-4 transition-all duration-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                        <MapPin className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Preview Date</h3>
+                        <p className="text-gray-600 text-sm mb-2">Physical viewing starts</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {formatDate(auction.shipping_date || auction.catalogue_launch_date)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auction Type */}
+                  <div className="group hover:bg-white hover:shadow-sm rounded-lg p-4 transition-all duration-200">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                        <Trophy className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Auction Type</h3>
+                        <p className="text-gray-600 text-sm mb-2">Category of sale</p>
+                        <p className="text-lg font-medium text-gray-900 capitalize">
+                          {auction.type}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Description */}
+                {auction.description && (
+                  <div className="mt-8 p-4 bg-white rounded-lg border border-gray-100">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <FileText className="h-4 w-4 mr-2 text-gray-500" />
+                      Description
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed">{auction.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg overflow-hidden">
+              {/* Header */}
+              <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <Trophy className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Quick Stats</h3>
+                    <p className="text-sm text-slate-300">Auction overview</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="p-6 space-y-4">
+                {/* Status Badge */}
+                <div className="mb-4">
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium shadow-sm ${getDynamicStatusColor(auction)}`}>
+                    <div className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse"></div>
+                    {getDynamicStatusLabel(auction)} Auction
+                  </span>
+                </div>
+
+                {/* Total Lots */}
+                <div className="bg-slate-800/50 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                        <Package className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <span className="text-slate-300 font-medium">Total Lots</span>
+                    </div>
+                    <span className="text-2xl font-bold text-white">
+                      {auction.artwork_ids?.length || 0}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Available Items */}
+                <div className="bg-slate-800/50 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        {/* <Eye className="h-4 w-4 text-blue-400" /> */}
+                        <Package className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <span className="text-slate-300 font-medium">Available Items</span>
+                    </div>
+                    <span className="text-2xl font-bold text-white">
+                      {artworks.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Catalog Coverage */}
+                <div className="bg-slate-800/50 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <Trophy className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <span className="text-slate-300 font-medium">Catalog Coverage</span>
+                    </div>
+                    <span className="text-2xl font-bold text-white">
+                      {auction.artwork_ids?.length ? Math.round((artworks.length / auction.artwork_ids.length) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Publication Status */}
+                <div className="bg-slate-800/50 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-orange-400" />
+                    </div>
+                    <span className="text-slate-300 font-medium">Publication Status</span>
+                  </div>
+                  <div className="ml-11">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${getDynamicStatusLabel(auction) === 'Present' ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                      <span className="text-white font-semibold">
+                        {getDynamicStatusLabel(auction) === 'Present' ? 'Live & Published' : 'Not Published'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {getDynamicStatusLabel(auction) === 'Present'
+                        ? 'Catalog is live and accepting bids'
+                        : 'Catalog will be published soon'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Type</span>
-                  <span className="text-sm font-medium text-gray-900 capitalize">
-                    {auction.type}
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Lots</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {auction.artwork_ids?.length || 0}
-                  </span>
-                </div>
-                
-
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Published</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {getDynamicStatusLabel(auction) === 'Present' ? 'Yes' : 'No'}
-                  </span>
-                </div>
+          {/* Featured Artworks - Full Width */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Featured Artworks</h2>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  {artworks.length} items in catalog
+                </span>
+                {/* <button
+                  onClick={handleViewLiveAuction}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  View All on LiveAuctioneers
+                </button> */}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Actions</h3>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={() => router.push(`/auctions/edit/${auctionId}`)}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Edit Auction
-                </button>
-                
-                <button
-                  onClick={handleImportEOA}
-                  className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Import EOA
-                </button>
-                
-                <button
-                  onClick={handleGenerateInvoice}
-                  className="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  Generate Invoice
-                </button>
-                
-                <button
-                  onClick={() => setShowExportDialog(true)}
-                  className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Export to Platform
-                </button>
-                
-                <button
-                  onClick={() => router.push('/items')}
-                  className="w-full border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Manage Artworks
-                </button>
+            {artworks.length === 0 ? (
+              <div className="text-center py-12">
+                <Trophy className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">No artworks assigned to this auction yet.</p>
+                <p className="text-gray-500 text-sm mt-2">Items will appear here once they're added to the catalog.</p>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+                {artworks.map((artwork) => (
+                  <div key={artwork.id} className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-gray-300">
+                    {/* Artwork Image */}
+                    <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                      {artwork.image_file_1 ? (
+                        <img
+                          src={artwork.image_file_1}
+                          alt={artwork.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
+                          <Trophy className="h-16 w-16" />
+                        </div>
+                      )}
+
+                      {/* Lot Number Badge */}
+                      <div className="absolute top-3 left-3 bg-black bg-opacity-75 text-white px-2 py-1 rounded-md text-xs font-medium">
+                        Lot {artwork.lot_num}
+                      </div>
+
+                      {/* Live Auction Link Overlay - Commented out for now */}
+                      {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center">
+                        <button
+                          onClick={() => window.open(`https://liveauctioneers.com/lot/${artwork.id}`, '_blank')}
+                          className="opacity-0 group-hover:opacity-100 bg-white text-gray-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all duration-200 flex items-center space-x-1 shadow-lg"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>View Live</span>
+                        </button>
+                      </div> */}
+                    </div>
+
+                    {/* Artwork Details */}
+                    <div className="p-4">
+                      <div className="space-y-3">
+                        {/* Title */}
+                        <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
+                          {artwork.title}
+                        </h3>
+
+                        {/* Artist */}
+                        {artwork.artist_maker && (
+                          <p className="text-sm text-gray-600 font-medium">
+                            {artwork.artist_maker}
+                          </p>
+                        )}
+
+                        {/* Estimates */}
+                        {(artwork.low_est || artwork.high_est) && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-medium">Estimate</p>
+                            <p className="text-sm font-bold text-gray-900">
+                              {formatCurrency(artwork.low_est)} - {formatCurrency(artwork.high_est)}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Additional Details */}
+                        <div className="space-y-1">
+                          {artwork.dimensions && (
+                            <p className="text-xs text-gray-500">
+                              {artwork.dimensions}
+                            </p>
+                          )}
+                          {artwork.condition && (
+                            <p className="text-xs text-gray-500">
+                              Condition: {artwork.condition}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -448,7 +626,6 @@ export default function AuctionViewPage() {
           onClose={() => setShowEOADialog(false)}
           onImportComplete={(importedCount) => {
             console.log(`Imported ${importedCount} EOA records`)
-            // Optionally show success message or refresh data
           }}
         />
       )}

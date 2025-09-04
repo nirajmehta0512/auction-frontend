@@ -377,77 +377,84 @@ export default function ConsignmentsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Page Header */}
-      <div className="bg-slate-700 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Consignments</h1>
+      <div className="bg-slate-700 px-3 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+        <h1 className="text-lg sm:text-2xl font-semibold text-white">Consignments</h1>
         <button 
           onClick={() => router.push('/consignments/new')}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm"
         >
           <Plus className="h-4 w-4" />
-          <span>Add New Consignment</span>
+          <span className="hidden sm:inline">Add New Consignment</span>
+          <span className="sm:hidden">Add Consignment</span>
         </button>
       </div>
 
       {/* Table Actions */}
-      <div className="bg-white px-6 py-3 border-b border-gray-200 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-md text-sm transition-colors"
-          >
-            🔍 {showFilters ? 'Hide filters' : 'Show filters'}
-          </button>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 text-sm"
-          >
-            <Download className="h-4 w-4" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={() => setShowCSVUpload(true)}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 text-sm"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Import CSV</span>
-          </button>
-          <button
-            onClick={() => setShowGoogleSheetsSync(true)}
-            className="flex items-center space-x-2 text-green-600 hover:text-green-700 text-sm"
-          >
-            <Share2 className="h-4 w-4" />
-            <span>Google Sheets</span>
-          </button>
-          
-          {/* PDF Generation Button */}
-          <button
-            onClick={handleGenerateReportPDF}
-            disabled={selectedConsignments.length === 0}
-            className={`flex items-center space-x-2 text-sm ${
-              selectedConsignments.length === 0 
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'text-blue-600 hover:text-blue-700'
-            }`}
-          >
-            <FileText className="h-4 w-4" />
-            <span>Generate PDF ({selectedConsignments.length})</span>
-            {userIsSuperAdmin && (
-              <span className="ml-1 px-1 py-0.5 bg-purple-100 text-purple-600 text-xs rounded">
-                Pro
-              </span>
-            )}
-          </button>
+      <div className="bg-white px-3 sm:px-6 py-3 border-b border-gray-200">
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm transition-colors"
+            >
+              🔍 {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+            >
+              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
+            </button>
+            <button
+              onClick={() => setShowCSVUpload(true)}
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+            >
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Import CSV</span>
+              <span className="sm:hidden">Import</span>
+            </button>
+            <button
+              onClick={() => setShowGoogleSheetsSync(true)}
+              className="flex items-center space-x-1 sm:space-x-2 text-green-600 hover:text-green-700 text-xs sm:text-sm"
+            >
+              <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Google Sheets</span>
+              <span className="sm:hidden">Sheets</span>
+            </button>
+            
+            {/* PDF Generation Button */}
+            <button
+              onClick={handleGenerateReportPDF}
+              disabled={selectedConsignments.length === 0}
+              className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${
+                selectedConsignments.length === 0 
+                  ? 'text-gray-400 cursor-not-allowed' 
+                  : 'text-blue-600 hover:text-blue-700'
+              }`}
+            >
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Generate PDF ({selectedConsignments.length})</span>
+              <span className="sm:hidden">PDF ({selectedConsignments.length})</span>
+              {userIsSuperAdmin && (
+                <span className="ml-1 px-1 py-0.5 bg-purple-100 text-purple-600 text-xs rounded">
+                  Pro
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white px-6 py-4 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+        <div className="bg-white px-3 sm:px-6 py-4 border-b border-gray-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
+            <div className="sm:col-span-2 lg:col-span-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Search</label>
               <SearchableSelect
                 value={searchQuery}
                 options={consignmentSuggestions}
@@ -458,11 +465,11 @@ export default function ConsignmentsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e)=> setStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -473,18 +480,18 @@ export default function ConsignmentsPage() {
               </select>
             </div>
             <div className="flex gap-2">
-              <button onClick={applyFilters} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm">Apply</button>
-              <button onClick={clearFilters} className="px-4 py-2 border border-gray-300 rounded-md text-sm">Clear</button>
+              <button onClick={applyFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-xs sm:text-sm">Apply</button>
+              <button onClick={clearFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 rounded-md text-xs sm:text-sm">Clear</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Consignments Table Container with proper spacing */}
-      <div className="flex-1 bg-white m-6 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="flex-1 bg-white mx-3 sm:mx-6 my-4 sm:my-6 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading consignments...</div>
+            <div className="text-gray-500 text-sm">Loading consignments...</div>
           </div>
         ) : (
           <div className="h-full flex flex-col">
@@ -503,15 +510,15 @@ export default function ConsignmentsPage() {
             </div>
             
             {/* Pagination */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
+            <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4 bg-gray-50">
+              <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs sm:text-sm text-gray-600">
                   {`( Items: ${consignments.length} )`}
                 </span>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                   * Times are shown in UTC timezone.
                 </div>
-                <select className="border border-gray-300 rounded text-sm px-2 py-1">
+                <select className="border border-gray-300 rounded text-xs sm:text-sm px-2 py-1 w-fit self-center sm:self-auto">
                   <option>25</option>
                   <option>50</option>
                   <option>100</option>

@@ -81,6 +81,7 @@ export interface Artwork {
 
   // Brand field (for multi-tenant support)
   brand_id?: number;
+  brand_name?: string;
 }
 
 export interface ArtworksResponse {
@@ -118,7 +119,8 @@ interface GetArtworksParams {
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
   brand_code?: string;
-  item_ids?: string[];
+  item_ids?: string | string[];
+  item_id?: string;
 }
 
 // Helper function to get auth token
@@ -153,10 +155,17 @@ export class ArtworksAPI {
     console.log('🔍 ITEMS API: getArtworks called with params:', params);
     console.log('🔍 ITEMS API: API_BASE_URL:', API_BASE_URL);
     // Brand code filtering ignored for now
-    
+
     const queryParams = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
+
+    // Convert item_id to item_ids for backend compatibility
+    const processedParams = { ...params };
+    if (processedParams.item_id && !processedParams.item_ids) {
+      processedParams.item_ids = processedParams.item_id;
+      delete processedParams.item_id;
+    }
+
+    Object.entries(processedParams).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         queryParams.append(key, value.toString());
       }

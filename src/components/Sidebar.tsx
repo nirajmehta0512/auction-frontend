@@ -30,7 +30,8 @@ import {
   Building2,
   Receipt,
   X,
-  ChevronRight
+  ChevronRight,
+  Globe
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { hasAdminAccess } from '@/lib/auth-utils'
@@ -59,6 +60,16 @@ const navigationItems: NavItem[] = [
   { name: 'School of Art', href: '/schools', icon: GraduationCap },
   { name: 'Inventory', href: '/items', icon: Layers },
   { name: 'Auctions', href: '/auctions', icon: Gavel },
+  {
+    name: 'Website',
+    href: '/website',
+    icon: Globe,
+    subItems: [
+      { name: 'Metsab', href: '/website/metsab' },
+      { name: 'Aurum', href: '/website/aurum' }
+    ]
+  },
+  { name: 'Social Media', href: '/social-media', icon: MessageSquare },
   { name: 'Accountancy', isCategory: true },
   { name: 'Auction Invoicing', href: '/invoices', icon: FileText },
   { name: 'Banking', href: '/banking', icon: Building2 },
@@ -146,13 +157,14 @@ export default function Sidebar() {
     if (pathname.startsWith('/reports')) expanded.push('Reports')
     if (pathname.startsWith('/reimbursements')) expanded.push('Reimbursements')
     if (pathname.startsWith('/settings')) expanded.push('Settings')
+    if (pathname.startsWith('/website')) expanded.push('Website')
     setExpandedMenus(expanded)
   }, [pathname])
 
   // Auto-navigate to first submenu item when parent is clicked
   useEffect(() => {
     const currentItem = navigationItems.find(item =>
-      (item.name === 'Reports' || item.name === 'Valuations' || item.name === 'Reimbursements') &&
+      (item.name === 'Reports' || item.name === 'Valuations' || item.name === 'Reimbursements' || item.name === 'Website') &&
       pathname === item.href
     )
     if (currentItem && currentItem.subItems) {

@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Plus, FileText } from 'lucide-react'
 import { useBrand } from '@/lib/brand-context'
 import { getAuctions, getAuctionInvoices, type Auction, type Invoice } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
 import InvoiceTable from '@/components/invoices/InvoiceTable'
 
@@ -23,13 +24,21 @@ export default function AuctionInvoicesPage() {
   const [vendorLoading, setVendorLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showEOADialog, setShowEOADialog] = useState(false)
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Get brand ID from brand code
+  const getBrandId = useCallback((brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }, [brands])
 
   const loadBuyerInvoices = useCallback(async () => {
     try {
       setBuyerLoading(true)
+      const brandId = getBrandId(brand)
       const response = await getAuctionInvoices(auctionId, {
         type: 'buyer',
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
 
       if (response.success) {
@@ -40,14 +49,15 @@ export default function AuctionInvoicesPage() {
     } finally {
       setBuyerLoading(false)
     }
-  }, [auctionId, brand])
+  }, [auctionId, brand, getBrandId])
 
   const loadVendorInvoices = useCallback(async () => {
     try {
       setVendorLoading(true)
+      const brandId = getBrandId(brand)
       const response = await getAuctionInvoices(auctionId, {
         type: 'vendor',
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
 
       if (response.success) {
@@ -58,7 +68,18 @@ export default function AuctionInvoicesPage() {
     } finally {
       setVendorLoading(false)
     }
-  }, [auctionId, brand])
+  }, [auctionId, brand, getBrandId])
+
+  const loadBrands = useCallback(async () => {
+    try {
+      const response = await getBrands()
+      if (response.success) {
+        setBrands(response.data)
+      }
+    } catch (err: any) {
+      console.error('Error loading brands:', err)
+    }
+  }, [])
 
   const loadAuctionAndInvoices = useCallback(async () => {
     try {
@@ -66,10 +87,11 @@ export default function AuctionInvoicesPage() {
       setError(null)
 
       // Load auction details
+      const brandId = getBrandId(brand)
       const auctionsResponse = await getAuctions({
         page: 1,
         limit: 100,
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
 
       const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
@@ -91,13 +113,18 @@ export default function AuctionInvoicesPage() {
     } finally {
       setLoading(false)
     }
-  }, [auctionId, brand, loadBuyerInvoices, loadVendorInvoices])
+  }, [auctionId, brand, loadBuyerInvoices, loadVendorInvoices, getBrandId])
+
+  // Load brands on component mount
+  useEffect(() => {
+    loadBrands()
+  }, [loadBrands])
 
   useEffect(() => {
-    if (auctionId) {
+    if (auctionId && brands.length > 0) {
       loadAuctionAndInvoices()
     }
-  }, [auctionId, brand, loadAuctionAndInvoices])
+  }, [auctionId, loadAuctionAndInvoices, brands.length])
 
   const handleRefreshBuyer = () => {
     loadBuyerInvoices()

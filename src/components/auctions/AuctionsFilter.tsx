@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { getAuctions } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import { useBrand } from '@/lib/brand-context'
 
 interface FilterState {
@@ -62,12 +63,36 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const [specialists, setSpecialists] = useState<Array<{ id: string, name: string }>>([])
   const [auctionSuggestions, setAuctionSuggestions] = useState<AuctionSuggestion[]>([])
   const [loadingAuctions, setLoadingAuctions] = useState(false)
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Get brand ID from brand code
+  const getBrandId = (brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }
 
   useEffect(() => {
     // Load specialists/users and auction suggestions
     loadSpecialists()
-    loadAuctionSuggestions()
-  }, [brand])
+    loadBrands()
+  }, [])
+
+  useEffect(() => {
+    if (brands.length > 0) {
+      loadAuctionSuggestions()
+    }
+  }, [brand, brands, getBrandId])
+
+  const loadBrands = async () => {
+    try {
+      const response = await getBrands()
+      if (response.success) {
+        setBrands(response.data)
+      }
+    } catch (error) {
+      console.error('Error loading brands:', error)
+    }
+  }
 
   const loadSpecialists = async () => {
     try {
@@ -96,11 +121,12 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const loadAuctionSuggestions = async () => {
     try {
       setLoadingAuctions(true)
+      const brandId = getBrandId(brand)
       const response = await getAuctions({
         limit: 100,
         sort_field: 'created_at',
         sort_direction: 'desc',
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
 
       // Create suggestions from real auctions

@@ -7,6 +7,7 @@ import CSVUpload from '@/components/auctions/CSVUpload'
 import { Plus, Download, Upload, RefreshCw } from 'lucide-react'
 
 import { getAuctions, exportAuctionsCSV, deleteAuction, getAuctionStatusCounts } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import { useBrand } from '@/lib/brand-context'
 import type { Auction } from '@/lib/auctions-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
@@ -56,7 +57,14 @@ export default function AuctionsPage() {
   const [showGoogleSheetsSync, setShowGoogleSheetsSync] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
   const [selectedAuctionForEOA, setSelectedAuctionForEOA] = useState<number | null>(null)
-  
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Get brand ID from brand code
+  const getBrandId = (brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }
+
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
@@ -82,12 +90,13 @@ export default function AuctionsPage() {
         setError(null)
 
         // Prepare backend filters - let backend handle all filtering and sorting
+        const brandId = getBrandId(brand)
         const backendFilters: any = {
           page: pagination.page,
           limit: pagination.limit,
           sort_field: sortField,
           sort_direction: sortDirection,
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+          brand_id: brandId
         }
 
         // Apply filters to backend request
@@ -144,7 +153,8 @@ export default function AuctionsPage() {
         
         // Calculate status counts using dedicated endpoint
         try {
-          const countsResponse = await getAuctionStatusCounts(brand || undefined);
+          const brandId = getBrandId(brand)
+          const countsResponse = await getAuctionStatusCounts(brandId);
           if (countsResponse.success) {
             setStatusCounts(countsResponse.counts);
           }
@@ -164,6 +174,21 @@ export default function AuctionsPage() {
 
     loadAuctions()
   }, [brand, filters, sortField, sortDirection, pagination.page, pagination.limit])
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const response = await getBrands()
+        if (response.success) {
+          setBrands(response.data)
+        }
+      } catch (err: any) {
+        console.error('Error loading brands:', err)
+      }
+    }
+    loadBrands()
+  }, [])
 
   // Handle sort changes
   const handleSort = (field: string, direction: 'asc' | 'desc') => {
@@ -283,12 +308,13 @@ export default function AuctionsPage() {
       await deleteAuction(String(auctionId))
       
       // Refresh auctions list
+      const brandId = getBrandId(brand)
       const response = await getAuctions({
         page: 1,
         limit: 25,
         sort_field: 'id',
         sort_direction: 'asc',
-        brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+        brand_id: brandId
       })
       
       const convertedAuctions = response.auctions.map(convertAuctionFormat)
@@ -314,14 +340,15 @@ export default function AuctionsPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Page Header */}
-      <div className="bg-slate-700 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Auctions</h1>
+      <div className="bg-slate-700 px-3 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+        <h1 className="text-lg sm:text-2xl font-semibold text-white">Auctions</h1>
         <button 
           onClick={() => router.push('/auctions/new')}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm"
         >
           <Plus className="h-4 w-4" />
-          <span>Add New Auction</span>
+          <span className="hidden sm:inline">Add New Auction</span>
+          <span className="sm:hidden">Add Auction</span>
         </button>
       </div>
 
@@ -333,50 +360,55 @@ export default function AuctionsPage() {
       />
 
       {/* Table Actions */}
-      <div className="bg-white px-6 py-3 border-b border-gray-200 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="bg-white px-3 sm:px-6 py-3 border-b border-gray-200">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <button
             onClick={handleExportCSV}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
           >
-            <Download className="h-4 w-4" />
-            <span>Export CSV</span>
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <button
             onClick={() => setShowExportDialog(true)}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-blue-600 hover:text-blue-700 text-xs sm:text-sm"
           >
-            <Download className="h-4 w-4" />
-            <span>Export to Platforms</span>
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Export to Platforms</span>
+            <span className="sm:hidden">Platforms</span>
           </button>
           <button
             onClick={() => setShowCSVUpload(true)}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-700 text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
           >
-            <Upload className="h-4 w-4" />
-            <span>Import CSV</span>
+            <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Import CSV</span>
+            <span className="sm:hidden">Import</span>
           </button>
           <button
             onClick={() => setShowGoogleSheetsSync(true)}
-            className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-700 text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-indigo-600 hover:text-indigo-700 text-xs sm:text-sm"
           >
-            <RefreshCw className="h-4 w-4" />
-            <span>Sync Sheets</span>
+            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Sync Sheets</span>
+            <span className="sm:hidden">Sheets</span>
           </button>
 
-          <button className="text-gray-600 hover:text-gray-700 text-sm">
-            Show/Hide
+          <button className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm">
+            <span className="hidden sm:inline">Show/Hide</span>
+            <span className="sm:hidden">View</span>
           </button>
         </div>
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">{error}</p>
+        <div className="mx-3 sm:mx-6 mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 text-sm">{error}</p>
           <button 
             onClick={() => setError(null)}
-            className="mt-2 text-red-600 hover:text-red-800 underline text-sm"
+            className="mt-2 text-red-600 hover:text-red-800 underline text-xs sm:text-sm"
           >
             Dismiss
           </button>
@@ -408,62 +440,64 @@ export default function AuctionsPage() {
       </div>
 
       {/* Footer with Status Indicators and Pagination */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
           {/* Status Indicators */}
-          <div className="flex items-center space-x-6 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded-full"></div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6 text-xs sm:text-sm">
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-100 border border-blue-300 rounded-full"></div>
               <span className="text-gray-600">Future ({statusCounts.future})</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></div>
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-100 border border-green-300 rounded-full"></div>
               <span className="text-gray-600">Present ({statusCounts.present})</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-100 border border-red-300 rounded-full"></div>
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-100 border border-red-300 rounded-full"></div>
               <span className="text-gray-600">Past ({statusCounts.past})</span>
             </div>
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">
+          <div className="flex flex-col space-y-2 sm:space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:space-x-4">
+            <span className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
               Items: {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)} - {Math.min(pagination.page * pagination.limit, pagination.total)} from {pagination.total}
             </span>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
               * Times are shown in UTC timezone.
             </div>
-            <select 
-              value={pagination.limit}
-              onChange={(e) => setPagination(prev => ({ ...prev, limit: parseInt(e.target.value), page: 1 }))}
-              className="border border-gray-300 rounded text-sm px-2 py-1"
-            >
-              <option value={12}>12</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            {pagination.pages > 1 && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                  disabled={pagination.page === 1}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-600">
-                  Page {pagination.page} of {pagination.pages}
-                </span>
-                <button
-                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                  disabled={pagination.page >= pagination.pages}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+              <select 
+                value={pagination.limit}
+                onChange={(e) => setPagination(prev => ({ ...prev, limit: parseInt(e.target.value), page: 1 }))}
+                className="border border-gray-300 rounded text-xs sm:text-sm px-2 py-1 w-fit"
+              >
+                <option value={12}>12</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              {pagination.pages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1}
+                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs sm:text-sm text-gray-600 px-2">
+                    Page {pagination.page} of {pagination.pages}
+                  </span>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                    disabled={pagination.page >= pagination.pages}
+                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -500,12 +534,13 @@ export default function AuctionsPage() {
               // Reload auctions after sync
               const loadAuctions = async () => {
                 try {
+                  const brandId = getBrandId(brand)
                   const response = await getAuctions({
                     page: 1,
                     limit: 25,
                     sort_field: 'id',
                     sort_direction: 'asc',
-                    brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
+                    brand_id: brandId
                   })
                   const convertedAuctions = response.auctions.map(convertAuctionFormat)
                   setAuctions(convertedAuctions)

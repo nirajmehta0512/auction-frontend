@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { FileText, Import, Plus, Download } from 'lucide-react'
 import { getAuctions, getAuctionInvoices, exportEOACsv, type Auction, type Invoice } from '@/lib/auctions-api'
+import { getBrands, type Brand } from '@/lib/brands-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useBrand } from '@/lib/brand-context'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
@@ -40,11 +41,29 @@ export default function InvoicesPage() {
   const [vendorInvoices, setVendorInvoices] = useState<Invoice[]>([])
   const [buyerLoading, setBuyerLoading] = useState(false)
   const [vendorLoading, setVendorLoading] = useState(false)
+  const [brands, setBrands] = useState<Brand[]>([])
+
+  // Load brands on component mount
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const response = await getBrands()
+        if (response.success) {
+          setBrands(response.data)
+        }
+      } catch (err: any) {
+        console.error('Error loading brands:', err)
+      }
+    }
+    loadBrands()
+  }, [])
 
   // Load auctions on component mount
   useEffect(() => {
-    loadAuctions()
-  }, [brand])
+    if (brands.length > 0) {
+      loadAuctions()
+    }
+  }, [brand, brands.length])
 
   // Load invoices when auction is selected
   useEffect(() => {
@@ -57,13 +76,20 @@ export default function InvoicesPage() {
     }
   }, [state.selectedAuctionId, brand])
 
+  // Get brand ID from brand code
+  const getBrandId = (brandCode: string): number | undefined => {
+    const foundBrand = brands.find(b => b.code === brandCode)
+    return foundBrand?.id
+  }
+
   const loadAuctions = async () => {
     try {
       setState(prev => ({ ...prev, auctionsLoading: true }))
+      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
       const response = await getAuctions({
         page: 1,
         limit: 100,
-        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code
+        brand_id: brandId
       })
       setState(prev => ({
         ...prev,
@@ -79,10 +105,11 @@ export default function InvoicesPage() {
   const loadBuyerInvoices = async (auctionId: number, page: number = 1) => {
     try {
       setBuyerLoading(true)
+      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
       const response = await getAuctionInvoices(auctionId.toString(), {
         page,
         limit: 50,
-        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code,
+        brand_id: brandId,
         type: 'buyer'
       })
 
@@ -98,10 +125,11 @@ export default function InvoicesPage() {
   const loadVendorInvoices = async (auctionId: number, page: number = 1) => {
     try {
       setVendorLoading(true)
+      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
       const response = await getAuctionInvoices(auctionId.toString(), {
         page,
         limit: 50,
-        brand_code: typeof brand === 'string' ? brand : (brand as any)?.code,
+        brand_id: brandId,
         type: 'vendor'
       })
 

@@ -384,25 +384,26 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
   return (
     <div className="flex flex-col h-full">
       {/* Page Header */}
-      <div className="bg-slate-700 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Clients</h1>
+      <div className="bg-slate-700 px-3 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+        <h1 className="text-lg sm:text-2xl font-semibold text-white">Clients</h1>
         <Link
           href="/clients/new"
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md flex items-center space-x-2 transition-colors"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm"
         >
           <Plus className="h-4 w-4" />
-          <span>Add New Client</span>
+          <span className="hidden sm:inline">Add New Client</span>
+          <span className="sm:hidden">Add Client</span>
         </Link>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 p-4 mx-6 mt-4 rounded-md flex items-center space-x-2">
-          <AlertCircle className="h-5 w-5 text-red-500" />
-          <span className="text-red-700">{error}</span>
+        <div className="bg-red-50 border border-red-200 p-3 sm:p-4 mx-3 sm:mx-6 mt-4 rounded-md flex items-start sm:items-center space-x-2">
+          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+          <span className="text-red-700 text-sm flex-1">{error}</span>
           <button
             onClick={() => setError(null)}
-            className="ml-auto text-red-500 hover:text-red-700"
+            className="text-red-500 hover:text-red-700 text-lg flex-shrink-0"
           >
             ×
           </button>
@@ -422,55 +423,61 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
         )}
 
         {/* Table Actions */}
-        <div className="bg-white px-6 py-3 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center space-x-1"
-            >
-              <span>🔍 {showFilters ? 'Hide' : 'Show'} filter</span>
-            </button>
-
-            {selectedClients.length > 0 && (
+        <div className="bg-white px-3 sm:px-6 py-3 border-b border-gray-200">
+          <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <button
-                onClick={handleBulkDelete}
-                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                onClick={() => setShowFilters(!showFilters)}
+                className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center space-x-1"
               >
-                Delete Selected ({selectedClients.length})
+                <span>🔍 {showFilters ? 'Hide' : 'Show'} filter</span>
               </button>
-            )}
-          </div>
 
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowCSVUpload(true)}
-              className="text-teal-600 hover:text-teal-700 text-sm flex items-center space-x-1"
-            >
-              <Upload className="h-4 w-4" />
-              <span>CSV Import</span>
-            </button>
-            <button
-              onClick={handleExportCSV}
-              disabled={false} // No loading state for CSV export
-              className="text-gray-600 hover:text-gray-700 text-sm flex items-center space-x-1 disabled:opacity-50"
-            >
-              <Download className="h-4 w-4" />
-              <span>CSV Export</span>
-            </button>
-            <button
-              onClick={() => setShowGoogleSheetsSync(true)}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Google Sheets
-            </button>
-            <button
-              onClick={testConnectivity}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              title="Test backend connectivity"
-            >
-              🔧 Debug API
-            </button>
+              {selectedClients.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="text-red-600 hover:text-red-700 text-xs sm:text-sm font-medium"
+                >
+                  Delete Selected ({selectedClients.length})
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <button
+                onClick={() => setShowCSVUpload(true)}
+                className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm flex items-center space-x-1"
+              >
+                <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">CSV Import</span>
+                <span className="sm:hidden">Import</span>
+              </button>
+              <button
+                onClick={handleExportCSV}
+                disabled={false}
+                className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm flex items-center space-x-1 disabled:opacity-50"
+              >
+                <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">CSV Export</span>
+                <span className="sm:hidden">Export</span>
+              </button>
+              <button
+                onClick={() => setShowGoogleSheetsSync(true)}
+                className="flex items-center px-2 py-1 sm:px-4 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm"
+              >
+                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Google Sheets</span>
+                <span className="sm:hidden">Sheets</span>
+              </button>
+              <button
+                onClick={testConnectivity}
+                className="flex items-center px-2 py-1 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-xs sm:text-sm"
+                title="Test backend connectivity"
+              >
+                <span className="hidden sm:inline">🔧 Debug API</span>
+                <span className="sm:hidden">🔧</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -502,118 +509,69 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
         </div>
 
         {/* Footer with Status Indicators */}
-        <div className="bg-white border-t border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
             {/* Status Indicators */}
-            <div className="flex items-center space-x-6 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6 text-xs sm:text-sm">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
                 <span className="text-gray-600">Active ({activityCounts.active})</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
                 <span className="text-gray-600">Suspended ({activityCounts.suspended})</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
                 <span className="text-gray-600">Pending ({activityCounts.pending})</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 rounded-full"></div>
                 <span className="text-gray-600">Deleted ({activityCounts.deleted})</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full"></div>
                 <span className="text-gray-600">Archived ({activityCounts.archived})</span>
               </div>
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
+            <div className="flex flex-col space-y-2 sm:space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:space-x-4">
+              <div className="text-xs sm:text-sm text-gray-600">
                 Showing {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} clients
               </div>
               
               {pagination.pages > 1 && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={pagination.page === 1}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  
-                  <div className="flex items-center space-x-1">
-                    {/* Show page numbers */}
-                    {(() => {
-                      const pages = []
-                      const maxVisiblePages = 5
-                      const startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2))
-                      const endPage = Math.min(pagination.pages, startPage + maxVisiblePages - 1)
-                      
-                      if (startPage > 1) {
-                        pages.push(
-                          <button
-                            key={1}
-                            onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
-                            className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                          >
-                            1
-                          </button>
-                        )
-                        if (startPage > 2) {
-                          pages.push(<span key="ellipsis1" className="px-2 text-gray-500">...</span>)
-                        }
-                      }
-                      
-                      for (let i = startPage; i <= endPage; i++) {
-                        pages.push(
-                          <button
-                            key={i}
-                            onClick={() => setPagination(prev => ({ ...prev, page: i }))}
-                            className={`px-3 py-1 border rounded text-sm ${
-                              i === pagination.page 
-                                ? 'bg-blue-600 text-white border-blue-600' 
-                                : 'border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {i}
-                          </button>
-                        )
-                      }
-                      
-                      if (endPage < pagination.pages) {
-                        if (endPage < pagination.pages - 1) {
-                          pages.push(<span key="ellipsis2" className="px-2 text-gray-500">...</span>)
-                        }
-                        pages.push(
-                          <button
-                            key={pagination.pages}
-                            onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
-                            className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                          >
-                            {pagination.pages}
-                          </button>
-                        )
-                      }
-                      
-                      return pages
-                    })()}
+                <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:space-x-2">
+                  <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                      disabled={pagination.page === 1}
+                      className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {/* Show simplified page numbers on mobile */}
+                      <span className="text-xs sm:text-sm text-gray-600 px-2">
+                        Page {pagination.page} of {pagination.pages}
+                      </span>
+                    </div>
+                    
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                      disabled={pagination.page === pagination.pages}
+                      className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
                   </div>
-                  
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
-                    disabled={pagination.page === pagination.pages}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
                   
                   <select
                     value={pagination.limit}
                     onChange={(e) => setPagination(prev => ({ ...prev, limit: parseInt(e.target.value), page: 1 }))}
-                    className="border border-gray-300 rounded text-sm px-2 py-1"
+                    className="border border-gray-300 rounded text-xs sm:text-sm px-2 py-1 self-center"
                   >
                     <option value={10}>10 per page</option>
                     <option value={25}>25 per page</option>
@@ -623,7 +581,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                 </div>
               )}
               
-              <div className="text-sm text-gray-600">* Times are shown in UTC timezone.</div>
+              <div className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">* Times are shown in UTC timezone.</div>
             </div>
           </div>
         </div>

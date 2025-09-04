@@ -79,11 +79,10 @@ export default function EOAImportDialog({
       // Pre-fill brand based on auction data
       let selectedBrandFound = false
 
-      // Try to match by brand_code first (if available)
-      if (auctionData.brand_code && auctionData.brand_code.trim()) {
-        console.log('EOA Debug - Looking for brand_code:', auctionData.brand_code)
-        const brandCode = auctionData.brand_code.trim()
-        const brand = brands.find(b => b.code === brandCode)
+      // Try to match by brand_id first (if available)
+      if (auctionData.brand_id) {
+        console.log('EOA Debug - Looking for brand_id:', auctionData.brand_id)
+        const brand = brands.find(b => b.id === auctionData.brand_id)
         if (brand) {
           console.log('EOA Debug - Found brand by code:', brand)
           setSelectedBrand(brand.id.toString())

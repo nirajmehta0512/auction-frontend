@@ -12,6 +12,18 @@ interface FilterState {
   category: string
   search: string
   brand?: string
+  item_id?: string
+  low_est_min?: string
+  low_est_max?: string
+  high_est_min?: string
+  high_est_max?: string
+  start_price_min?: string
+  start_price_max?: string
+  condition?: string
+  period_age?: string
+  materials?: string
+  artist_id?: string
+  school_id?: string
 }
 
 interface ItemsFilterProps {
@@ -24,6 +36,14 @@ interface ItemsFilterProps {
     withdrawn: number
     passed: number
   }
+  filteredStatusCounts?: {
+    draft: number
+    active: number
+    sold: number
+    withdrawn: number
+    passed: number
+  }
+  totalItems?: number
 }
 
 const categories = [
@@ -41,6 +61,51 @@ const categories = [
   'Other'
 ]
 
+const conditions = [
+  'Excellent',
+  'Very Good',
+  'Good',
+  'Fair',
+  'Poor',
+  'As Found',
+  'Restored',
+  'Original Condition'
+]
+
+const periodAges = [
+  'Contemporary',
+  'Modern',
+  '20th Century',
+  '19th Century',
+  '18th Century',
+  '17th Century',
+  '16th Century',
+  'Medieval',
+  'Ancient',
+  'Prehistoric'
+]
+
+const materials = [
+  'Oil on canvas',
+  'Oil on panel',
+  'Acrylic',
+  'Watercolor',
+  'Pastel',
+  'Charcoal',
+  'Mixed media',
+  'Bronze',
+  'Marble',
+  'Wood',
+  'Ceramic',
+  'Porcelain',
+  'Silver',
+  'Gold',
+  'Crystal',
+  'Textile',
+  'Paper',
+  'Metal'
+]
+
 const statuses = [
   { value: 'all', label: 'All Items', color: 'bg-gray-100 text-gray-800' },
   { value: 'draft', label: 'Draft', color: 'bg-yellow-100 text-yellow-800' },
@@ -50,7 +115,7 @@ const statuses = [
   { value: 'passed', label: 'Passed', color: 'bg-gray-100 text-gray-800' }
 ]
 
-export default function ItemsFilter({ filters, onFilterChange, statusCounts }: ItemsFilterProps) {
+export default function ItemsFilter({ filters, onFilterChange, statusCounts, filteredStatusCounts, totalItems }: ItemsFilterProps) {
   const { brand } = useBrand()
   const [showFilters, setShowFilters] = useState(true)
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
@@ -142,11 +207,38 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
       status: 'all',
       category: '',
       search: '',
-      brand: ''
+      brand: '',
+      item_id: '',
+      low_est_min: '',
+      low_est_max: '',
+      high_est_min: '',
+      high_est_max: '',
+      start_price_min: '',
+      start_price_max: '',
+      condition: '',
+      period_age: '',
+      materials: '',
+      artist_id: '',
+      school_id: ''
     })
   }
 
-  const hasActiveFilters = filters.status !== 'all' || filters.category !== '' || filters.search !== '' || filters.brand !== ''
+  const hasActiveFilters = filters.status !== 'all' ||
+    filters.category !== '' ||
+    filters.search !== '' ||
+    filters.brand !== '' ||
+    filters.item_id !== '' ||
+    filters.low_est_min !== '' ||
+    filters.low_est_max !== '' ||
+    filters.high_est_min !== '' ||
+    filters.high_est_max !== '' ||
+    filters.start_price_min !== '' ||
+    filters.start_price_max !== '' ||
+    filters.condition !== '' ||
+    filters.period_age !== '' ||
+    filters.materials !== '' ||
+    filters.artist_id !== '' ||
+    filters.school_id !== ''
 
   // When filters are hidden, show only the toggle button
   if (!showFilters) {
@@ -182,14 +274,16 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium text-gray-700">Filter by Status</h4>
           <div className="text-xs text-gray-500">
-            Total: {Object.values(statusCounts || {}).reduce((sum, count) => sum + count, 0).toLocaleString()} items
+            Total: {totalItems?.toLocaleString() || (Object.values(filteredStatusCounts || statusCounts || {}) as number[]).reduce((sum: number, count: number) => sum + count, 0).toLocaleString()} items
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {statuses.map((status) => {
+            // Use filtered status counts if available, otherwise fall back to regular status counts
+            const effectiveStatusCounts = filteredStatusCounts || statusCounts || {}
             const count = status.value === 'all'
-              ? Object.values(statusCounts || {}).reduce((sum, count) => sum + count, 0)
-              : statusCounts?.[status.value as keyof typeof statusCounts] || 0
+              ? (Object.values(effectiveStatusCounts) as number[]).reduce((sum: number, count: number) => sum + count, 0)
+              : (effectiveStatusCounts[status.value as keyof typeof effectiveStatusCounts] as number) || 0
 
             return (
               <button
@@ -223,10 +317,10 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
         </div>
       </div>
 
-      {/* Search and Filter Controls */}
+              {/* Search and Filter Controls */}
       <div>
         <h4 className="text-sm font-medium text-gray-700 mb-3">Search and Filter</h4>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Search - takes more space */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-medium text-gray-600 mb-1">Search Items</label>
@@ -237,6 +331,18 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
               onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
               inputPlaceholder="Type to search..."
               className="w-full"
+            />
+          </div>
+
+          {/* Item ID Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Item ID</label>
+            <input
+              type="number"
+              placeholder="Enter item ID..."
+              value={filters.item_id || ''}
+              onChange={(e) => onFilterChange({ item_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
             />
           </div>
 
@@ -289,6 +395,126 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
         )}
       </div>
 
+      {/* Advanced Filters */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Advanced Filters</h4>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Low Estimate Range */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Low Estimate ($)</label>
+            <div className="flex space-x-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={filters.low_est_min || ''}
+                onChange={(e) => onFilterChange({ low_est_min: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={filters.low_est_max || ''}
+                onChange={(e) => onFilterChange({ low_est_max: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+
+          {/* High Estimate Range */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">High Estimate ($)</label>
+            <div className="flex space-x-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={filters.high_est_min || ''}
+                onChange={(e) => onFilterChange({ high_est_min: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={filters.high_est_max || ''}
+                onChange={(e) => onFilterChange({ high_est_max: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Start Price Range */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Start Price ($)</label>
+            <div className="flex space-x-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={filters.start_price_min || ''}
+                onChange={(e) => onFilterChange({ start_price_min: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={filters.start_price_max || ''}
+                onChange={(e) => onFilterChange({ start_price_max: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Condition Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Condition</label>
+            <select
+              value={filters.condition || ''}
+              onChange={(e) => onFilterChange({ condition: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            >
+              <option value="">All Conditions</option>
+              {conditions.map((condition) => (
+                <option key={condition} value={condition}>
+                  {condition}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Period/Age Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Period/Age</label>
+            <select
+              value={filters.period_age || ''}
+              onChange={(e) => onFilterChange({ period_age: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            >
+              <option value="">All Periods</option>
+              {periodAges.map((period) => (
+                <option key={period} value={period}>
+                  {period}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Materials Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Materials</label>
+            <select
+              value={filters.materials || ''}
+              onChange={(e) => onFilterChange({ materials: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            >
+              <option value="">All Materials</option>
+              {materials.map((material) => (
+                <option key={material} value={material}>
+                  {material}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="mt-4 pt-4 border-t border-gray-200">
@@ -325,6 +551,18 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts }: I
                 <button
                   onClick={() => onFilterChange({ search: '' })}
                   className="ml-1 text-purple-600 hover:text-purple-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+
+            {filters.item_id && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Item ID: {filters.item_id}
+                <button
+                  onClick={() => onFilterChange({ item_id: '' })}
+                  className="ml-1 text-green-600 hover:text-green-800"
                 >
                   <X className="h-3 w-3" />
                 </button>
