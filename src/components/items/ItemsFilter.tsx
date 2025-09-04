@@ -341,9 +341,9 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
             <SearchableSelect
               value={filters.search}
               options={itemSuggestions}
-              placeholder={loadingItems ? "Loading items..." : "Search by title, description, ID, or artist..."}
+              placeholder={loadingItems ? "Loading items..." : "Search by title, description, artist, materials, category, ID, lot number..."}
               onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
-              inputPlaceholder="Type to search..."
+              inputPlaceholder="Search across title, description, artist, materials..."
               className="w-full"
             />
           </div>
