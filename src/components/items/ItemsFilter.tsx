@@ -129,11 +129,19 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
       
       try {
         setLoadingItems(true)
-        const response = await ArtworksAPI.getArtworks({
+        // Only pass brand_code if we have a specific brand (not empty/null)
+        const getArtworksParams: any = {
           page: 1,
           limit: 200, // Get enough items to create good suggestions
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' | undefined
-        })
+        }
+
+        // Only add brand_code if brand is not empty/null (meaning a specific brand is selected)
+        if (brand && brand.trim() !== '') {
+          getArtworksParams.brand_code = brand
+        }
+        // If brand is empty/null, don't pass brand_code at all (show items from all brands)
+
+        const response = await ArtworksAPI.getArtworks(getArtworksParams)
         
         // Create search suggestions from real items
         const suggestions = [

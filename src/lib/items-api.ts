@@ -158,7 +158,7 @@ export class ArtworksAPI {
   static async getArtworks(params: GetArtworksParams = {}): Promise<ArtworksResponse> {
     console.log('🔍 ITEMS API: getArtworks called with params:', params);
     console.log('🔍 ITEMS API: API_BASE_URL:', API_BASE_URL);
-    // Brand code filtering ignored for now
+    // Brand filtering: empty/null brand_code means show all brands, specific brand_code filters by that brand
 
     const queryParams = new URLSearchParams();
 

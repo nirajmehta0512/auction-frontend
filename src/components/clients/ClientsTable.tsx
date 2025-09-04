@@ -8,14 +8,14 @@ import {
   bulkActionClients,
   formatClientDisplay,
   getClientFullName,
-  getClientDisplayName,
   getClientTypeDisplay,
   getClientTypeColor,
   type Client,
   type ClientsResponse,
   type BulkActionRequest
 } from '@/lib/clients-api';
-import { fetchBrands, type Brand } from '@/lib/api'
+import { fetchBrands, type Brand } from '@/lib/api';
+import { PhoneNumberUtils } from '@/lib/phone-number-utils';
 
 // Props interface for the ClientsTable component
 interface ClientsTableProps {
@@ -40,7 +40,7 @@ interface ClientsTableProps {
 
 // Table column configuration
 interface TableColumn {
-  key: keyof Client | 'actions' | 'display_name';
+  key: keyof Client | 'actions' | 'display_name' | 'contact_info';
   label: string;
   sortable?: boolean;
   width?: string;
@@ -49,8 +49,7 @@ interface TableColumn {
 const columns: TableColumn[] = [
   { key: 'id', label: 'Client ID', sortable: true, width: 'w-24' },
   { key: 'display_name', label: 'Name / Company', sortable: false, width: 'w-64' },
-  { key: 'email', label: 'Email', sortable: true, width: 'w-40' },
-  { key: 'phone_number', label: 'Phone', sortable: false, width: 'w-32' },
+  { key: 'contact_info', label: 'Contact Info', sortable: false, width: 'w-48' },
   { key: 'client_type', label: 'Type', sortable: false, width: 'w-20' },
   { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-24' },
   { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-24' },
@@ -86,6 +85,18 @@ const formatDate = (dateString: string | undefined): string => {
     return '';
   }
 };
+
+// Utility function to format phone number with + prefix
+const formatPhoneNumber = (phoneNumber: string | undefined): string => {
+  if (!phoneNumber) return '';
+  // If phone number already starts with +, return as is
+  if (phoneNumber.startsWith('+')) {
+    return phoneNumber;
+  }
+  // Add + prefix if not present
+  return `+${phoneNumber}`;
+};
+
 
 // Main ClientsTable component
 export default function ClientsTable({ 
@@ -127,14 +138,6 @@ export default function ClientsTable({
   const sortField = propSortField || internalSortField;
   const sortDirection = propSortDirection || internalSortDirection;
   
-  // Status counts
-  const [statusCounts, setStatusCounts] = useState({
-    active: 0,
-    suspended: 0,
-    pending: 0,
-    archived: 0,
-    deleted: 0
-  });
 
   // Brand filter (quick scope)
   const [brands, setBrands] = useState<Brand[]>([])
@@ -171,9 +174,8 @@ export default function ClientsTable({
       if (brandCode && brandCode !== 'ALL') params.brand_code = brandCode;
 
       const response: ClientsResponse = await fetchClients(params);
-      
+
       setInternalClients(response.data);
-      setStatusCounts(response.counts);
       
     } catch (err) {
       console.error('Error loading clients:', err);
@@ -453,14 +455,24 @@ export default function ClientsTable({
                         </div>
                       </td>
 
-                      {/* Email */}
-                      <td className="px-6 py-4 text-sm text-gray-500 break-words whitespace-normal max-w-0">
-                        {client.email || '-'}
-                      </td>
-
-                      {/* Phone */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {client.phone_number || '-'}
+                      {/* Contact Info */}
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {/* Email */}
+                          <div className="text-gray-600 break-words whitespace-normal max-w-0">
+                            {client.email || '-'}
+                          </div>
+                          {/* Phone with flag */}
+                          {client.phone_number && (
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <span className="text-lg">{PhoneNumberUtils.getCountryFlag(client.phone_number)}</span>
+                              <span className="whitespace-nowrap">{formatPhoneNumber(client.phone_number)}</span>
+                            </div>
+                          )}
+                          {!client.phone_number && (
+                            <div className="text-gray-400 text-xs">-</div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Client Type */}

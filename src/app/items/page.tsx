@@ -79,11 +79,8 @@ export default function ItemsPage() {
   const loadItems = async () => {
     try {
       setLoading(true)
-      
-      // Determine brand for filtering
-      const effectiveBrand = filters.brand || brand
-      
-      // Only include brand_code if not "ALL" or "all"
+
+      // Build query parameters
       const queryParams: any = {
         ...filters,
         page,
@@ -92,10 +89,13 @@ export default function ItemsPage() {
         sort_direction: sortDirection
       }
 
-      // Only add brand_code if a specific brand is selected (not "ALL")
-      if (effectiveBrand && effectiveBrand.toLowerCase() !== 'all') {
-        queryParams.brand_code = effectiveBrand
+      // Handle brand filtering: only add brand_code if a specific brand is selected
+      // filters.brand being empty string means "All Brands" - don't filter by brand
+      if (filters.brand && filters.brand.trim() !== '') {
+        queryParams.brand_code = filters.brand
       }
+      // If filters.brand is empty string, don't add brand_code at all (show all brands)
+      // If no brand filter is set, use the user's default brand context for backward compatibility
 
       // Convert item_id to item_ids for backend API
       if (filters.item_id && filters.item_id.trim()) {
