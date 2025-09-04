@@ -149,7 +149,7 @@ export default function ItemsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('low_est')}
                   className="flex items-center space-x-1 hover:text-gray-700"
@@ -159,7 +159,7 @@ export default function ItemsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('high_est')}
                   className="flex items-center space-x-1 hover:text-gray-700"
@@ -169,7 +169,7 @@ export default function ItemsTable({
                 </button>
               </th>
 
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('start_price')}
                   className="flex items-center space-x-1 hover:text-gray-700"
@@ -177,20 +177,6 @@ export default function ItemsTable({
                   <span>Start Price</span>
                   <SortIcon field="start_price" />
                 </button>
-              </th>
-
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button
-                  onClick={() => handleSort('status')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
-                >
-                  <span>Status</span>
-                  <SortIcon field="status" />
-                </button>
-              </th>
-
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                Condition
               </th>
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -212,7 +198,7 @@ export default function ItemsTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                   <div className="text-lg font-medium">No items found</div>
                   <p className="mt-1">Try adjusting your search or filter criteria</p>
                 </td>
@@ -294,32 +280,27 @@ export default function ItemsTable({
                     {item.category || '-'}
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(item.low_est)}
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(item.high_est)}
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.start_price ? formatCurrency(item.start_price) : '-'}
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status!)}`}>
-                      {getStatusLabel(item.status!)}
-                    </span>
-                  </td>
-
-                  <td className="px-3 py-4 text-sm text-gray-500">
-                    <div className="max-w-32 break-words line-clamp-3" title={item.condition || '-'}>
-                      {item.condition || '-'}
-                    </div>
-                  </td>
-
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.created_at ? new Date(item.created_at).toLocaleDateString() : '-'}
+                    <div>
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : '-'}
+                    </div>
+                    <div className="mt-1">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status!)}`}>
+                        {getStatusLabel(item.status!)}
+                      </span>
+                    </div>
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

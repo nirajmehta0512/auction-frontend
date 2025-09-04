@@ -29,6 +29,17 @@ interface FilterState {
   search: string;
   brand?: string;
   item_id?: string;
+  low_est_min?: string;
+  low_est_max?: string;
+  high_est_min?: string;
+  high_est_max?: string;
+  start_price_min?: string;
+  start_price_max?: string;
+  condition?: string;
+  period_age?: string;
+  materials?: string;
+  artist_id?: string;
+  school_id?: string;
 }
 
 export default function ItemsPage() {
@@ -61,7 +72,20 @@ export default function ItemsPage() {
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
     category: '',
-    search: ''
+    search: '',
+    brand: '',
+    item_id: '',
+    low_est_min: '',
+    low_est_max: '',
+    high_est_min: '',
+    high_est_max: '',
+    start_price_min: '',
+    start_price_max: '',
+    condition: '',
+    period_age: '',
+    materials: '',
+    artist_id: '',
+    school_id: ''
   })
   const [sortField, setSortField] = useState('id')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
