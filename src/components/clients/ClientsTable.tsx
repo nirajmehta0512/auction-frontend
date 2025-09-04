@@ -49,7 +49,7 @@ interface TableColumn {
 const columns: TableColumn[] = [
   { key: 'id', label: 'Client ID', sortable: true, width: 'w-24' },
   { key: 'display_name', label: 'Name / Company', sortable: false, width: 'w-64' },
-  { key: 'contact_info', label: 'Contact Info', sortable: false, width: 'w-48' },
+  { key: 'contact_info', label: 'Contact Info', sortable: false, width: 'w-64' },
   { key: 'client_type', label: 'Type', sortable: false, width: 'w-20' },
   { key: 'buyer_premium', label: 'Buyer Premium', sortable: false, width: 'w-24' },
   { key: 'vendor_premium', label: 'Vendor Premium', sortable: false, width: 'w-24' },
@@ -457,20 +457,20 @@ export default function ClientsTable({
 
                       {/* Contact Info */}
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {/* Email */}
-                          <div className="text-gray-600 break-words whitespace-normal max-w-0">
+                        <div className="flex flex-col space-y-1">
+                          {/* Email - takes remaining space */}
+                          <div className="text-gray-600 break-all whitespace-normal flex-1 min-w-0">
                             {client.email || '-'}
                           </div>
                           {/* Phone with country code */}
                           {client.phone_number && (
-                            <div className="flex items-center gap-1 text-gray-600">
+                            <div className="flex items-center gap-1 text-gray-600 flex-shrink-0">
                               <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">{PhoneNumberUtils.getCountryCode(client.phone_number) || 'UNK'}</span>
                               <span className="whitespace-nowrap">{formatPhoneNumber(client.phone_number)}</span>
                             </div>
                           )}
                           {!client.phone_number && (
-                            <div className="text-gray-400 text-xs">-</div>
+                            <div className="text-gray-400 text-xs flex-shrink-0">-</div>
                           )}
                         </div>
                       </td>
