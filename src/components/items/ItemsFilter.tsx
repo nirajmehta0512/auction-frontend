@@ -122,57 +122,89 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
   const [itemSuggestions, setItemSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
   const [loadingItems, setLoadingItems] = useState(false)
 
-  // Load items and create suggestions
+  // Dynamic search function for real-time search across ALL items
+  const handleDynamicSearch = async (query: string): Promise<Array<{value: string, label: string, description?: string}>> => {
+    if (!query.trim()) {
+      return [{ value: '', label: 'All Items', description: 'Show all inventory items' }]
+    }
+
+    try {
+      // Search across ALL items in database with no brand/amount restrictions
+      const searchParams = {
+        search: query,
+        page: 1,
+        limit: 50 // Limit results for performance but search across ALL items
+      }
+
+      const response = await ArtworksAPI.getArtworks(searchParams)
+
+      const suggestions = [
+        { value: '', label: 'All Items', description: 'Show all inventory items' }
+      ]
+
+      // Add search results with unique values
+      const seenTitles = new Set<string>()
+      response.data.forEach(item => {
+        if (item.title && !seenTitles.has(item.title)) {
+          seenTitles.add(item.title)
+          suggestions.push({
+            value: String(item.id), // Use unique item ID as value
+            label: item.title,
+            description: `ID: ${item.id} • ${item.category || 'Uncategorized'} • Artist ID: ${item.artist_id || 'Unknown'}`
+          })
+        }
+      })
+
+      // Add exact ID match if found (avoid duplicates)
+      const exactIdMatch = response.data.find(item => String(item.id) === query.trim())
+      if (exactIdMatch && exactIdMatch.title && !seenTitles.has(exactIdMatch.title)) {
+        suggestions.splice(1, 0, {
+          value: String(exactIdMatch.id),
+          label: `ID: ${exactIdMatch.id}`,
+          description: `${exactIdMatch.title} • ${exactIdMatch.category || 'Uncategorized'}`
+        })
+      }
+
+      return suggestions
+    } catch (error) {
+      console.error('Dynamic search error:', error)
+      return [{ value: '', label: 'All Items', description: 'Show all inventory items' }]
+    }
+  }
+
+  // Load basic suggestions for initial state
   useEffect(() => {
-    const loadItemSuggestions = async () => {
+    const loadBasicSuggestions = async () => {
       try {
         setLoadingItems(true)
-        // Load all items regardless of brand for search suggestions
+        // Load a few items for initial suggestions
         const getArtworksParams: any = {
           page: 1,
-          limit: 500, // Get enough items to create comprehensive suggestions
+          limit: 20, // Just a few for initial state
         }
-        // Don't filter by brand - we want all items for search suggestions
 
         const response = await ArtworksAPI.getArtworks(getArtworksParams)
-        
-        // Create search suggestions from real items
+
         const suggestions = [
           { value: '', label: 'All Items', description: 'Show all inventory items' }
         ]
-        
-        // Add suggestions based on unique titles and categories
-        const uniqueTitles = new Set<string>()
-        const uniqueCategories = new Set<string>()
-        
-        response.data.forEach(item => {
-          if (item.title && !uniqueTitles.has(item.title.toLowerCase())) {
-            uniqueTitles.add(item.title.toLowerCase())
-            if (uniqueTitles.size <= 15) { // Limit to prevent too many suggestions
-              suggestions.push({
-                value: item.title,
-                label: item.title,
-                description: `Search for "${item.title}"`
-              })
-            }
-          }
-          
-          if (item.category && !uniqueCategories.has(item.category.toLowerCase())) {
-            uniqueCategories.add(item.category.toLowerCase())
-            if (uniqueCategories.size <= 10) {
-              suggestions.push({
-                value: item.category,
-                label: item.category,
-                description: `Search for ${item.category} items`
-              })
-            }
+
+        // Add a few recent items as examples (ensure unique values)
+        const seenTitles = new Set<string>()
+        response.data.slice(0, 10).forEach(item => {
+          if (item.title && !seenTitles.has(item.title)) {
+            seenTitles.add(item.title)
+            suggestions.push({
+              value: String(item.id), // Use unique item ID as value
+              label: item.title,
+              description: `ID: ${item.id} • ${item.category || 'Uncategorized'}`
+            })
           }
         })
-        
+
         setItemSuggestions(suggestions)
       } catch (error) {
-        console.error('Failed to load item suggestions:', error)
-        // Fallback to basic suggestions
+        console.error('Failed to load basic suggestions:', error)
         setItemSuggestions([
           { value: '', label: 'All Items', description: 'Show all inventory items' }
         ])
@@ -198,10 +230,10 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
         console.error('Failed to load brands:', error)
       }
     }
-    
+
     loadBrands()
-    loadItemSuggestions()
-  }, []) // Remove brand dependency since we load all items regardless of brand
+    loadBasicSuggestions()
+  }, [])
 
   const handleClearFilters = () => {
     onFilterChange({
@@ -345,6 +377,8 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
               onChange={(value) => onFilterChange({ search: value?.toString() || '' })}
               inputPlaceholder="Search across title, description, artist, materials..."
               className="w-full"
+              enableDynamicSearch={true}
+              onSearch={handleDynamicSearch}
             />
           </div>
 

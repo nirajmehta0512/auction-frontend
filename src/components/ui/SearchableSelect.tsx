@@ -1,7 +1,7 @@
 // frontend/src/components/ui/SearchableSelect.tsx
 "use client"
 
-import React, { useMemo, useState, useRef, useEffect } from 'react'
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 
 export interface SearchableOption<T = string | number> {
   value: T
@@ -18,6 +18,8 @@ interface SearchableSelectProps<T = string | number> {
   className?: string
   inputPlaceholder?: string
   isLoading?: boolean
+  onSearch?: (query: string) => Promise<SearchableOption<T>[]>
+  enableDynamicSearch?: boolean
 }
 
 // Purpose: Reusable dropdown with type-to-search and clickable options
@@ -29,22 +31,64 @@ export default function SearchableSelect<T = string | number>({
   disabled,
   className,
   inputPlaceholder = 'Type to search...',
-  isLoading = false
+  isLoading = false,
+  onSearch,
+  enableDynamicSearch = false
 }: SearchableSelectProps<T>) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [dynamicOptions, setDynamicOptions] = useState<SearchableOption<T>[]>([])
+  const [loading, setLoading] = useState(false)
   const componentRef = useRef<HTMLDivElement>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const filtered = useMemo(() => {
+    if (enableDynamicSearch && query.trim() && dynamicOptions.length > 0) {
+      return dynamicOptions
+    }
     if (!query.trim()) return options
     const q = query.toLowerCase()
     return options.filter((o) => o.label.toLowerCase().includes(q) || (o.description?.toLowerCase().includes(q) ?? false))
-  }, [options, query])
+  }, [options, query, dynamicOptions, enableDynamicSearch])
 
   const currentLabel = useMemo(() => {
     const found = options.find(o => String(o.value) === String(value))
     return found?.label
   }, [options, value])
+
+  // Dynamic search handler with debouncing
+  const handleDynamicSearch = useCallback(async (searchQuery: string) => {
+    if (!enableDynamicSearch || !onSearch || searchQuery.trim().length < 2) {
+      setDynamicOptions([])
+      return
+    }
+
+    setLoading(true)
+    try {
+      const results = await onSearch(searchQuery.trim())
+      setDynamicOptions(results)
+    } catch (error) {
+      console.error('Search error:', error)
+      setDynamicOptions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [enableDynamicSearch, onSearch])
+
+  // Handle query changes with debouncing
+  const handleQueryChange = useCallback((newQuery: string) => {
+    setQuery(newQuery)
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (enableDynamicSearch) {
+      searchTimeoutRef.current = setTimeout(() => {
+        handleDynamicSearch(newQuery)
+      }, 300) // 300ms debounce
+    }
+  }, [enableDynamicSearch, handleDynamicSearch])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,6 +96,7 @@ export default function SearchableSelect<T = string | number>({
       if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
         setOpen(false)
         setQuery('')
+        setDynamicOptions([])
       }
     }
 
@@ -60,6 +105,15 @@ export default function SearchableSelect<T = string | number>({
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [open])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div ref={componentRef} className={`relative ${className || ''}`}>
@@ -80,10 +134,13 @@ export default function SearchableSelect<T = string | number>({
             <input
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               placeholder={inputPlaceholder}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+            {loading && (
+              <div className="text-xs text-gray-500 mt-1">Searching...</div>
+            )}
           </div>
           <div className="max-h-64 overflow-auto">
             {filtered.length === 0 && (
