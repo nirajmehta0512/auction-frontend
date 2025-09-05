@@ -34,7 +34,6 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
   const [success, setSuccess] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [googleSheetUrl, setGoogleSheetUrl] = useState('')
-  const [syncingToSheet, setSyncingToSheet] = useState(false)
 
   const [formData, setFormData] = useState<Partial<Client>>({
     title: '',
@@ -200,51 +199,7 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     }
   }, [initialData])
 
-  // Enhanced Google Sheets sync functionality
-  const syncWithGoogleSheet = async (isPreSync = false) => {
-    if (!googleSheetUrl) return
-
-    try {
-      setSyncingToSheet(true)
-      const token = localStorage.getItem('token')
-
-      if (isPreSync) {
-        // Pre-sync: Import latest data from Google Sheets
-        const importResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/sync-google-sheet`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ sheet_url: googleSheetUrl })
-        })
-
-        if (!importResponse.ok) {
-          const errorData = await importResponse.json()
-          console.warn('Pre-sync import failed:', errorData.error)
-        }
-      } else {
-        // Post-sync: Export current data to Google Sheets
-        const exportResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/clients/export-to-google-sheet`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ sheet_url: googleSheetUrl })
-        })
-
-        if (!exportResponse.ok) {
-          const errorData = await exportResponse.json()
-          console.warn('Post-sync export failed:', errorData.error)
-        }
-      }
-    } catch (error) {
-      console.error('Google Sheets sync error:', error)
-    } finally {
-      setSyncingToSheet(false)
-    }
-  }
+  // Removed manual Google Sheets sync - backend handles auto-sync automatically
 
   const handleInputChange = (field: keyof Client, value: string | boolean | number) => {
     setFormData(prev => ({
@@ -284,19 +239,18 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
     try {
       setLoading(true)
 
-      // Step 1: Pre-sync - Import latest data from Google Sheets to avoid conflicts
-      if (googleSheetUrl) {
-        await syncWithGoogleSheet(true)
-      }
-
-      // Step 2: Save the client
+      // Step 1: Save the client
       let createdClient: Client | undefined = undefined
-      
+
       if (mode === 'create') {
         const payload = { ...formData }
         // Convert empty strings to undefined for optional fields
         if (payload.instagram_url === '') payload.instagram_url = undefined
         if (payload.birth_date === '') payload.birth_date = undefined
+
+        // Remove brand and brand_code fields to avoid schema cache error - only use brand_id
+        delete (payload as any).brand
+        delete (payload as any).brand_code
 
         // Ensure brand is set from current brand context for proper id-prefixed display computation on UI
         if (!payload.brand_id && brand) {
@@ -325,6 +279,10 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
         if (payload.instagram_url === '') payload.instagram_url = undefined
         if (payload.birth_date === '') payload.birth_date = undefined
 
+        // Remove brand and brand_code fields to avoid schema cache error - only use brand_id
+        delete (payload as any).brand
+        delete (payload as any).brand_code
+
         // Ensure brand is set from current brand context for proper id-prefixed display computation on UI
         if (!payload.brand_id && brand) {
           try {
@@ -343,11 +301,6 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
         }
 
         await updateClient(clientId, payload)
-      }
-
-      // Step 3: Post-sync - Export updated data to Google Sheets
-      if (googleSheetUrl) {
-        await syncWithGoogleSheet(false)
       }
 
       setSuccess(true)
@@ -782,23 +735,10 @@ export default function ClientForm({ mode, clientId, initialData, onSuccess }: C
           </div>
 
           {/* Submit */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              {googleSheetUrl && syncingToSheet && (
-                <div className="flex items-center space-x-2 text-sm text-blue-600">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                  <span>Syncing with Google Sheets...</span>
-                </div>
-              )}
-              {googleSheetUrl && !syncingToSheet && (
-                <div className="text-xs text-gray-500">
-                  ✓ Auto-sync with Google Sheets enabled
-                </div>
-              )}
-            </div>
+          <div className="flex justify-end items-center">
             <div className="flex space-x-4">
               <Link href="/clients" className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
-              <button type="submit" disabled={loading || syncingToSheet} className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              <button type="submit" disabled={loading} className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 {loading ? (mode === 'create' ? 'Creating...' : 'Updating...') : (mode === 'create' ? 'Create Client' : 'Update Client')}
               </button>
             </div>

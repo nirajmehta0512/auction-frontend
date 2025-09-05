@@ -78,6 +78,7 @@ export default function AuctionsPage() {
     present: 0,
     past: 0
   })
+  const [lastStatusCountFetch, setLastStatusCountFetch] = useState<number>(0)
 
   // Sort state
   const [sortField, setSortField] = useState('id')
@@ -110,9 +111,9 @@ export default function AuctionsPage() {
 
         // Note: specialist and dateRange filters will be applied client-side for now
         // since the backend doesn't support them yet
-        
+
         const response = await getAuctions(backendFilters)
-        
+
         let filteredAuctions = response.auctions
 
         // Apply remaining client-side filters that backend doesn't support
@@ -141,26 +142,35 @@ export default function AuctionsPage() {
         if (filters.dateRange !== 'all') {
           filteredAuctions = applyDateRangeFilter(filteredAuctions, filters.dateRange)
         }
-        
+
         // Convert API auctions to component format
         const convertedAuctions = filteredAuctions.map(convertAuctionFormat)
         setAuctions(convertedAuctions)
-        
+
         // Update pagination state
         if (response.pagination) {
           setPagination(response.pagination)
         }
-        
-        // Calculate status counts using dedicated endpoint
-        try {
-          const brandId = getBrandId(brand)
-          const countsResponse = await getAuctionStatusCounts(brandId);
-          if (countsResponse.success) {
-            setStatusCounts(countsResponse.counts);
+
+        // Calculate status counts using dedicated endpoint (throttled to avoid excessive calls)
+        const now = Date.now();
+        const shouldFetchCounts = now - lastStatusCountFetch > 30000; // 30 seconds throttle
+
+        if (shouldFetchCounts) {
+          try {
+            const brandId = getBrandId(brand)
+            const countsResponse = await getAuctionStatusCounts(brandId);
+            if (countsResponse.success) {
+              setStatusCounts(countsResponse.counts);
+              setLastStatusCountFetch(now);
+            }
+          } catch (error) {
+            console.warn('Failed to fetch status counts:', error);
+            // Fallback to calculating from current page data
+            calculateStatusCounts(filteredAuctions);
           }
-        } catch (error) {
-          console.warn('Failed to fetch status counts:', error);
-          // Fallback to calculating from current page data
+        } else {
+          // Use cached counts or calculate from current data
           calculateStatusCounts(filteredAuctions);
         }
       } catch (err: any) {
@@ -189,6 +199,11 @@ export default function AuctionsPage() {
     }
     loadBrands()
   }, [])
+
+  // Reset status count fetch timer when brand changes
+  useEffect(() => {
+    setLastStatusCountFetch(0)
+  }, [brand])
 
   // Handle sort changes
   const handleSort = (field: string, direction: 'asc' | 'desc') => {
