@@ -26,6 +26,7 @@ interface AIUploadResult {
   low_est: number;
   high_est: number;
   artist_id?: number;
+  imageUrl?: string; // Uploaded image URL
   // Artist information inclusion flags
   include_artist_description?: boolean;
   include_artist_key_description?: boolean;
@@ -248,10 +249,11 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
 
   const handleUseResults = async () => {
     if (result) {
-      // Pass the result to the parent component with selected brand
+      // Pass the result to the parent component with selected brand and image URL
       onUploadComplete({
         ...result,
-        selectedBrand
+        selectedBrand,
+        imageUrl: imagePreview || undefined // Include the uploaded image URL
       })
       
       // Auto-sync to Google Sheets if brand is configured

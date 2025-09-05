@@ -18,7 +18,7 @@ import type { Auction } from '@/lib/auctions-api'
 
 interface AuctionArtwork {
   id: string
-  lot_num: string
+  lot_num?: string
   title: string
   artist_maker?: string
   low_est?: number

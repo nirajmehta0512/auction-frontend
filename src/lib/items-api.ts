@@ -10,7 +10,7 @@ import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 // Artwork interface matching the actual database schema
 export interface Artwork {
   id?: string;
-  lot_num: string;                    // Required: LotNum (up to 10 chars)
+  lot_num?: string;                   // Optional: LotNum (up to 10 chars)
   title: string;                      // Required: Title
   description: string;                // Required: Description
   low_est: number;                    // Required: Low Estimate

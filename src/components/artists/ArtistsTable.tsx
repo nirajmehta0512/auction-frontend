@@ -180,19 +180,10 @@ export default function ArtistsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <div>
-                    <div className="flex items-center">
-                      <div className="text-sm font-medium text-gray-900">
-                        {artist.name}
-                      </div>
-                      {getAIGeneratedIndicator(artist)}
-                    </div>
-                    {artist.description && (
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
-                        {artist.description}
-                      </div>
-                    )}
+                  <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                    {artist.name}
                   </div>
+                  {getAIGeneratedIndicator(artist)}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

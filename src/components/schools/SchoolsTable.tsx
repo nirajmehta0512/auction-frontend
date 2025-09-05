@@ -128,7 +128,7 @@ export default function SchoolsTable({
                 {getSortIcon('founded_year')}
               </button>
             </th>
-            <th className="w-48 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('location')}
                 className="flex items-center space-x-1 hover:text-gray-700"
@@ -176,25 +176,16 @@ export default function SchoolsTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <div>
-                    <div className="flex items-center">
-                      <div className="text-sm font-medium text-gray-900">
-                        {school.name}
-                      </div>
-                      {getAIGeneratedIndicator(school)}
-                    </div>
-                    {school.description && (
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
-                        {school.description}
-                      </div>
-                    )}
+                  <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                    {school.name}
                   </div>
+                  {getAIGeneratedIndicator(school)}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {formatYears(school.founded_year, school.closed_year)}
               </td>
-              <td className="w-48 px-6 py-4 text-sm text-gray-900">
+              <td className="px-6 py-4 text-sm text-gray-900">
                 <div>
                   {school.location && (
                     <div className="font-medium">{school.location}</div>

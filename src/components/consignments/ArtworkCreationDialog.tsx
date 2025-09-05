@@ -89,16 +89,59 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
     if (result) {
       setLoading(true)
       try {
+        console.log('AI Upload Result:', result) // Debug log
+
+        // Validate required fields
+        if (!result.title || !result.description) {
+          throw new Error('AI analysis missing required fields (title or description)')
+        }
+
+        let uploadedImageUrl = result.imageUrl
+
+        // If the image is a blob URL, we need to upload it to the server first
+        if (result.imageUrl && result.imageUrl.startsWith('blob:')) {
+          try {
+            console.log('Converting blob URL to uploaded file...')
+
+            // Fetch the blob and create a FormData for upload
+            const response = await fetch(result.imageUrl)
+            const blob = await response.blob()
+
+            const formData = new FormData()
+            formData.append('file', blob, 'ai_analysis_image.jpg')
+
+            // Try to upload the image to your server
+            const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: formData
+            })
+
+            if (uploadResponse.ok) {
+              const uploadResult = await uploadResponse.json()
+              uploadedImageUrl = uploadResult.url
+              console.log('Image uploaded successfully:', uploadedImageUrl)
+            } else {
+              console.warn('Failed to upload image, proceeding without image')
+              uploadedImageUrl = undefined
+            }
+          } catch (uploadError) {
+            console.warn('Image upload failed, proceeding without image:', uploadError)
+            uploadedImageUrl = undefined
+          }
+        }
+
         // Create artwork with AI analysis result and uploaded images
         const artworkData = {
-          title: result.title,
-          description: result.description,
-          lot_num: Date.now().toString(), // Generate a temporary lot number
-          low_est: result.low_est || 0,
-          high_est: result.high_est || 0,
-          start_price: Math.round((result.low_est || 0) * 0.5),
+          title: result.title.trim(),
+          description: result.description.trim(),
+          low_est: parseFloat(result.low_est) || 0,
+          high_est: parseFloat(result.high_est) || 0,
+          start_price: result.start_price ? parseFloat(result.start_price) : Math.round((parseFloat(result.low_est) || 0) * 0.5),
           artist_id: result.artist_id ? parseInt(result.artist_id.toString()) : undefined,
-          artist_maker: result.artist_name || result.artist_maker,
+          artist_maker: result.artist_name || result.artist_maker || '',
           height_inches: result.height_inches || '',
           width_inches: result.width_inches || '',
           height_cm: result.height_cm || '',
@@ -108,23 +151,32 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
           height_with_frame_cm: result.height_with_frame_cm || '',
           width_with_frame_cm: result.width_with_frame_cm || '',
           weight: result.weight || '',
-          materials: result.materials,
-          condition: result.condition,
-          category: result.category,
+          materials: result.materials || '',
+          condition: result.condition || '',
+          category: result.category || '',
           status: 'draft' as const,
           // Add the uploaded image from AI analysis
-          image_file_1: result.imageUrl || undefined
+          image_file_1: uploadedImageUrl || undefined
         }
+
+        console.log('Artwork data to create:', artworkData) // Debug log
 
         const artworkResult = await ArtworksAPI.createArtwork(artworkData)
 
+        console.log('Artwork creation result:', artworkResult) // Debug log
+
         // If artwork was created successfully, return it to the parent
-        onSave(artworkResult.data)
-        setShowAIUpload(false)
-        setCreationMode('choose') // Reset to choose mode
-      } catch (error) {
+        if (artworkResult.success && artworkResult.data) {
+          onSave(artworkResult.data)
+          setShowAIUpload(false)
+          setCreationMode('choose') // Reset to choose mode
+        } else {
+          throw new Error(artworkResult.message || 'Failed to create artwork')
+        }
+      } catch (error: any) {
         console.error('Error creating artwork from AI analysis:', error)
-        alert('Failed to create artwork from AI analysis. Please try again.')
+        const errorMessage = error.message || 'Failed to create artwork from AI analysis. Please try again.'
+        alert(`Error: ${errorMessage}`)
       } finally {
         setLoading(false)
       }
@@ -148,7 +200,6 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
       const artworkData = {
         title: formData.title,
         description: formData.description,
-        lot_num: Date.now().toString(), // Generate a temporary lot number
         low_est: parseFloat(formData.low_est) || 0,
         high_est: parseFloat(formData.high_est) || 0,
         start_price: parseFloat(formData.start_price) || 0,
