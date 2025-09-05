@@ -838,7 +838,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                   icon={showArtworkSearch ? X : Plus}
                   className="!py-2 !px-4 !text-sm"
                 >
-                  {showArtworkSearch ? 'Close Search' : 'Add Artworks'}
+                  {showArtworkSearch ? 'Close Search' : 'Add Inventory'}
                 </Button>
               </div>
             </div>
@@ -914,9 +914,9 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
               {selectedArtworks.length === 0 && (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
                   <Image className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No artworks selected</h3>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory selected</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Click "Add Artworks" to browse and select artworks for this auction.
+                    Click "Add Inventory" to browse and select artworks for this auction.
                   </p>
                 </div>
               )}

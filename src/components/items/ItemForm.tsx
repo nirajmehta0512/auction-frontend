@@ -1258,11 +1258,11 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Items
+            Back to Inventory
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {mode === 'create' ? 'Add Artwork' : 'Edit Artwork'}
+              {mode === 'create' ? 'Add Inventory' : 'Edit Inventory'}
             </h1>
           </div>
         </div>

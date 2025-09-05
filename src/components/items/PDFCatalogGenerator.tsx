@@ -6,12 +6,56 @@ import { X, Download, Share2, Printer, Eye, Settings, Image, FileText, Grid, Lis
 import { Artwork } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { fetchClient, Client } from '@/lib/clients-api'
-import { 
-  generateArtworkPreview, 
-  ArtworkPreviewData as OriginalArtworkPreviewData, 
-  ArtworkPreviewOptions 
-} from '@/lib/artwork-preview'
-import { PDFCatalogGenerator as PDFGenerator, CatalogOptions, BrandData, ArtworkPreviewData } from '@/lib/pdf-catalog-generator'
+import { ArtworkPreviewOptions, generateArtworkPreview } from '@/lib/artwork-preview'
+// Define types for PDF catalog generation
+interface CatalogOptions {
+  includeTitle: boolean
+  includeImages: boolean
+  includeDescription: boolean
+  includeArtist: boolean
+  includeArtistBiography: boolean
+  includeArtistDescription: boolean
+  includeArtistExtraInfo: boolean
+  includeDimensions: boolean
+  includeCondition: boolean
+  includeMaterials: boolean
+  includeProvenance: boolean
+  includeEstimates: boolean
+  includeConsigner: boolean
+  includeLotNumbers: boolean
+  includeCategory: boolean
+  includePeriodAge: boolean
+  includeWeight: boolean
+  includeImageCaptions: boolean
+  layoutType: 'cards' | 'table' | 'detailed'
+  itemsPerPage: number
+  showPageNumbers: boolean
+  catalogTitle: string
+  catalogSubtitle: string
+  includeHeader: boolean
+  includeFooter: boolean
+  logoUrl: string
+  showBrandLogos: boolean
+  imagesPerItem: number
+  imageSize: 'small' | 'medium' | 'large'
+  showImageBorder: boolean
+}
+
+interface BrandData {
+  id: number
+  name: string
+  code: string
+  logo_url?: string
+}
+
+interface ArtworkPreviewData extends Artwork {
+  artist_name?: string
+  consigner_name?: string
+  images?: string[]
+  image_urls?: string[]
+  artist_maker?: string
+}
+// PDF generation now handled by backend API
 
 interface PDFCatalogGeneratorProps {
   selectedArtworks: Artwork[]
@@ -774,21 +818,44 @@ export default function PDFCatalogGenerator({
     }
   }
 
-  // New simplified PDF generation using the PDFCatalogGenerator class
+  // Generate PDF using backend API (PDFKit)
   const generatePDFNew = async (action: 'download' | 'share' | 'print' | 'preview') => {
     try {
       setGenerating(true)
       setLoadingImages(true)
 
-      // Convert enriched artworks to the format expected by the PDF generator
-      const artworkData: ArtworkPreviewData[] = enrichedArtworks.map(artwork => ({
-        ...artwork,
-        artist_name: (artwork as any).artist?.name || artwork.artist_maker,
-        consigner_name: (artwork as any).consigner_client?.name
-      }))
+      // Get selected artwork IDs
+      const itemIds = selectedArtworks.map(artwork => artwork.id).filter(id => id)
 
-      // Create PDF generator instance
-      const pdfGenerator = new PDFGenerator()
+      if (itemIds.length === 0) {
+        alert('No artworks selected for PDF generation')
+        return
+      }
+
+      // Prepare request data
+      const requestData = {
+        item_ids: itemIds,
+        options: options,
+        brand_code: undefined // Can be added later if needed
+      }
+
+      // Call backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/items/generate-pdf-catalog`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(requestData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate PDF')
+      }
+
+      // Get PDF blob from response
+      const pdfBlob = await response.blob()
 
       setLoadingImages(false)
 
@@ -796,43 +863,34 @@ export default function PDFCatalogGenerator({
       switch (action) {
         case 'download':
           const fileName = `catalog_${options.catalogTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`
-          const downloadResult = await pdfGenerator.generatePDF(artworkData, options, brands, 'download')
-          if (downloadResult && downloadResult instanceof Blob) {
-            const downloadUrl = URL.createObjectURL(downloadResult)
-            const link = document.createElement('a')
-            link.href = downloadUrl
-            link.download = fileName
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            URL.revokeObjectURL(downloadUrl)
-          }
+          const downloadUrl = URL.createObjectURL(pdfBlob)
+          const link = document.createElement('a')
+          link.href = downloadUrl
+          link.download = fileName
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(downloadUrl)
           break
         case 'print':
-          const printResult = await pdfGenerator.generatePDF(artworkData, options, brands, 'print')
-          if (printResult && printResult instanceof Blob) {
-            const printUrl = URL.createObjectURL(printResult)
-            const printWindow = window.open(printUrl, '_blank')
-            if (printWindow) {
-              printWindow.onload = () => {
-                printWindow.print()
-              }
+          const printUrl = URL.createObjectURL(pdfBlob)
+          const printWindow = window.open(printUrl, '_blank')
+          if (printWindow) {
+            printWindow.onload = () => {
+              printWindow.print()
             }
           }
           break
         case 'share':
         case 'preview':
-          const previewResult = await pdfGenerator.generatePDF(artworkData, options, brands, action)
-          if (previewResult && previewResult instanceof Blob) {
-            const previewUrl = URL.createObjectURL(previewResult)
-            window.open(previewUrl, '_blank')
-          }
+          const previewUrl = URL.createObjectURL(pdfBlob)
+          window.open(previewUrl, '_blank')
           break
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating PDF:', error)
-      alert('Error generating PDF. Please try again.')
+      alert(`Error generating PDF: ${error.message}`)
     } finally {
       setGenerating(false)
       setLoadingImages(false)

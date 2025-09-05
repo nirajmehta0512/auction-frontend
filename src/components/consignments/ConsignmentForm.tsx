@@ -9,7 +9,7 @@ import { ArtistsAPI } from '@/lib/artists-api'
 import type { Consignment } from '@/lib/consignments-api'
 import type { Artwork } from '@/lib/items-api'
 import type { Artist } from '@/lib/artists-api'
-import { Plus, X, UserPlus, ImageIcon } from 'lucide-react'
+import { X, UserPlus, ImageIcon } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import ReceiptItemRow, { type ReceiptItem as ReceiptItemRowType } from '@/components/consignments/ReceiptItemRow'
@@ -19,6 +19,7 @@ import ArtistForm from '@/components/artists/ArtistForm'
 import ClientForm from '@/components/clients/ClientForm'
 import ArtworkCreationDialog from '@/components/consignments/ArtworkCreationDialog'
 import ItemForm from '@/components/items/ItemForm'
+import { Search, Check, Plus } from 'lucide-react'
 
 // User interface for app staff dropdown
 interface User {
@@ -145,8 +146,11 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const [showClientModal, setShowClientModal] = useState(false)
   const [showArtworkModal, setShowArtworkModal] = useState(false)
   const [showEditArtworkModal, setShowEditArtworkModal] = useState(false)
+  const [showInventorySelectionModal, setShowInventorySelectionModal] = useState(false)
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null)
   const [warehouseSearchBoxRef, setWarehouseSearchBoxRef] = useState<any>(null)
+  const [selectedArtworks, setSelectedArtworks] = useState<Set<string>>(new Set())
+  const [inventorySearchTerm, setInventorySearchTerm] = useState('')
   const [formData, setFormData] = useState({
     receipt_no: consignment?.id?.toString() || '',
     client_id: consignment?.client_id || 0, // Changed to number (0 for no selection)
@@ -340,7 +344,9 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         client_id: parseInt(clientIdStr, 10), // Convert string to number
         client_name: `${selectedClient.first_name} ${selectedClient.last_name}`,
         client_email: selectedClient.email || '',
-        client_company: selectedClient.company_name || ''
+        client_company: selectedClient.company_name || '',
+        // Auto-populate vendor commission from client data
+        default_vendor_commission: selectedClient.vendor_premium || 0
       }))
     }
   }
@@ -383,6 +389,115 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
       setEditingArtwork(artwork)
       setShowEditArtworkModal(true)
     }
+  }
+
+  // Inventory selection modal functions
+  const openInventorySelectionModal = () => {
+    setSelectedArtworks(new Set())
+    setInventorySearchTerm('')
+    setShowInventorySelectionModal(true)
+  }
+
+  const handleArtworkSelection = (artworkId: string) => {
+    setSelectedArtworks(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(artworkId)) {
+        newSet.delete(artworkId)
+      } else {
+        newSet.add(artworkId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllArtworks = () => {
+    const filteredItems = getFilteredArtworks()
+    const allIds = filteredItems.map(item => item.id?.toString()).filter(Boolean) as string[]
+    setSelectedArtworks(new Set(allIds))
+  }
+
+  const handleClearSelection = () => {
+    setSelectedArtworks(new Set())
+  }
+
+  const addSelectedArtworksToReceipt = () => {
+    const selectedItems = Array.from(selectedArtworks)
+      .map(id => items.find(item => item.id?.toString() === id))
+      .filter(Boolean) as Artwork[]
+
+    if (selectedItems.length === 0) return
+
+    const newReceiptItems = selectedItems.map((artwork, index) => {
+      const artist = artists.find(a => a.id?.toString() === artwork.artist_id?.toString())
+      return {
+        id: `${Date.now()}_${index}`,
+        item_no: receiptItems.length + index + 1,
+        artwork_id: artwork.id?.toString(),
+        artwork_title: artwork.title,
+        artist_id: artwork.artist_id?.toString(),
+        artist_name: artist?.name || '',
+        height_inches: artwork.height_inches,
+        width_inches: artwork.width_inches,
+        height_cm: artwork.height_cm,
+        width_cm: artwork.width_cm,
+        height_with_frame_inches: artwork.height_with_frame_inches,
+        width_with_frame_inches: artwork.width_with_frame_inches,
+        height_with_frame_cm: artwork.height_with_frame_cm,
+        width_with_frame_cm: artwork.width_with_frame_cm,
+        weight: artwork.weight,
+        low_estimate: artwork.low_est,
+        high_estimate: artwork.high_est,
+        reserve: artwork.reserve,
+        is_returned: false
+      }
+    })
+
+    setReceiptItems(prev => {
+      const combined = [...prev, ...newReceiptItems]
+      return combined.map((item, index) => ({
+        ...item,
+        item_no: index + 1
+      }))
+    })
+
+    setShowInventorySelectionModal(false)
+    setSelectedArtworks(new Set())
+  }
+
+  const getFilteredArtworks = () => {
+    const availableItems = items.filter(item => !item.consignment_id) // Only show items not already in a consignment
+    if (!inventorySearchTerm) return availableItems
+
+    // Handle ID shortcuts (e.g., "1-5", "1,3,5", "10")
+    const shortcutMatch = inventorySearchTerm.match(/^(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)$/)
+    if (shortcutMatch) {
+      const ids = new Set<number>()
+      const parts = shortcutMatch[1].split(',')
+
+      for (const part of parts) {
+        if (part.includes('-')) {
+          const [start, end] = part.split('-').map(n => parseInt(n.trim()))
+          for (let i = start; i <= end; i++) {
+            ids.add(i)
+          }
+        } else {
+          ids.add(parseInt(part.trim()))
+        }
+      }
+
+      return availableItems.filter(item => {
+        const itemId = parseInt(item.id?.toString() || '0')
+        return ids.has(itemId)
+      })
+    }
+
+    // Regular search
+    return availableItems.filter(item => {
+      const artist = artists.find(a => a.id?.toString() === item.artist_id?.toString())
+      return item.title?.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+             artist?.name?.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
+             item.id?.toString().includes(inventorySearchTerm)
+    })
   }
 
   const handleArtworkUpdated = (updatedArtwork: Artwork) => {
@@ -542,11 +657,14 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
               id="default_vendor_commission"
               type="number"
               value={formData.default_vendor_commission}
-              onChange={(e) => handleInputChange('default_vendor_commission', parseFloat(e.target.value) || 0)}
               placeholder="0.00"
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={true}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Auto-populated from client settings
+            </p>
           </div>
 
           <div>
@@ -658,19 +776,19 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
               <div className="flex items-center space-x-2">
                 <Button
                   type="button"
-                  onClick={addReceiptItem}
+                  onClick={openInventorySelectionModal}
                   className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Artwork</span>
+                  <Search className="w-4 h-4" />
+                  <span>Select Existing</span>
                 </Button>
                 <Button
                   type="button"
                   onClick={() => setShowArtworkModal(true)}
                   className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white"
                 >
-                  <ImageIcon className="w-4 h-4" />
-                  <span>New Artwork</span>
+                  <Plus className="w-4 h-4" />
+                  <span>Create New</span>
                 </Button>
               </div>
             </div>
@@ -914,6 +1032,178 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 setEditingArtwork(null)
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {showInventorySelectionModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowInventorySelectionModal(false)
+              setSelectedArtworks(new Set())
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold">Select Existing Inventory</h4>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowInventorySelectionModal(false)
+                  setSelectedArtworks(new Set())
+                }}
+                className="text-gray-600 hover:text-gray-800 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search and Actions */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2 flex-1">
+                <Search className="w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by title/artist or use shortcuts: 1-5, 1,3,5, 10..."
+                  value={inventorySearchTerm}
+                  onChange={(e) => setInventorySearchTerm(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center space-x-2 ml-4">
+                <Button
+                  type="button"
+                  onClick={handleSelectAllArtworks}
+                  variant="outline"
+                  className="text-xs"
+                >
+                  Select All
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleClearSelection}
+                  variant="outline"
+                  className="text-xs"
+                >
+                  Clear
+                </Button>
+                <span className="text-sm text-gray-600">
+                  {selectedArtworks.size} selected
+                </span>
+              </div>
+            </div>
+
+            {/* Artworks List */}
+            <div className="flex-1 overflow-y-auto border border-gray-200 rounded-md">
+              {getFilteredArtworks().length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No available inventory found.</p>
+                  {inventorySearchTerm && (
+                    <p className="text-sm mt-2">Try adjusting your search terms.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {getFilteredArtworks().map((artwork) => {
+                    const isSelected = selectedArtworks.has(artwork.id?.toString() || '')
+                    return (
+                      <div
+                        key={artwork.id}
+                        className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                        }`}
+                        onClick={() => handleArtworkSelection(artwork.id?.toString() || '')}
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+
+                          {/* Artwork Image */}
+                          <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+                            {artwork.image_file_1 ? (
+                              <img
+                                src={artwork.image_file_1}
+                                alt={artwork.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 7v10h16V7H4zm8 2l3 4H9l-2 3-2-3H6l3-4z"/></svg></div>';
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <ImageIcon className="w-6 h-6" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-medium text-gray-900">
+                              #{artwork.id} - {artwork.title}
+                            </h5>
+                            <p className="text-sm text-gray-600">
+                              {(() => {
+                                const artist = artists.find(a => a.id?.toString() === artwork.artist_id?.toString())
+                                return artist?.name || 'Unknown Artist'
+                              })()}
+                            </p>
+                            {artwork.low_est && artwork.high_est && (
+                              <p className="text-sm text-gray-500">
+                                Estimate: £{artwork.low_est.toLocaleString()} - £{artwork.high_est.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="text-right text-sm text-gray-500 flex-shrink-0">
+                            {artwork.height_inches && artwork.width_inches && (
+                              <p>{artwork.height_inches}" × {artwork.width_inches}"</p>
+                            )}
+                            {artwork.materials && <p>{artwork.materials}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowInventorySelectionModal(false)
+                  setSelectedArtworks(new Set())
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={addSelectedArtworksToReceipt}
+                disabled={selectedArtworks.size === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Add Selected ({selectedArtworks.size})
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Upload, Sparkles, X, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { ArtistsAPI } from '../../lib/artists-api'
 import { autoSyncArtworkToGoogleSheet } from '../../lib/google-sheets-api'
+import { getBrands, Brand } from '../../lib/brands-api'
 
 interface AIUploadResult {
   title: string;
@@ -51,14 +52,47 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
   const [result, setResult] = useState<AIUploadResult | null>(null)
   const [artistInfo, setArtistInfo] = useState<any>(null)
   const [selectedBrand, setSelectedBrand] = useState(currentBrand === 'ALL' ? 'MSABER' : currentBrand)
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [loadingBrands, setLoadingBrands] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Brand options
-  const brandOptions = [
-    { value: 'MSABER', label: 'MSaber' },
-    { value: 'AURUM', label: 'Aurum' },
-    { value: 'METSAB', label: 'Metsab' }
-  ]
+  // Fetch brands on component mount
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const response = await getBrands()
+        if (response.success) {
+          setBrands(response.data.filter(brand => brand.is_active !== false))
+          // Set default brand if currentBrand is not in the list
+          if (currentBrand && response.data.some(brand => brand.code === currentBrand)) {
+            setSelectedBrand(currentBrand)
+          } else if (response.data.length > 0) {
+            setSelectedBrand(response.data[0].code)
+          }
+        } else {
+          console.error('Failed to fetch brands:', response.message)
+          // Fallback to hardcoded brands
+          setBrands([
+            { id: 1, name: 'MSaber', code: 'MSABER', is_active: true },
+            { id: 2, name: 'Aurum', code: 'AURUM', is_active: true },
+            { id: 3, name: 'Metsab', code: 'METSAB', is_active: true }
+          ])
+        }
+      } catch (error) {
+        console.error('Error fetching brands:', error)
+        // Fallback to hardcoded brands
+        setBrands([
+          { id: 1, name: 'MSaber', code: 'MSABER', is_active: true },
+          { id: 2, name: 'Aurum', code: 'AURUM', is_active: true },
+          { id: 3, name: 'Metsab', code: 'METSAB', is_active: true }
+        ])
+      } finally {
+        setLoadingBrands(false)
+      }
+    }
+
+    fetchBrands()
+  }, [currentBrand])
 
   // Fetch artist information when result changes
   useEffect(() => {
@@ -280,13 +314,18 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={loadingBrands}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
             >
-              {brandOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              {loadingBrands ? (
+                <option>Loading brands...</option>
+              ) : (
+                brands.map(brand => (
+                  <option key={brand.id} value={brand.code}>
+                    {brand.name}
+                  </option>
+                ))
+              )}
             </select>
             <span className="text-xs text-gray-500">
               Generated artwork will be saved to this brand

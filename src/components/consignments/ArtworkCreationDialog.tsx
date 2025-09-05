@@ -7,6 +7,8 @@ import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import AIImageUpload from '@/components/items/AIImageUpload'
 import AIBulkGenerationModal from '@/components/items/AIBulkGenerationModal'
+import ImageUploadField from '@/components/items/ImageUploadField'
+import { Sparkles, Edit3, Upload, X } from 'lucide-react'
 
 interface ArtworkCreationDialogProps {
   artists: Artist[]
@@ -18,6 +20,8 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
   const [loading, setLoading] = useState(false)
   const [showAIUpload, setShowAIUpload] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [creationMode, setCreationMode] = useState<'choose' | 'ai' | 'manual'>('choose')
+  const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -60,6 +64,16 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
     }
   }
 
+  const handleImageUpload = (imageUrl: string, file?: File) => {
+    if (imageUrl && !uploadedImages.includes(imageUrl)) {
+      setUploadedImages(prev => [...prev, imageUrl])
+    }
+  }
+
+  const removeImage = (imageUrl: string) => {
+    setUploadedImages(prev => prev.filter(img => img !== imageUrl))
+  }
+
   const handleArtistChange = (artistId: string) => {
     const selectedArtist = artists.find(a => a.id?.toString() === artistId)
     if (selectedArtist) {
@@ -97,14 +111,17 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
           materials: result.materials,
           condition: result.condition,
           category: result.category,
-          status: 'draft' as const
+          status: 'draft' as const,
+          // Add the uploaded image from AI analysis
+          image_file_1: result.imageUrl || undefined
         }
 
         const artworkResult = await ArtworksAPI.createArtwork(artworkData)
-        
+
         // If artwork was created successfully, return it to the parent
         onSave(artworkResult.data)
         setShowAIUpload(false)
+        setCreationMode('choose') // Reset to choose mode
       } catch (error) {
         console.error('Error creating artwork from AI analysis:', error)
         alert('Failed to create artwork from AI analysis. Please try again.')
@@ -119,6 +136,7 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
       // For bulk upload, return all artworks created
       onSave(results)
       setShowBulkUpload(false)
+      setCreationMode('choose') // Reset to choose mode
     }
   }
 
@@ -149,7 +167,18 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
         condition: formData.condition,
         category: formData.category,
         subcategory: formData.subcategory,
-        status: formData.status
+        status: formData.status,
+        // Add uploaded images
+        image_file_1: uploadedImages[0] || undefined,
+        image_file_2: uploadedImages[1] || undefined,
+        image_file_3: uploadedImages[2] || undefined,
+        image_file_4: uploadedImages[3] || undefined,
+        image_file_5: uploadedImages[4] || undefined,
+        image_file_6: uploadedImages[5] || undefined,
+        image_file_7: uploadedImages[6] || undefined,
+        image_file_8: uploadedImages[7] || undefined,
+        image_file_9: uploadedImages[8] || undefined,
+        image_file_10: uploadedImages[9] || undefined
       }
 
       const result = await ArtworksAPI.createArtwork(artworkData)
@@ -164,268 +193,368 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
 
   return (
     <div className="space-y-6">
-      {!showAIUpload && !showBulkUpload && (
+      {/* Mode Selection */}
+      {creationMode === 'choose' && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">How would you like to create the artwork?</h3>
+            <p className="text-gray-600">Choose between AI-powered analysis or manual entry</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* AI Analysis Option */}
+            <div className="border border-blue-200 rounded-lg p-6 hover:border-blue-300 transition-colors cursor-pointer"
+                 onClick={() => setCreationMode('ai')}>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-blue-600" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">AI Analysis</h4>
+                <p className="text-gray-600 mb-4">
+                  Upload images and let AI generate artwork details automatically
+                </p>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAIUpload(true)
+                    }}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Single Image Analysis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowBulkUpload(true)
+                    }}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Bulk Folder Upload
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Manual Entry Option */}
+            <div className="border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors cursor-pointer"
+                 onClick={() => setCreationMode('manual')}>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Edit3 className="w-8 h-8 text-gray-600" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Manual Entry</h4>
+                <p className="text-gray-600 mb-4">
+                  Enter artwork details manually with image upload support
+                </p>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Manual Entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Entry Form */}
+      {creationMode === 'manual' && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* AI Upload Options */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="text-lg font-medium text-blue-900 mb-3">AI-Powered Artwork Analysis</h4>
-            <p className="text-sm text-blue-700 mb-4">
-              Let AI automatically generate artwork details from images.
+          {/* Back to Mode Selection */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setCreationMode('choose')}
+              className="flex items-center text-blue-600 hover:text-blue-800"
+            >
+              ← Back to options
+            </button>
+            <h3 className="text-lg font-semibold">Manual Artwork Entry</h3>
+          </div>
+
+          {/* Image Upload Section */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h4 className="text-lg font-medium text-gray-900 mb-3">Artwork Images</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              {uploadedImages.map((imageUrl, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={imageUrl}
+                    alt={`Artwork ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(imageUrl)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {uploadedImages.length < 10 && (
+                <ImageUploadField
+                  label=""
+                  value=""
+                  onChange={handleImageUpload}
+                  imageIndex={uploadedImages.length + 1}
+                />
+              )}
+            </div>
+            <p className="text-sm text-gray-600">
+              Upload up to 10 images. First image will be used as the primary image.
             </p>
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowAIUpload(true)}
-                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          </div>
+
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Artist
+              </label>
+              <SearchableSelect
+                value={formData.artist_id}
+                onChange={handleArtistChange}
+                options={artists.map(artist => ({
+                  value: artist.id?.toString() || '',
+                  label: artist.name
+                }))}
+                placeholder="Select or search artist"
+              />
+              {!formData.artist_id && (
+                <input
+                  type="text"
+                  value={formData.artist_maker}
+                  onChange={(e) => handleInputChange('artist_maker', e.target.value)}
+                  placeholder="Or enter artist name manually"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2"
+                />
+              )}
+            </div>
+
+            {/* New Dimensions with inch/cm conversion */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dimensions
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Height (inches)</label>
+                    <input
+                      type="text"
+                      value={formData.height_inches}
+                      onChange={(e) => handleInputChange('height_inches', e.target.value)}
+                      placeholder='e.g., 24"'
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Width (inches)</label>
+                    <input
+                      type="text"
+                      value={formData.width_inches}
+                      onChange={(e) => handleInputChange('width_inches', e.target.value)}
+                      placeholder='e.g., 36"'
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Height (cm)</label>
+                    <input
+                      type="text"
+                      value={formData.height_cm}
+                      onChange={(e) => handleInputChange('height_cm', e.target.value)}
+                      placeholder="e.g., 61 cm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Width (cm)</label>
+                    <input
+                      type="text"
+                      value={formData.width_cm}
+                      onChange={(e) => handleInputChange('width_cm', e.target.value)}
+                      placeholder="e.g., 91 cm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Weight
+                </label>
+                <input
+                  type="text"
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange('weight', e.target.value)}
+                  placeholder="e.g., 2.5kg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Low Estimate (£) *
+              </label>
+              <input
+                type="number"
+                value={formData.low_est}
+                onChange={(e) => handleInputChange('low_est', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                High Estimate (£) *
+              </label>
+              <input
+                type="number"
+                value={formData.high_est}
+                onChange={(e) => handleInputChange('high_est', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Materials
+              </label>
+              <input
+                type="text"
+                value={formData.materials}
+                onChange={(e) => handleInputChange('materials', e.target.value)}
+                placeholder="e.g., Oil on canvas"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Condition
+              </label>
+              <select
+                value={formData.condition}
+                onChange={(e) => handleInputChange('condition', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <span>📷</span>
-                <span className="ml-2">Single Image Analysis</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowBulkUpload(true)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                <option value="">Select condition</option>
+                <option value="Excellent">Excellent</option>
+                <option value="Very Good">Very Good</option>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+                <option value="Poor">Poor</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <span>📁</span>
-                <span className="ml-2">Bulk Folder Upload</span>
-              </button>
+                <option value="">Select category</option>
+                <option value="Paintings">Paintings</option>
+                <option value="Sculptures">Sculptures</option>
+                <option value="Prints">Prints</option>
+                <option value="Drawings">Drawings</option>
+                <option value="Photography">Photography</option>
+                <option value="Textiles">Textiles</option>
+                <option value="Ceramics">Ceramics</option>
+                <option value="Jewelry">Jewelry</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Books">Books</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Price (£)
+              </label>
+              <input
+                type="number"
+                value={formData.start_price}
+                onChange={(e) => handleInputChange('start_price', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">Auto-calculated as 50% of low estimate</p>
             </div>
           </div>
 
-      {/* Basic Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Title *
-          </label>
-          <input
-            type="text"
-            value={formData.title}
-            onChange={(e) => handleInputChange('title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description *
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => handleInputChange('description', e.target.value)}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Artist
-          </label>
-          <SearchableSelect
-            value={formData.artist_id}
-            onChange={handleArtistChange}
-            options={artists.map(artist => ({
-              value: artist.id?.toString() || '',
-              label: artist.name
-            }))}
-            placeholder="Select or search artist"
-          />
-          {!formData.artist_id && (
-            <input
-              type="text"
-              value={formData.artist_maker}
-              onChange={(e) => handleInputChange('artist_maker', e.target.value)}
-              placeholder="Or enter artist name manually"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2"
-            />
-          )}
-        </div>
-
-        {/* New Dimensions with inch/cm conversion */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Dimensions
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Height (inches)</label>
-                <input
-                  type="text"
-                  value={formData.height_inches}
-                  onChange={(e) => handleInputChange('height_inches', e.target.value)}
-                  placeholder='e.g., 24"'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Width (inches)</label>
-                <input
-                  type="text"
-                  value={formData.width_inches}
-                  onChange={(e) => handleInputChange('width_inches', e.target.value)}
-                  placeholder='e.g., 36"'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Height (cm)</label>
-                <input
-                  type="text"
-                  value={formData.height_cm}
-                  onChange={(e) => handleInputChange('height_cm', e.target.value)}
-                  placeholder="e.g., 61 cm"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Width (cm)</label>
-                <input
-                  type="text"
-                  value={formData.width_cm}
-                  onChange={(e) => handleInputChange('width_cm', e.target.value)}
-                  placeholder="e.g., 91 cm"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={() => setCreationMode('choose')}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={loading}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Artwork'}
+            </button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Weight
-            </label>
-            <input
-              type="text"
-              value={formData.weight}
-              onChange={(e) => handleInputChange('weight', e.target.value)}
-              placeholder="e.g., 2.5kg"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Low Estimate (£) *
-          </label>
-          <input
-            type="number"
-            value={formData.low_est}
-            onChange={(e) => handleInputChange('low_est', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-            min="0"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            High Estimate (£) *
-          </label>
-          <input
-            type="number"
-            value={formData.high_est}
-            onChange={(e) => handleInputChange('high_est', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-            min="0"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Materials
-          </label>
-          <input
-            type="text"
-            value={formData.materials}
-            onChange={(e) => handleInputChange('materials', e.target.value)}
-            placeholder="e.g., Oil on canvas"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Condition
-          </label>
-          <select
-            value={formData.condition}
-            onChange={(e) => handleInputChange('condition', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select condition</option>
-            <option value="Excellent">Excellent</option>
-            <option value="Very Good">Very Good</option>
-            <option value="Good">Good</option>
-            <option value="Fair">Fair</option>
-            <option value="Poor">Poor</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category
-          </label>
-          <select
-            value={formData.category}
-            onChange={(e) => handleInputChange('category', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select category</option>
-            <option value="Paintings">Paintings</option>
-            <option value="Sculptures">Sculptures</option>
-            <option value="Prints">Prints</option>
-            <option value="Drawings">Drawings</option>
-            <option value="Photography">Photography</option>
-            <option value="Textiles">Textiles</option>
-            <option value="Ceramics">Ceramics</option>
-            <option value="Jewelry">Jewelry</option>
-            <option value="Furniture">Furniture</option>
-            <option value="Books">Books</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Start Price (£)
-          </label>
-          <input
-            type="number"
-            value={formData.start_price}
-            onChange={(e) => handleInputChange('start_price', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            min="0"
-          />
-          <p className="text-xs text-gray-500 mt-1">Auto-calculated as 50% of low estimate</p>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-4 pt-6 border-t">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? 'Creating...' : 'Create Artwork'}
-        </button>
-      </div>
         </form>
       )}
 
@@ -433,7 +562,10 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
       {showAIUpload && (
         <AIImageUpload
           onUploadComplete={handleAIUploadComplete}
-          onClose={() => setShowAIUpload(false)}
+          onClose={() => {
+            setShowAIUpload(false)
+            setCreationMode('choose')
+          }}
           currentBrand="MSABER"
         />
       )}
@@ -441,7 +573,10 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
       {/* Bulk Upload Modal */}
       {showBulkUpload && (
         <AIBulkGenerationModal
-          onClose={() => setShowBulkUpload(false)}
+          onClose={() => {
+            setShowBulkUpload(false)
+            setCreationMode('choose')
+          }}
           onComplete={handleBulkUploadComplete}
         />
       )}
