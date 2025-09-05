@@ -53,6 +53,12 @@ export interface Auction {
   total_sold_value?: number;
   sold_lots_count?: number;
 
+  // Platform URLs
+  liveauctioneers_url?: string;
+  easy_live_url?: string;
+  invaluable_url?: string;
+  the_saleroom_url?: string;
+
   artwork_ids?: number[]; // Array of artwork/item IDs
   created_at?: string;
   updated_at?: string;

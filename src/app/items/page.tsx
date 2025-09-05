@@ -286,7 +286,7 @@ export default function ItemsPage() {
           <div className="relative">
             <button
               onClick={() => setShowAddDropdown(!showAddDropdown)}
-              className="flex items-center justify-center sm:justify-start px-3 py-2 sm:px-4 sm:py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm w-full sm:w-auto"
+              className="flex items-center justify-center sm:justify-start px-3 py-2 sm:px-4 sm:py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm w-full sm:w-auto cursor-pointer"
             >
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Add Item</span>
@@ -302,7 +302,7 @@ export default function ItemsPage() {
                       router.push('/items/new')
                       setShowAddDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <Plus className="h-4 w-4 mr-3 text-gray-400" />
                     <div>
@@ -315,7 +315,7 @@ export default function ItemsPage() {
                       setShowAIBulkModal(true)
                       setShowAddDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <Sparkles className="h-4 w-4 mr-3 text-purple-500" />
                     <div>
@@ -328,7 +328,7 @@ export default function ItemsPage() {
                       setShowImportDialog(true)
                       setShowAddDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <Upload className="h-4 w-4 mr-3 text-green-500" />
                     <div>
@@ -345,7 +345,7 @@ export default function ItemsPage() {
           <div className="relative">
             <button
               onClick={() => setShowToolsDropdown(!showToolsDropdown)}
-              className="flex items-center justify-center sm:justify-start px-3 py-2 sm:px-4 sm:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm w-full sm:w-auto"
+              className="flex items-center justify-center sm:justify-start px-3 py-2 sm:px-4 sm:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm w-full sm:w-auto cursor-pointer"
             >
               <MoreVertical className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Tools</span>
@@ -361,7 +361,7 @@ export default function ItemsPage() {
                       setShowDuplicateModal(true)
                       setShowToolsDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <Copy className="h-4 w-4 mr-3 text-orange-500" />
                     <div>
@@ -374,7 +374,7 @@ export default function ItemsPage() {
                       setShowExportDialog(true)
                       setShowToolsDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <Download className="h-4 w-4 mr-3 text-blue-500" />
                     <div>
@@ -387,7 +387,7 @@ export default function ItemsPage() {
                       setShowGoogleSheetsModal(true)
                       setShowToolsDropdown(false)
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                   >
                     <RefreshCw className="h-4 w-4 mr-3 text-indigo-500" />
                     <div>
@@ -399,7 +399,7 @@ export default function ItemsPage() {
                     href="/inventory-form"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
                     onClick={() => setShowToolsDropdown(false)}
                   >
                     <Eye className="h-4 w-4 mr-3 text-gray-500" />

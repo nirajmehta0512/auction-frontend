@@ -219,9 +219,15 @@ export default function GoogleSheetsSyncModal({
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="text-sm text-green-800 font-medium">Configured</span>
                 </div>
-                <div className="text-xs text-green-700 mt-1 break-all">
+                <a
+                  href={googleSheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-green-700 hover:text-green-800 hover:underline mt-1 block break-all cursor-pointer transition-colors"
+                  title="Open Google Sheets (opens in new tab)"
+                >
                   {googleSheetUrl}
-                </div>
+                </a>
               </div>
             ) : (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

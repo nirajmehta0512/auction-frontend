@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, X } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
-import { ArtworksAPI } from '@/lib/items-api'
+import { ArtworksAPI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 
 interface FilterState {
@@ -46,65 +46,26 @@ interface ItemsFilterProps {
   totalItems?: number
 }
 
-const categories = [
-  'Fine Art',
-  'Antique Furniture',
-  'Silver & Metalware',
-  'Ceramics & Glass',
-  'Asian Art',
-  'Jewelry & Watches',
-  'Books & Manuscripts',
-  'Collectibles',
-  'Textiles',
-  'Musical Instruments',
-  'Scientific Instruments',
-  'Other'
-]
+// Convert arrays to SearchableOption format
+const categoryOptions = ITEM_CATEGORIES.map(category => ({
+  value: category,
+  label: category
+}))
 
-const conditions = [
-  'Excellent',
-  'Very Good',
-  'Good',
-  'Fair',
-  'Poor',
-  'As Found',
-  'Restored',
-  'Original Condition'
-]
+const conditionOptions = ITEM_CONDITIONS.map(condition => ({
+  value: condition,
+  label: condition
+}))
 
-const periodAges = [
-  'Contemporary',
-  'Modern',
-  '20th Century',
-  '19th Century',
-  '18th Century',
-  '17th Century',
-  '16th Century',
-  'Medieval',
-  'Ancient',
-  'Prehistoric'
-]
+const periodOptions = ITEM_PERIODS.map(period => ({
+  value: period,
+  label: period
+}))
 
-const materials = [
-  'Oil on canvas',
-  'Oil on panel',
-  'Acrylic',
-  'Watercolor',
-  'Pastel',
-  'Charcoal',
-  'Mixed media',
-  'Bronze',
-  'Marble',
-  'Wood',
-  'Ceramic',
-  'Porcelain',
-  'Silver',
-  'Gold',
-  'Crystal',
-  'Textile',
-  'Paper',
-  'Metal'
-]
+const materialOptions = ITEM_MATERIALS.map(material => ({
+  value: material,
+  label: material
+}))
 
 const statuses = [
   { value: 'all', label: 'All Items', color: 'bg-gray-100 text-gray-800' },
@@ -397,18 +358,14 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
+            <SearchableSelect
               value={filters.category}
-              onChange={(e) => onFilterChange({ category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+              options={[{ value: '', label: 'All Categories' }, ...categoryOptions]}
+              placeholder="Select category..."
+              onChange={(value) => onFilterChange({ category: value?.toString() || '' })}
+              className="w-full"
+              inputPlaceholder="Type to search categories..."
+            />
           </div>
 
           {/* Brand */}
@@ -431,52 +388,40 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
           {/* Condition */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Condition</label>
-            <select
+            <SearchableSelect
               value={filters.condition || ''}
-              onChange={(e) => onFilterChange({ condition: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
-            >
-              <option value="">All Conditions</option>
-              {conditions.map((condition) => (
-                <option key={condition} value={condition}>
-                  {condition}
-                </option>
-              ))}
-            </select>
+              options={[{ value: '', label: 'All Conditions' }, ...conditionOptions]}
+              placeholder="Select condition..."
+              onChange={(value) => onFilterChange({ condition: value?.toString() || '' })}
+              className="w-full"
+              inputPlaceholder="Type to search conditions..."
+            />
           </div>
 
           {/* Period/Age */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Period/Age</label>
-            <select
+            <SearchableSelect
               value={filters.period_age || ''}
-              onChange={(e) => onFilterChange({ period_age: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
-            >
-              <option value="">All Periods</option>
-              {periodAges.map((period) => (
-                <option key={period} value={period}>
-                  {period}
-                </option>
-              ))}
-            </select>
+              options={[{ value: '', label: 'All Periods' }, ...periodOptions]}
+              placeholder="Select period..."
+              onChange={(value) => onFilterChange({ period_age: value?.toString() || '' })}
+              className="w-full"
+              inputPlaceholder="Type to search periods..."
+            />
           </div>
 
           {/* Materials */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Materials</label>
-            <select
+            <SearchableSelect
               value={filters.materials || ''}
-              onChange={(e) => onFilterChange({ materials: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
-            >
-              <option value="">All Materials</option>
-              {materials.map((material) => (
-                <option key={material} value={material}>
-                  {material}
-                </option>
-              ))}
-            </select>
+              options={[{ value: '', label: 'All Materials' }, ...materialOptions]}
+              placeholder="Select material..."
+              onChange={(value) => onFilterChange({ materials: value?.toString() || '' })}
+              className="w-full"
+              inputPlaceholder="Type to search materials..."
+            />
           </div>
         </div>
 

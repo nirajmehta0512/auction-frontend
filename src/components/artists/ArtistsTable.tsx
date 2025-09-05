@@ -155,15 +155,6 @@ export default function ArtistsTable({
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
-                onClick={() => onSort('status')}
-                className="flex items-center space-x-1 hover:text-gray-700"
-              >
-                <span>Status</span>
-                {getSortIcon('status')}
-              </button>
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <button
                 onClick={() => onSort('created_at')}
                 className="flex items-center space-x-1 hover:text-gray-700"
               >
@@ -219,11 +210,11 @@ export default function ArtistsTable({
                 </div>
               </td>
 
-              <td className="px-6 py-4 whitespace-nowrap">
-                {getStatusBadge(artist.status || 'active')}
-              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {artist.created_at ? new Date(artist.created_at).toLocaleDateString() : '—'}
+                <div>
+                  <div>{artist.created_at ? new Date(artist.created_at).toLocaleDateString() : '—'}</div>
+                  <div className="mt-1">{getStatusBadge(artist.status || 'active')}</div>
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">

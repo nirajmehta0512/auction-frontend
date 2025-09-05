@@ -379,9 +379,9 @@ export default function ConsignmentsPage() {
       {/* Page Header */}
       <div className="bg-slate-700 px-2 py-3 sm:px-4 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 w-full">
         <h1 className="text-lg sm:text-2xl font-semibold text-white">Consignments</h1>
-        <button 
+        <button
           onClick={() => router.push('/consignments/new')}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add New Consignment</span>
@@ -395,7 +395,7 @@ export default function ConsignmentsPage() {
           <div className="flex items-center">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm transition-colors"
+              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm transition-colors cursor-pointer"
             >
               🔍 {showFilters ? 'Hide filters' : 'Show filters'}
             </button>
@@ -403,7 +403,7 @@ export default function ConsignmentsPage() {
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <button
               onClick={handleExportCSV}
-              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm cursor-pointer hover:underline"
             >
               <Download className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Export CSV</span>
@@ -411,7 +411,7 @@ export default function ConsignmentsPage() {
             </button>
             <button
               onClick={() => setShowCSVUpload(true)}
-              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm cursor-pointer hover:underline"
             >
               <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Import CSV</span>
@@ -419,7 +419,7 @@ export default function ConsignmentsPage() {
             </button>
             <button
               onClick={() => setShowGoogleSheetsSync(true)}
-              className="flex items-center space-x-1 sm:space-x-2 text-green-600 hover:text-green-700 text-xs sm:text-sm"
+              className="flex items-center space-x-1 sm:space-x-2 text-green-600 hover:text-green-700 text-xs sm:text-sm cursor-pointer hover:underline"
             >
               <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Google Sheets</span>
@@ -431,9 +431,9 @@ export default function ConsignmentsPage() {
               onClick={handleGenerateReportPDF}
               disabled={selectedConsignments.length === 0}
               className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${
-                selectedConsignments.length === 0 
-                  ? 'text-gray-400 cursor-not-allowed' 
-                  : 'text-blue-600 hover:text-blue-700'
+                selectedConsignments.length === 0
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-blue-600 hover:text-blue-700 cursor-pointer hover:underline'
               }`}
             >
               <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -480,8 +480,8 @@ export default function ConsignmentsPage() {
               </select>
             </div>
             <div className="flex gap-2">
-              <button onClick={applyFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-xs sm:text-sm">Apply</button>
-              <button onClick={clearFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 rounded-md text-xs sm:text-sm">Clear</button>
+              <button onClick={applyFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-xs sm:text-sm cursor-pointer">Apply</button>
+              <button onClick={clearFilters} className="px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 rounded-md text-xs sm:text-sm cursor-pointer hover:underline">Clear</button>
             </div>
           </div>
         </div>

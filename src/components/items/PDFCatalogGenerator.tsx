@@ -2,47 +2,23 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { X, Download, Share2, Printer, Eye, Settings } from 'lucide-react'
+import { X, Download, Share2, Printer, Eye, Settings, Image, FileText, Grid, List, Layers } from 'lucide-react'
 import { Artwork } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { fetchClient, Client } from '@/lib/clients-api'
 import { 
   generateArtworkPreview, 
-  ArtworkPreviewData, 
+  ArtworkPreviewData as OriginalArtworkPreviewData, 
   ArtworkPreviewOptions 
 } from '@/lib/artwork-preview'
+import { PDFCatalogGenerator as PDFGenerator, CatalogOptions, BrandData, ArtworkPreviewData } from '@/lib/pdf-catalog-generator'
 
 interface PDFCatalogGeneratorProps {
   selectedArtworks: Artwork[]
   onClose: () => void
 }
 
-interface CatalogOptions {
-  includeTitle: boolean
-  includeImages: boolean
-  includeDescription: boolean
-  includeArtist: boolean
-  includeArtistBiography: boolean
-  includeArtistDescription: boolean
-  includeArtistExtraInfo: boolean
-  includeDimensions: boolean
-  includeCondition: boolean
-  includeMaterials: boolean
-  includeProvenance: boolean
-  includeEstimates: boolean
-  includeConsigner: boolean
-  includeLotNumbers: boolean
-  
-  // Layout options
-  layoutType: 'cards' | 'table' | 'detailed'
-  itemsPerPage: number
-  showPageNumbers: boolean
-  catalogTitle: string
-  catalogSubtitle: string
-  includeHeader: boolean
-  includeFooter: boolean
-  logoUrl: string
-}
+// Interfaces moved to @/lib/pdf-catalog-generator
 
 const defaultOptions: CatalogOptions = {
   includeTitle: true,
@@ -59,6 +35,10 @@ const defaultOptions: CatalogOptions = {
   includeEstimates: true,
   includeConsigner: false,
   includeLotNumbers: true,
+  includeCategory: false,
+  includePeriodAge: false,
+  includeWeight: false,
+  includeImageCaptions: false,
   
   layoutType: 'cards',
   itemsPerPage: 4,
@@ -67,7 +47,11 @@ const defaultOptions: CatalogOptions = {
   catalogSubtitle: '',
   includeHeader: true,
   includeFooter: true,
-  logoUrl: ''
+  logoUrl: '',
+  showBrandLogos: true,
+  imagesPerItem: 2, // Show first two images by default
+  imageSize: 'medium',
+  showImageBorder: true
 }
 
 export default function PDFCatalogGenerator({
@@ -81,10 +65,72 @@ export default function PDFCatalogGenerator({
   const [enrichedArtworks, setEnrichedArtworks] = useState<ArtworkPreviewData[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [loadingImages, setLoadingImages] = useState(false)
+  const [brands, setBrands] = useState<BrandData[]>([])
+  const [loadedBrandLogos, setLoadedBrandLogos] = useState<Map<number, string>>(new Map())
+
+  // Load brand data and logos
+  const loadBrandData = async () => {
+    try {
+      // Get unique brand IDs from selected artworks
+      const brandIds = new Set<number>()
+      selectedArtworks.forEach(artwork => {
+        if (artwork.brands?.id) {
+          brandIds.add(artwork.brands.id)
+        } else if (artwork.brand_id) {
+          brandIds.add(artwork.brand_id)
+        }
+      })
+
+      if (brandIds.size === 0) return
+
+      // Fetch brand data
+      const token = localStorage.getItem('token')
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      
+      const brandsData: BrandData[] = []
+      const logoMap = new Map<number, string>()
+
+      for (const brandId of brandIds) {
+        try {
+          const response = await fetch(`${backendUrl}/api/brands/${brandId}`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : ''
+            }
+          })
+          
+          if (response.ok) {
+            const brandResponse = await response.json()
+            const brand = brandResponse.data
+            brandsData.push(brand)
+
+            // Load brand logo if available
+            if (brand.logo_url) {
+              try {
+                const logoBase64 = await loadImageAsBase64(brand.logo_url)
+                if (logoBase64) {
+                  logoMap.set(brand.id, logoBase64)
+                }
+              } catch (logoError) {
+                console.warn(`Failed to load logo for brand ${brand.name}:`, logoError)
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to load brand ${brandId}:`, error)
+        }
+      }
+
+      setBrands(brandsData)
+      setLoadedBrandLogos(logoMap)
+    } catch (error) {
+      console.error('Failed to load brand data:', error)
+    }
+  }
 
   // Load additional data for artworks (artists, clients, etc.)
   useEffect(() => {
     loadEnrichedData()
+    loadBrandData()
   }, [selectedArtworks])
 
   const loadEnrichedData = async () => {
@@ -100,7 +146,7 @@ export default function PDFCatalogGenerator({
           try {
             const artistResponse = await ArtistsAPI.getArtist(artwork.artist_id.toString())
             if (artistResponse.success) {
-              enrichedArtwork.artist = artistResponse.data
+              (enrichedArtwork as any).artist = artistResponse.data
             }
           } catch (error) {
             console.error('Error loading artist:', error)
@@ -112,7 +158,7 @@ export default function PDFCatalogGenerator({
           try {
             const clientResponse = await fetchClient(artwork.vendor_id)
             if (clientResponse.success) {
-              enrichedArtwork.consigner_client = clientResponse.data
+              (enrichedArtwork as any).consigner_client = clientResponse.data
             }
           } catch (error) {
             console.error('Error loading vendor:', error)
@@ -148,7 +194,7 @@ export default function PDFCatalogGenerator({
 
     return enrichedArtworks.map(artwork => ({
       ...artwork,
-      previewText: generateArtworkPreview(artwork, previewOptions)
+      previewText: generateArtworkPreview(artwork as any, previewOptions)
     }))
   }
 
@@ -316,18 +362,58 @@ export default function PDFCatalogGenerator({
         doc.setFillColor(colors.accent[0], colors.accent[1], colors.accent[2])
         doc.rect(0, 32, pageWidth, 3, 'F')
         
+        // Add brand logos if enabled and available
+        if (options.showBrandLogos && brands.length > 0) {
+          const logoHeight = 25
+          const logoSpacing = 35
+          let logoX = margin
+          
+          // If multiple brands, space them out
+          if (brands.length > 1) {
+            logoX = (pageWidth - (brands.length * logoSpacing)) / 2
+          } else {
+            logoX = margin + 10
+          }
+          
+          brands.forEach((brand, index) => {
+            const logoBase64 = loadedBrandLogos.get(brand.id)
+            if (logoBase64) {
+              try {
+                // Add brand logo
+                doc.addImage(logoBase64, 'PNG', logoX + (index * logoSpacing), 5, logoHeight, logoHeight)
+              } catch (error) {
+                console.warn(`Failed to add logo for brand ${brand.name}:`, error)
+                // Fallback to text
+                doc.setTextColor(255, 255, 255)
+                doc.setFontSize(10)
+                doc.setFont('helvetica', 'bold')
+                doc.text(brand.name, logoX + (index * logoSpacing), 20)
+              }
+            } else {
+              // Fallback to brand name text
+              doc.setTextColor(255, 255, 255)
+              doc.setFontSize(10)
+              doc.setFont('helvetica', 'bold')
+              doc.text(brand.name, logoX + (index * logoSpacing), 20)
+            }
+          })
+        }
+        
+        // Adjust title position if logos are present
+        const titleX = options.showBrandLogos && brands.length > 0 ? pageWidth / 2 + 50 : pageWidth / 2
+        
         if (options.catalogTitle) {
           doc.setTextColor(255, 255, 255)
           doc.setFontSize(24)
-          doc.setFont(undefined, 'bold')
-          doc.text(options.catalogTitle, pageWidth / 2, 20, { align: 'center' })
+          doc.setFont('helvetica', 'bold')
+          doc.text(options.catalogTitle, titleX, 20, { align: 'center' })
         }
         
         if (options.catalogSubtitle) {
           doc.setTextColor(220, 220, 220)
           doc.setFontSize(12)
-          doc.setFont(undefined, 'normal')
-          doc.text(options.catalogSubtitle, pageWidth / 2, 28, { align: 'center' })
+          doc.setFont('helvetica', 'normal')
+          doc.text(options.catalogSubtitle, titleX, 28, { align: 'center' })
         }
         
         currentY = 45
@@ -344,7 +430,7 @@ export default function PDFCatalogGenerator({
           
           // Page number
           doc.setFontSize(10)
-          doc.setFont(undefined, 'normal')
+          doc.setFont('helvetica', 'normal')
           doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
           doc.text(`Page ${pageNumber}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
           
@@ -376,7 +462,7 @@ export default function PDFCatalogGenerator({
 
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(10)
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
 
         let colX = margin + 2
         tableHeaders.forEach((header, index) => {
@@ -386,7 +472,7 @@ export default function PDFCatalogGenerator({
 
         tableY += rowHeight
         doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
-        doc.setFont(undefined, 'normal')
+        doc.setFont('helvetica', 'normal')
         doc.setFontSize(8)
 
         previewData.forEach((artwork, index) => {
@@ -401,7 +487,7 @@ export default function PDFCatalogGenerator({
             doc.rect(margin, tableY, contentWidth, rowHeight, 'F')
             doc.setTextColor(255, 255, 255)
             doc.setFontSize(10)
-            doc.setFont(undefined, 'bold')
+            doc.setFont('helvetica', 'bold')
 
             colX = margin + 2
             tableHeaders.forEach((header, index) => {
@@ -411,7 +497,7 @@ export default function PDFCatalogGenerator({
 
             tableY += rowHeight
             doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
-            doc.setFont(undefined, 'normal')
+            doc.setFont('helvetica', 'normal')
             doc.setFontSize(8)
           }
 
@@ -476,8 +562,8 @@ export default function PDFCatalogGenerator({
           colX += colWidths[options.includeImages ? 2 : 1]
 
           // Artist
-          if (artwork.artist?.name) {
-            const artistText = artwork.artist.name.length > (options.includeImages ? 12 : 15) ? artwork.artist.name.substring(0, (options.includeImages ? 12 : 15)) + '...' : artwork.artist.name
+          if ((artwork as any).artist?.name) {
+            const artistText = (artwork as any).artist.name.length > (options.includeImages ? 12 : 15) ? (artwork as any).artist.name.substring(0, (options.includeImages ? 12 : 15)) + '...' : (artwork as any).artist.name
             doc.text(artistText, colX, tableY + (rowHeight/2) + 2)
           }
           colX += colWidths[options.includeImages ? 3 : 2]
@@ -530,7 +616,7 @@ export default function PDFCatalogGenerator({
             doc.rect(margin + 5, cardY + 5, 40, 12, 'F')
             doc.setTextColor(255, 255, 255)
             doc.setFontSize(10)
-            doc.setFont(undefined, 'bold')
+            doc.setFont('helvetica', 'bold')
             doc.text(`LOT ${artwork.id}`, margin + 7, cardY + 13)
           }
 
@@ -585,18 +671,18 @@ export default function PDFCatalogGenerator({
           if (options.includeTitle && artwork.title) {
             doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
             doc.setFontSize(12)
-            doc.setFont(undefined, 'bold')
+            doc.setFont('helvetica', 'bold')
             const titleLines = doc.splitTextToSize(artwork.title, contentWidthCard)
             doc.text(titleLines.slice(0, 2), contentX, contentY) // Max 2 lines for title
             contentY += titleLines.slice(0, 2).length * 5
           }
 
           // Artist
-          if (artwork.artist?.name) {
+          if ((artwork as any).artist?.name) {
             doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
             doc.setFontSize(10)
-            doc.setFont(undefined, 'italic')
-            doc.text(`by ${artwork.artist.name}`, contentX, contentY)
+            doc.setFont('helvetica', 'italic')
+            doc.text(`by ${(artwork as any).artist.name}`, contentX, contentY)
             contentY += 5
           }
 
@@ -604,7 +690,7 @@ export default function PDFCatalogGenerator({
           if (options.includeEstimates && artwork.low_est && artwork.high_est) {
             doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2])
             doc.setFontSize(11)
-            doc.setFont(undefined, 'bold')
+            doc.setFont('helvetica', 'bold')
             doc.text(`$${artwork.low_est.toLocaleString()} - $${artwork.high_est.toLocaleString()}`, contentX, contentY)
             contentY += 7
           }
@@ -620,7 +706,7 @@ export default function PDFCatalogGenerator({
             if (dimension) {
               doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
               doc.setFontSize(9)
-              doc.setFont(undefined, 'normal')
+              doc.setFont('helvetica', 'normal')
               doc.text(dimension, contentX, contentY)
               contentY += 4
             }
@@ -630,7 +716,7 @@ export default function PDFCatalogGenerator({
           if (options.includeDescription && artwork.description) {
             doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
             doc.setFontSize(8)
-            doc.setFont(undefined, 'normal')
+            doc.setFont('helvetica', 'normal')
             const maxChars = options.layoutType === 'detailed' ? 250 : 150
             const descLines = doc.splitTextToSize(artwork.description.substring(0, maxChars) + '...', contentWidthCard)
             const maxLines = options.layoutType === 'detailed' ? 4 : 3
@@ -685,6 +771,71 @@ export default function PDFCatalogGenerator({
       alert('Error generating PDF. Please try again.')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // New simplified PDF generation using the PDFCatalogGenerator class
+  const generatePDFNew = async (action: 'download' | 'share' | 'print' | 'preview') => {
+    try {
+      setGenerating(true)
+      setLoadingImages(true)
+
+      // Convert enriched artworks to the format expected by the PDF generator
+      const artworkData: ArtworkPreviewData[] = enrichedArtworks.map(artwork => ({
+        ...artwork,
+        artist_name: (artwork as any).artist?.name || artwork.artist_maker,
+        consigner_name: (artwork as any).consigner_client?.name
+      }))
+
+      // Create PDF generator instance
+      const pdfGenerator = new PDFGenerator()
+
+      setLoadingImages(false)
+
+      // Handle different actions
+      switch (action) {
+        case 'download':
+          const fileName = `catalog_${options.catalogTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`
+          const downloadResult = await pdfGenerator.generatePDF(artworkData, options, brands, 'download')
+          if (downloadResult && downloadResult instanceof Blob) {
+            const downloadUrl = URL.createObjectURL(downloadResult)
+            const link = document.createElement('a')
+            link.href = downloadUrl
+            link.download = fileName
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            URL.revokeObjectURL(downloadUrl)
+          }
+          break
+        case 'print':
+          const printResult = await pdfGenerator.generatePDF(artworkData, options, brands, 'print')
+          if (printResult && printResult instanceof Blob) {
+            const printUrl = URL.createObjectURL(printResult)
+            const printWindow = window.open(printUrl, '_blank')
+            if (printWindow) {
+              printWindow.onload = () => {
+                printWindow.print()
+              }
+            }
+          }
+          break
+        case 'share':
+        case 'preview':
+          const previewResult = await pdfGenerator.generatePDF(artworkData, options, brands, action)
+          if (previewResult && previewResult instanceof Blob) {
+            const previewUrl = URL.createObjectURL(previewResult)
+            window.open(previewUrl, '_blank')
+          }
+          break
+      }
+
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error generating PDF. Please try again.')
+    } finally {
+      setGenerating(false)
+      setLoadingImages(false)
     }
   }
 
@@ -743,7 +894,14 @@ export default function PDFCatalogGenerator({
                       { key: 'includeArtist', label: 'Include Artist' },
                       { key: 'includeDimensions', label: 'Include Dimensions' },
                       { key: 'includeEstimates', label: 'Include Estimates' },
-                      { key: 'includeLotNumbers', label: 'Include Lot Numbers' }
+                      { key: 'includeLotNumbers', label: 'Include Lot Numbers' },
+                      { key: 'includeCondition', label: 'Include Condition' },
+                      { key: 'includeMaterials', label: 'Include Materials' },
+                      { key: 'includeProvenance', label: 'Include Provenance' },
+                      { key: 'includeCategory', label: 'Include Category' },
+                      { key: 'includePeriodAge', label: 'Include Period/Age' },
+                      { key: 'includeWeight', label: 'Include Weight' },
+                      { key: 'includeImageCaptions', label: 'Include Image Captions' }
                     ].map(option => (
                       <label key={option.key} className="flex items-center text-sm">
                         <input
@@ -807,6 +965,56 @@ export default function PDFCatalogGenerator({
                       />
                       Show Page Numbers
                     </label>
+                    <label className="flex items-center text-sm">
+                      <input
+                        type="checkbox"
+                        checked={options.showBrandLogos}
+                        onChange={(e) => updateOption('showBrandLogos', e.target.checked)}
+                        className="mr-2"
+                      />
+                      Show Brand Logos ({brands.length} brand{brands.length !== 1 ? 's' : ''} detected)
+                    </label>
+                    
+                    {/* Image Options */}
+                    {options.includeImages && (
+                      <>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Images per Item</label>
+                          <select
+                            value={options.imagesPerItem}
+                            onChange={(e) => updateOption('imagesPerItem', parseInt(e.target.value))}
+                            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value={1}>1 Image</option>
+                            <option value={2}>2 Images</option>
+                            <option value={3}>3 Images</option>
+                            <option value={4}>4 Images</option>
+                            <option value={5}>5 Images</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Image Size</label>
+                          <select
+                            value={options.imageSize}
+                            onChange={(e) => updateOption('imageSize', e.target.value)}
+                            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="small">Small</option>
+                            <option value="medium">Medium</option>
+                            <option value="large">Large</option>
+                          </select>
+                        </div>
+                        <label className="flex items-center text-sm">
+                          <input
+                            type="checkbox"
+                            checked={options.showImageBorder}
+                            onChange={(e) => updateOption('showImageBorder', e.target.checked)}
+                            className="mr-2"
+                          />
+                          Show Image Border
+                        </label>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -867,7 +1075,7 @@ export default function PDFCatalogGenerator({
           {/* Actions */}
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => generatePDF('preview')}
+              onClick={() => generatePDFNew('preview')}
               disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
             >
@@ -876,7 +1084,7 @@ export default function PDFCatalogGenerator({
             </button>
 
             <button
-              onClick={() => generatePDF('download')}
+              onClick={() => generatePDFNew('download')}
               disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
             >
@@ -885,7 +1093,7 @@ export default function PDFCatalogGenerator({
             </button>
 
             <button
-              onClick={() => generatePDF('share')}
+              onClick={() => generatePDFNew('share')}
               disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -894,7 +1102,7 @@ export default function PDFCatalogGenerator({
             </button>
 
             <button
-              onClick={() => generatePDF('print')}
+              onClick={() => generatePDFNew('print')}
               disabled={generating || loadingImages}
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >

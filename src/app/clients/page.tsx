@@ -413,7 +413,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer hover:underline"
                 title="Toggle filters"
               >
                 <span>🔍 {showFilters ? 'Hide' : 'Show'} filter</span>
@@ -422,7 +422,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
               {selectedClients.length > 0 && (
                 <button
                   onClick={handleBulkDelete}
-                  className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-800 active:bg-red-200 transition-colors cursor-pointer"
+                  className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-800 active:bg-red-200 transition-colors cursor-pointer hover:underline"
                   title="Delete selected clients"
                 >
                   Delete Selected ({selectedClients.length})
@@ -433,7 +433,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowCSVUpload(true)}
-                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:text-teal-800 active:bg-teal-200 transition-colors cursor-pointer hover:underline"
                 title="Import clients from CSV"
               >
                 <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -443,7 +443,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
               <button
                 onClick={handleExportCSV}
                 disabled={false}
-                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Export clients to CSV"
               >
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -452,7 +452,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
               </button>
               <button
                 onClick={() => setShowGoogleSheetsSync(true)}
-                className="flex items-center px-2 py-1 sm:px-4 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm"
+                className="flex items-center px-2 py-1 sm:px-4 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm cursor-pointer"
               >
                 <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Google Sheets</span>
@@ -528,7 +528,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                       disabled={pagination.page === 1}
-                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
+                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
                       title="Previous page"
                     >
                       Previous
@@ -544,7 +544,7 @@ ${errors.length > 0 ? '\nFirst few errors:\n' + errors.slice(0, 3).join('\n') : 
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
                       disabled={pagination.page === pagination.pages}
-                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
+                      className="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200 transition-colors cursor-pointer hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50"
                       title="Next page"
                     >
                       Next

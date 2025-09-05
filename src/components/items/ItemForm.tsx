@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
-import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI } from '@/lib/items-api'
+import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
 import { getAuctions, Auction } from '@/lib/auctions-api'
@@ -207,20 +207,29 @@ const convertCmToInches = (cmStr: string): string => {
   return converted.replace(/cm/g, '').replace(/x/g, 'x').trim() + '"'
 }
 
-const categories = [
-  'Fine Art',
-  'Antique Furniture',
-  'Silver & Metalware',
-  'Ceramics & Glass',
-  'Asian Art',
-  'Jewelry & Watches',
-  'Books & Manuscripts',
-  'Collectibles',
-  'Textiles',
-  'Musical Instruments',
-  'Scientific Instruments',
-  'Other'
-]
+// Convert categories to SearchableOption format
+const categoryOptions = ITEM_CATEGORIES.map(category => ({
+  value: category,
+  label: category
+}))
+
+// Convert conditions to SearchableOption format
+const conditionOptions = ITEM_CONDITIONS.map(condition => ({
+  value: condition.toLowerCase().replace(/\s+/g, ''),
+  label: condition
+}))
+
+// Convert periods to SearchableOption format
+const periodOptions = ITEM_PERIODS.map(period => ({
+  value: period,
+  label: period
+}))
+
+// Convert materials to SearchableOption format
+const materialOptions = ITEM_MATERIALS.map(material => ({
+  value: material,
+  label: material
+}))
 
 const statuses = [
   { value: 'draft', label: 'Draft', color: 'bg-yellow-100 text-yellow-800' },
@@ -1482,12 +1491,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Medium/Materials
                     </label>
-                    <input
-                      type="text"
+                    <SearchableSelect
                       value={formData.medium}
-                      onChange={(e) => handleInputChange('medium', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., Oil on canvas, Watercolor, Bronze"
+                      options={[{ value: '', label: 'Select material...' }, ...materialOptions]}
+                      placeholder="Select material..."
+                      onChange={(value) => handleInputChange('medium', value?.toString() || '')}
+                      className="w-full"
+                      inputPlaceholder="Type to search materials..."
                     />
                   </div>
 
@@ -1521,12 +1531,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Period/Age
                     </label>
-                    <input
-                      type="text"
+                    <SearchableSelect
                       value={formData.period_age}
-                      onChange={(e) => handleInputChange('period_age', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., 20th Century, Contemporary"
+                      options={[{ value: '', label: 'Select period...' }, ...periodOptions]}
+                      placeholder="Select period..."
+                      onChange={(value) => handleInputChange('period_age', value?.toString() || '')}
+                      className="w-full"
+                      inputPlaceholder="Type to search periods..."
                     />
                   </div>
                 </div>
@@ -2014,18 +2025,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category
                     </label>
-                    <select
+                    <SearchableSelect
                       value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      <option value="">Select category...</option>
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
+                      options={[{ value: '', label: 'Select category...' }, ...categoryOptions]}
+                      placeholder="Select category..."
+                      onChange={(value) => handleInputChange('category', value?.toString() || '')}
+                      className="w-full"
+                      inputPlaceholder="Type to search categories..."
+                    />
                   </div>
 
                   <div>
@@ -2045,18 +2052,14 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Condition
                     </label>
-                    <select
+                    <SearchableSelect
                       value={formData.condition}
-                      onChange={(e) => handleInputChange('condition', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      <option value="">Select condition</option>
-                      <option value="excellent">Excellent</option>
-                      <option value="good">Good</option>
-                      <option value="fair">Fair</option>
-                      <option value="framed">Framed</option>
-                      <option value="unframed">Unframed</option>
-                    </select>
+                      options={[{ value: '', label: 'Select condition...' }, ...conditionOptions]}
+                      placeholder="Select condition..."
+                      onChange={(value) => handleInputChange('condition', value?.toString() || '')}
+                      className="w-full"
+                      inputPlaceholder="Type to search conditions..."
+                    />
                   </div>
                 </div>
               </div>

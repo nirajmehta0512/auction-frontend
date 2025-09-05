@@ -245,7 +245,7 @@ export default function GalleriesPage() {
         <div className="flex items-center space-x-3">
           <button
             onClick={handleExport}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 cursor-pointer hover:underline"
           >
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -254,7 +254,7 @@ export default function GalleriesPage() {
           {userRole === 'super_admin' && (
             <button
               onClick={exportShare.openModal}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer"
             >
               <Share2 className="h-4 w-4 mr-2" />
               Export & Share
@@ -263,7 +263,7 @@ export default function GalleriesPage() {
           
           <Link
             href="/galleries/new"
-            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Gallery
@@ -310,7 +310,7 @@ export default function GalleriesPage() {
                       <button
                         type="button"
                         onClick={handleGoogleSearch}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Search
@@ -319,7 +319,7 @@ export default function GalleriesPage() {
                         type="button"
                         onClick={handleAiGenerateFromPlace}
                         disabled={aiGenerating}
-                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 cursor-pointer"
                       >
                         {aiGenerating ? (
                           <div className="animate-spin rounded-full h-4 w-4 mr-2 border-b-2 border-white"></div>
@@ -355,7 +355,7 @@ export default function GalleriesPage() {
                 
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer"
                 >
                   Search Database
                 </button>
@@ -476,7 +476,7 @@ export default function GalleriesPage() {
             </p>
             <Link
               href="/galleries/new"
-              className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+              className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Gallery
@@ -564,13 +564,13 @@ export default function GalleriesPage() {
                         <div className="flex items-center justify-end space-x-2">
                           <Link
                             href={`/galleries/edit/${gallery.id}`}
-                            className="text-teal-600 hover:text-teal-900"
+                            className="text-teal-600 hover:text-teal-900 cursor-pointer hover:underline"
                           >
                             <Edit className="h-4 w-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(gallery.id!, gallery.name)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 cursor-pointer hover:underline"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -593,14 +593,14 @@ export default function GalleriesPage() {
                     <button
                       onClick={() => handleFilterChange({ page: Math.max(1, pagination.page - 1) })}
                       disabled={pagination.page === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:underline"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => handleFilterChange({ page: Math.min(pagination.pages, pagination.page + 1) })}
                       disabled={pagination.page === pagination.pages}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:underline"
                     >
                       Next
                     </button>

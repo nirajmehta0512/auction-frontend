@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload,
-  FileText, Package, Edit
+  FileText, Package, Edit, ExternalLink, ChevronDown, Eye
 } from 'lucide-react'
 import { getAuctions } from '@/lib/auctions-api'
 import { getBrands, type Brand } from '@/lib/brands-api'
@@ -41,6 +41,7 @@ export default function AuctionViewPage() {
   const [error, setError] = useState<string | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
+  const [showUrlMenu, setShowUrlMenu] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
 
   // Get brand ID from brand code
@@ -125,6 +126,20 @@ export default function AuctionViewPage() {
     }
   }, [auctionId, loadAuctionDetails, brands.length])
 
+  // Close URL menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUrlMenu && !(event.target as Element).closest('.url-menu-container')) {
+        setShowUrlMenu(false)
+      }
+    }
+
+    if (showUrlMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showUrlMenu])
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set'
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -180,10 +195,44 @@ export default function AuctionViewPage() {
     router.push(`/auctions/${auctionId}/invoices`)
   }
 
-  // const handleViewLiveAuction = () => {
-  //   const liveAuctionUrl = `https://liveauctioneers.com/catalog/${auctionId}`
-  //   window.open(liveAuctionUrl, '_blank')
-  // }
+  // Get available auction URLs
+  const getAvailableUrls = useCallback(() => {
+    if (!auction) return []
+
+    const urls = [
+      { platform: 'LiveAuctioneers', url: auction.liveauctioneers_url, key: 'liveauctioneers_url' },
+      { platform: 'EasyLive', url: auction.easy_live_url, key: 'easy_live_url' },
+      { platform: 'Invaluable', url: auction.invaluable_url, key: 'invaluable_url' },
+      { platform: 'The Saleroom', url: auction.the_saleroom_url, key: 'the_saleroom_url' }
+    ].filter(item => item.url && item.url.trim() !== '')
+
+    return urls
+  }, [auction])
+
+  // Handle viewing auction URLs
+  const handleViewAuction = useCallback(() => {
+    const availableUrls = getAvailableUrls()
+
+    if (availableUrls.length === 0) {
+      // No URLs available
+      alert('No auction URLs have been configured for this auction.')
+      return
+    }
+
+    if (availableUrls.length === 1) {
+      // Only one URL, navigate directly
+      window.open(availableUrls[0].url, '_blank')
+    } else {
+      // Multiple URLs, show menu
+      setShowUrlMenu(!showUrlMenu)
+    }
+  }, [getAvailableUrls, showUrlMenu])
+
+  // Handle selecting a specific URL from menu
+  const handleUrlSelect = useCallback((url: string) => {
+    window.open(url, '_blank')
+    setShowUrlMenu(false)
+  }, [])
 
   if (loading) {
     return (
@@ -246,13 +295,39 @@ export default function AuctionViewPage() {
               </div>
 
               {/* Primary Actions */}
-              {/* <button
-                onClick={handleViewLiveAuction}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View Live
-              </button> */}
+              <div className="relative url-menu-container">
+                <button
+                  onClick={handleViewAuction}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Auction
+                  {getAvailableUrls().length > 1 && (
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  )}
+                </button>
+
+                {/* URL Selection Menu */}
+                {showUrlMenu && getAvailableUrls().length > 1 && (
+                  <div className="absolute top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-2">
+                      {getAvailableUrls().map((urlItem, index) => (
+                        <button
+                          key={urlItem.key}
+                          onClick={() => handleUrlSelect(urlItem.url!)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg flex items-center space-x-3"
+                        >
+                          <ExternalLink className="h-4 w-4 text-gray-500" />
+                          <div>
+                            <div className="font-medium text-gray-900">{urlItem.platform}</div>
+                            <div className="text-xs text-gray-500 truncate max-w-48">{urlItem.url}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={() => router.push(`/auctions/edit/${auctionId}`)}
@@ -509,13 +584,15 @@ export default function AuctionViewPage() {
                 <span className="text-sm text-gray-600">
                   {artworks.length} items in catalog
                 </span>
-                {/* <button
-                  onClick={handleViewLiveAuction}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  View All on LiveAuctioneers
-                </button> */}
+                {getAvailableUrls().length > 0 && (
+                  <button
+                    onClick={handleViewAuction}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    {getAvailableUrls().length === 1 ? 'View Auction' : `View on ${getAvailableUrls()[0].platform}`}
+                  </button>
+                )}
               </div>
             </div>
 

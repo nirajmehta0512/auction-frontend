@@ -186,6 +186,11 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     platform: string;
     brand_id?: number;
     upload_status: string;
+    // Platform URLs
+    liveauctioneers_url: string;
+    easy_live_url: string;
+    invaluable_url: string;
+    the_saleroom_url: string;
   }>({
     type: auction?.type || 'sealed_bid',
     subtype: auction?.subtype || 'actual',
@@ -209,7 +214,12 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     time_zone: auction?.time_zone || 'UTC',
     platform: auction?.platform || 'liveauctioneers',
     brand_id: auction?.brand_id || auction?.brand?.id,
-    upload_status: auction?.upload_status || 'not_uploaded'
+    upload_status: auction?.upload_status || 'not_uploaded',
+    // Platform URLs
+    liveauctioneers_url: auction?.liveauctioneers_url || '',
+    easy_live_url: auction?.easy_live_url || '',
+    invaluable_url: auction?.invaluable_url || '',
+    the_saleroom_url: auction?.the_saleroom_url || ''
   })
 
   interface User {
@@ -563,6 +573,72 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                   </Select>
+                </div>
+              </div>
+
+              {/* Platform URLs */}
+              <div>
+                <Label>Platform URLs</Label>
+                <div className="space-y-4">
+                  {formData.type === 'timed' && (
+                    <div>
+                      <Label htmlFor={`${formData.platform}_url`} className="text-sm font-medium">
+                        {formData.platform.charAt(0).toUpperCase() + formData.platform.slice(1).replace('_', ' ')} URL
+                      </Label>
+                      <Input
+                        id={`${formData.platform}_url`}
+                        value={formData[`${formData.platform}_url` as keyof typeof formData] as string || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [`${formData.platform}_url`]: e.target.value }))}
+                        placeholder={`Enter ${formData.platform.replace('_', ' ')} auction URL`}
+                        type="url"
+                      />
+                    </div>
+                  )}
+
+                  {formData.type === 'live' && (
+                    <>
+                      <div>
+                        <Label htmlFor="liveauctioneers_url" className="text-sm font-medium">LiveAuctioneers URL</Label>
+                        <Input
+                          id="liveauctioneers_url"
+                          value={formData.liveauctioneers_url}
+                          onChange={(e) => setFormData(prev => ({ ...prev, liveauctioneers_url: e.target.value }))}
+                          placeholder="Enter LiveAuctioneers auction URL"
+                          type="url"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="easy_live_url" className="text-sm font-medium">EasyLive URL</Label>
+                        <Input
+                          id="easy_live_url"
+                          value={formData.easy_live_url}
+                          onChange={(e) => setFormData(prev => ({ ...prev, easy_live_url: e.target.value }))}
+                          placeholder="Enter EasyLive auction URL"
+                          type="url"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="invaluable_url" className="text-sm font-medium">Invaluable URL</Label>
+                        <Input
+                          id="invaluable_url"
+                          value={formData.invaluable_url}
+                          onChange={(e) => setFormData(prev => ({ ...prev, invaluable_url: e.target.value }))}
+                          placeholder="Enter Invaluable auction URL"
+                          type="url"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="the_saleroom_url" className="text-sm font-medium">The Saleroom URL</Label>
+                        <Input
+                          id="the_saleroom_url"
+                          value={formData.the_saleroom_url}
+                          onChange={(e) => setFormData(prev => ({ ...prev, the_saleroom_url: e.target.value }))}
+                          placeholder="Enter The Saleroom auction URL"
+                          type="url"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

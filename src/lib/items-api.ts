@@ -132,6 +132,17 @@ interface GetArtworksParams {
   brand_code?: string;
   item_ids?: string | string[];
   item_id?: string;
+  low_est_min?: string;
+  low_est_max?: string;
+  high_est_min?: string;
+  high_est_max?: string;
+  start_price_min?: string;
+  start_price_max?: string;
+  condition?: string;
+  period_age?: string;
+  materials?: string;
+  artist_id?: string;
+  school_id?: string;
 }
 
 // Helper function to get auth token
@@ -633,26 +644,85 @@ export const generateReservePriceForAI = (startPrice: number): number => {
 
 // Categories for dropdown selections
 export const ITEM_CATEGORIES = [
-  'Fine Art',
-  'Antiques',
-  'Jewelry & Watches',
-  'Asian Art',
-  'Furniture',
-  'Silver & Metalware',
-  'Ceramics & Glass',
-  'Books & Manuscripts',
-  'Collectibles',
-  'Textiles',
-  'Sculptures',
-  'Photography',
-  'Wine & Spirits',
-  'Musical Instruments',
-  'Coins & Currency',
-  'Stamps',
-  'Sports Memorabilia',
+  'Clocks',
+  'Watches',
+  'Islamic Art',
+  'Judaean Art',
+  'Christian Art',
   'Tribal Art',
-  'Modern Design',
-  'Vintage Fashion'
+  'Art of Africa',
+  'South East Asian Art',
+  'Automobilia',
+  'Designer Jewellery',
+  'Designer Furniture',
+  'Antique Furniture',
+  'Qajar',
+  'Baseball Cards',
+  'Match Labels',
+  'Cricket Memorabilia',
+  'Football Memorabilia',
+  'Coins / Numismatics',
+  'Philately / Stamps',
+  'Documents',
+  'Memorabilia',
+  'Books',
+  'Antique Weapons',
+  'Americana',
+  'Limited Edition Prints',
+  'Ceramic Dolls',
+  'Dolls',
+  'Lighting',
+  'Ottoman Empire',
+  'Roman',
+  'Greek',
+  'Gandhara',
+  'Gupta',
+  'Satvahana',
+  'Khmer',
+  'Cambodian',
+  'Burma',
+  'Thailand',
+  'Afghanistan',
+  'Pakistan',
+  'Persian',
+  'Jain',
+  'Tantric',
+  'Buddhist',
+  'Tibet'
+];
+
+// Periods for dropdown selections
+export const ITEM_PERIODS = [
+  'Medieval',
+  'Ancient',
+  'Early 20th Century',
+  'Mid 20th Century',
+  '18th / 19th Century',
+  'Art Nouveau Period',
+  'Chalcolithic Period',
+  'Iron Age',
+  'Bronze Age',
+  'Angkor Period'
+];
+
+// Materials for dropdown selections
+export const ITEM_MATERIALS = [
+  'Gouache',
+  'Tempera',
+  'Etchings',
+  'Lithography',
+  'Oleograph',
+  'Jade',
+  'Jadeite',
+  'Hardstone',
+  'Terracotta',
+  'Bronze',
+  'Brass',
+  'Wood',
+  'Mixed Metal',
+  'Gilt Bronze',
+  'Tribal Silver',
+  'Enameled Silver'
 ];
 
 export const ITEM_CONDITIONS = [

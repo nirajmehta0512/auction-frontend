@@ -99,7 +99,7 @@ export default function SchoolsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full">
+      <table className="min-w-full" style={{ minWidth: '1200px' }}>
         <thead className="bg-gray-50">
           <tr>
             <th className="w-12 px-6 py-3 text-left">
@@ -128,7 +128,7 @@ export default function SchoolsTable({
                 {getSortIcon('founded_year')}
               </button>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="w-48 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('location')}
                 className="flex items-center space-x-1 hover:text-gray-700"
@@ -148,15 +148,6 @@ export default function SchoolsTable({
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Specialties
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <button
-                onClick={() => onSort('status')}
-                className="flex items-center space-x-1 hover:text-gray-700"
-              >
-                <span>Status</span>
-                {getSortIcon('status')}
-              </button>
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
@@ -203,7 +194,7 @@ export default function SchoolsTable({
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {formatYears(school.founded_year, school.closed_year)}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="w-48 px-6 py-4 text-sm text-gray-900">
                 <div>
                   {school.location && (
                     <div className="font-medium">{school.location}</div>
@@ -223,11 +214,11 @@ export default function SchoolsTable({
                 </div>
               </td>
 
-              <td className="px-6 py-4 whitespace-nowrap">
-                {getStatusBadge(school.status || 'active')}
-              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {school.created_at ? new Date(school.created_at).toLocaleDateString() : '—'}
+                <div>
+                  <div>{school.created_at ? new Date(school.created_at).toLocaleDateString() : '—'}</div>
+                  <div className="mt-1">{getStatusBadge(school.status || 'active')}</div>
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">

@@ -342,9 +342,9 @@ export default function AuctionsPage() {
       {/* Page Header */}
       <div className="bg-slate-700 px-2 py-3 sm:px-4 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 w-full">
         <h1 className="text-lg sm:text-2xl font-semibold text-white">Auctions</h1>
-        <button 
+        <button
           onClick={() => router.push('/auctions/new')}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center justify-center sm:justify-start space-x-2 transition-colors text-sm cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add New Auction</span>
@@ -364,7 +364,7 @@ export default function AuctionsPage() {
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full max-w-full">
           <button
             onClick={handleExportCSV}
-            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm cursor-pointer hover:underline"
           >
             <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -372,7 +372,7 @@ export default function AuctionsPage() {
           </button>
           <button
             onClick={() => setShowExportDialog(true)}
-            className="flex items-center space-x-1 sm:space-x-2 text-blue-600 hover:text-blue-700 text-xs sm:text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-blue-600 hover:text-blue-700 text-xs sm:text-sm cursor-pointer hover:underline"
           >
             <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Export to Platforms</span>
@@ -380,7 +380,7 @@ export default function AuctionsPage() {
           </button>
           <button
             onClick={() => setShowCSVUpload(true)}
-            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-gray-700 text-xs sm:text-sm cursor-pointer hover:underline"
           >
             <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Import CSV</span>
@@ -388,14 +388,14 @@ export default function AuctionsPage() {
           </button>
           <button
             onClick={() => setShowGoogleSheetsSync(true)}
-            className="flex items-center space-x-1 sm:space-x-2 text-indigo-600 hover:text-indigo-700 text-xs sm:text-sm"
+            className="flex items-center space-x-1 sm:space-x-2 text-indigo-600 hover:text-indigo-700 text-xs sm:text-sm cursor-pointer hover:underline"
           >
             <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Sync Sheets</span>
             <span className="sm:hidden">Sheets</span>
           </button>
 
-          <button className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm">
+          <button className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm cursor-pointer hover:underline">
             <span className="hidden sm:inline">Show/Hide</span>
             <span className="sm:hidden">View</span>
           </button>

@@ -156,7 +156,7 @@ export default function SchoolsPage() {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => router.push('/schools/new')}
-            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New School
@@ -164,7 +164,7 @@ export default function SchoolsPage() {
           
           <button
             onClick={handleExportCSV}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
           >
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -203,7 +203,7 @@ export default function SchoolsPage() {
           <h3 className="text-lg font-medium text-gray-900">Filters</h3>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+            className="flex items-center px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md cursor-pointer"
           >
             <Filter className="h-4 w-4 mr-1" />
             {showFilters ? 'Hide' : 'Show'} Filters
@@ -230,19 +230,19 @@ export default function SchoolsPage() {
             <div className="flex space-x-2">
               <button
                 onClick={() => handleBulkAction('activate')}
-                className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded"
+                className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded cursor-pointer"
               >
                 Activate
               </button>
               <button
                 onClick={() => handleBulkAction('inactive')}
-                className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded"
+                className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded cursor-pointer"
               >
                 Set Inactive
               </button>
               <button
                 onClick={() => handleBulkAction('delete')}
-                className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded cursor-pointer"
               >
                 Archive
               </button>
@@ -288,7 +288,7 @@ export default function SchoolsPage() {
               <button
                 onClick={() => setPage(page - 1)}
                 disabled={page === 1}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 cursor-pointer hover:underline"
               >
                 Previous
               </button>
@@ -298,7 +298,7 @@ export default function SchoolsPage() {
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page === totalPages}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 cursor-pointer hover:underline"
               >
                 Next
               </button>
