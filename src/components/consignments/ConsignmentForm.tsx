@@ -1,7 +1,7 @@
 // frontend/src/components/consignments/ConsignmentForm.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createConsignment, updateConsignment } from '@/lib/consignments-api'
 import { fetchClients, searchClients, type Client, createClient } from '@/lib/clients-api'
 import { ArtworksAPI } from '@/lib/items-api'
@@ -13,8 +13,7 @@ import { X, UserPlus, ImageIcon } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import ReceiptItemRow, { type ReceiptItem as ReceiptItemRowType } from '@/components/consignments/ReceiptItemRow'
-const LoadScript = dynamic(() => import('@react-google-maps/api').then(m => m.LoadScript), { ssr: false })
-const StandaloneSearchBox = dynamic(() => import('@react-google-maps/api').then(m => m.StandaloneSearchBox), { ssr: false })
+import { LoadScript, StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api'
 import ArtistForm from '@/components/artists/ArtistForm'
 import ClientForm from '@/components/clients/ClientForm'
 import ArtworkCreationDialog from '@/components/consignments/ArtworkCreationDialog'
@@ -148,9 +147,44 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const [showEditArtworkModal, setShowEditArtworkModal] = useState(false)
   const [showInventorySelectionModal, setShowInventorySelectionModal] = useState(false)
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null)
-  const [warehouseSearchBoxRef, setWarehouseSearchBoxRef] = useState<any>(null)
   const [selectedArtworks, setSelectedArtworks] = useState<Set<string>>(new Set())
   const [inventorySearchTerm, setInventorySearchTerm] = useState('')
+
+  // Google Places refs
+  const warehouseSearchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
+
+  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+  const placesLibraries = useMemo(() => ['places'] as ("places")[], [])
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: googleApiKey,
+    libraries: placesLibraries,
+  });
+
+  const parsePlaceToAddress = useCallback((place: google.maps.places.PlaceResult) => {
+    const components = place.address_components || []
+    const find = (type: string) => components.find(c => (c.types || []).includes(type))
+    const line1 = place.name || ''
+    const locality = find('locality')?.long_name || find('postal_town')?.long_name || ''
+    const country = find('country')?.long_name || ''
+    const region = find('administrative_area_level_1')?.long_name || ''
+    const postal = find('postal_code')?.long_name || ''
+    return { line1, city: locality, country, region, postal }
+  }, [])
+
+  const handleWarehousePlaceChanged = useCallback(() => {
+    const box = warehouseSearchBoxRef.current
+    if (!box) return
+    const places = box.getPlaces()
+    const place = places && places[0]
+    if (!place) return
+    const a = parsePlaceToAddress(place)
+    setFormData(prev => ({
+      ...prev,
+      warehouse_country: a.country,
+      warehouse_city: a.city,
+    }))
+  }, [parsePlaceToAddress])
   const [formData, setFormData] = useState({
     receipt_no: consignment?.id?.toString() || '',
     client_id: consignment?.client_id || 0, // Changed to number (0 for no selection)
@@ -184,7 +218,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         setLoading(true)
         const [clientsResponse, itemsResponse, artistsResponse, usersResponse] = await Promise.all([
           fetchClients({ limit: 1000 }),
-          ArtworksAPI.getArtworks({ limit: 1000 }),
+          ArtworksAPI.getArtworks({ limit: 1000 }), // Supabase has a 1000 row limit per query
           ArtistsAPI.getArtists({ limit: 1000 }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -201,7 +235,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
             // Load consignment items
             const consignmentItemsResponse = await ArtworksAPI.getArtworks({ 
               consignment_id: consignment.id.toString(), 
-              limit: 1000 
+              limit: 2000 
             })
             
             if (consignmentItemsResponse.success && consignmentItemsResponse.data.length > 0) {
@@ -465,8 +499,14 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   }
 
   const getFilteredArtworks = () => {
-    const availableItems = items.filter(item => !item.consignment_id) // Only show items not already in a consignment
-    if (!inventorySearchTerm) return availableItems
+    // Show ALL artworks inventory, sorted by ID in ascending order
+    const allItems = items.slice().sort((a, b) => {
+      const aId = parseInt(a.id?.toString() || '0')
+      const bId = parseInt(b.id?.toString() || '0')
+      return aId - bId
+    })
+
+    if (!inventorySearchTerm) return allItems
 
     // Handle ID shortcuts (e.g., "1-5", "1,3,5", "10")
     const shortcutMatch = inventorySearchTerm.match(/^(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)$/)
@@ -485,14 +525,14 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         }
       }
 
-      return availableItems.filter(item => {
+      return allItems.filter(item => {
         const itemId = parseInt(item.id?.toString() || '0')
         return ids.has(itemId)
       })
     }
 
     // Regular search
-    return availableItems.filter(item => {
+    return allItems.filter(item => {
       const artist = artists.find(a => a.id?.toString() === item.artist_id?.toString())
       return item.title?.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
              artist?.name?.toLowerCase().includes(inventorySearchTerm.toLowerCase()) ||
@@ -720,7 +760,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 <SelectItem value="neeraj_home_india">Neeraj's Home (India)</SelectItem>
                 <SelectItem value="neeraj_home_uk">Neeraj's Home (UK)</SelectItem>
                 <SelectItem value="shenaz_home">Shenaz's Home</SelectItem>
-                <SelectItem value="consigner">Consigner</SelectItem>
+                <SelectItem value="consigner">Consignor</SelectItem>
               </Select>
             </div>
 
@@ -729,27 +769,20 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
               <>
                 <div className="md:col-span-2">
                   <Label className="block text-sm font-medium text-gray-700 mb-2">
-                    Consigner Address (Search)
+                    Consignor Address (Search)
                   </Label>
-                  <LoadScript id="warehouse-places-script" googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''} libraries={["places"] as any}>
-                    <StandaloneSearchBox onLoad={(ref:any)=>setWarehouseSearchBoxRef(ref)} onPlacesChanged={()=>{
-                      const places = warehouseSearchBoxRef?.getPlaces?.()
-                      const p = places && places[0]
-                      if (!p) return
-                      const components = p.address_components || []
-                      const find = (t:string)=>components.find((c:any)=> (c.types||[]).includes(t))
-                      const country = find('country')?.long_name || ''
-                      const locality = find('locality')?.long_name || find('postal_town')?.long_name || ''
-                      handleInputChange('warehouse_country', country)
-                      handleInputChange('warehouse_city', locality)
-                    }}>
+                  {isLoaded && (
+                    <StandaloneSearchBox
+                      onLoad={(ref) => { warehouseSearchBoxRef.current = ref }}
+                      onPlacesChanged={handleWarehousePlaceChanged}
+                    >
                       <input
                         type="text"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Search address, then city/country auto-fill"
                       />
                     </StandaloneSearchBox>
-                  </LoadScript>
+                  )}
                 </div>
               </>
             )}

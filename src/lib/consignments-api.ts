@@ -19,6 +19,8 @@ export interface Consignment {
   client_company?: string;
   client_title?: string;
   client_salutation?: string;
+  client_brand_code?: string;
+  brandCode?: string; // Alternative field name
   specialist_id?: number; // Changed from string to number
   specialist_name?: string;
   valuation_day_id?: number; // Changed from string to number

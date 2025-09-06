@@ -115,9 +115,9 @@ export default function ConsignmentViewPage() {
         // Calculate stats from fetched items
         const calculatedStats: ConsignmentStats = {
           totalItems: fetchedItems.length,
-          totalEstimatedValue: fetchedItems.reduce((sum, item) => sum + ((item.low_est + item.high_est) / 2), 0),
+          totalEstimatedValue: fetchedItems.reduce((sum, item) => sum + (((item.low_est || 0) + (item.high_est || 0)) / 2), 0),
           totalReserveValue: fetchedItems.reduce((sum, item) => sum + (item.reserve || 0), 0),
-          averageEstimate: fetchedItems.length ? fetchedItems.reduce((sum, item) => sum + ((item.low_est + item.high_est) / 2), 0) / fetchedItems.length : 0,
+          averageEstimate: fetchedItems.length ? fetchedItems.reduce((sum, item) => sum + (((item.low_est || 0) + (item.high_est || 0)) / 2), 0) / fetchedItems.length : 0,
           soldItems: fetchedItems.filter(item => item.status === 'sold').length,
           soldValue: fetchedItems.filter(item => item.status === 'sold').reduce((sum, item) => sum + (item.start_price || 0), 0),
           remainingItems: fetchedItems.filter(item => !['sold', 'withdrawn'].includes(item.status || '')).length,
@@ -303,7 +303,8 @@ export default function ConsignmentViewPage() {
               {showPDFOptions && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                   <div className="py-1">
-                    {client && (
+                    {/* Only show PDF options if all required data is loaded */}
+                    {client && consignment && !loading ? (
                       <>
                         <PDFGenerator
                           type="consignment"
@@ -383,6 +384,25 @@ export default function ConsignmentViewPage() {
                           </button>
                         </PDFGenerator>
                       </>
+                    ) : (
+                      <div className="px-4 py-2 text-sm text-gray-500">
+                        <div className="text-center">
+                          {loading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600 mx-auto mb-2"></div>
+                              <div>Loading PDF options...</div>
+                            </>
+                          ) : (
+                            <>
+                              <div>PDF generation unavailable</div>
+                              <div className="text-xs mt-1">
+                                {!client && 'Client data not loaded'}
+                                {!consignment && 'Consignment data not loaded'}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -449,8 +469,8 @@ export default function ConsignmentViewPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-600">Estimated Value</p>
-                    <p className="text-2xl font-bold text-gray-900">£{stats.totalEstimatedValue.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">Avg £{stats.averageEstimate.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900">£{(stats.totalEstimatedValue || 0).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">Avg £{(stats.averageEstimate || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -462,7 +482,7 @@ export default function ConsignmentViewPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-600">Sold Value</p>
-                    <p className="text-2xl font-bold text-gray-900">£{stats.soldValue.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900">£{(stats.soldValue || 0).toLocaleString()}</p>
                     <p className="text-xs text-gray-500">{stats.soldItems} items sold</p>
                   </div>
                 </div>
@@ -663,16 +683,18 @@ export default function ConsignmentViewPage() {
                               // Helper function to get proper image URL
                               const getImageUrl = (imageFile: string | undefined) => {
                                 if (!imageFile) return null
-                                
+
                                 // If it's already a full URL, return as is
                                 if (imageFile.startsWith('http')) return imageFile
-                                
+
                                 // If it's a relative path, construct the full URL
-                                const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                                const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || ''
+                                if (!baseUrl) return null // Don't construct URLs if no base URL is available
+
                                 if (imageFile.startsWith('/')) {
                                   return `${baseUrl}${imageFile}`
                                 }
-                                
+
                                 // If it's just a filename, assume it's in the storage bucket
                                 return `${baseUrl}/storage/v1/object/public/artwork-images/${imageFile}`
                               }
@@ -772,16 +794,16 @@ export default function ConsignmentViewPage() {
                           
                           <div className="text-right ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              £{item.low_est.toLocaleString()} - £{item.high_est.toLocaleString()}
+                              £{(item.low_est || 0).toLocaleString()} - £{(item.high_est || 0).toLocaleString()}
                             </div>
                             {item.reserve && (
                               <div className="text-xs text-gray-500">
-                                Reserve: £{item.reserve.toLocaleString()}
+                                Reserve: £{(item.reserve || 0).toLocaleString()}
                               </div>
                             )}
                             {(item as any).sale_price && (
                               <div className="text-sm font-semibold text-green-600 mt-1">
-                                Sold: £{(item as any).sale_price.toLocaleString()}
+                                Sold: £{((item as any).sale_price || 0).toLocaleString()}
                               </div>
                             )}
                           </div>

@@ -183,7 +183,7 @@ export default function PDFCatalogGenerator({
       const enriched: ArtworkPreviewData[] = []
 
       for (const artwork of selectedArtworks) {
-        const enrichedArtwork: ArtworkPreviewData = { ...artwork, lot_num: artwork.id || '' }
+        const enrichedArtwork: ArtworkPreviewData = { ...artwork }
 
         // Load artist data
         if (artwork.artist_id) {
@@ -978,18 +978,6 @@ export default function PDFCatalogGenerator({
                 <div>
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Layout Options</h5>
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Layout Type</label>
-                      <select
-                        value={options.layoutType}
-                        onChange={(e) => updateOption('layoutType', e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value="cards">Modern Cards</option>
-                        <option value="table">Professional Table</option>
-                        <option value="detailed">Detailed Cards</option>
-                      </select>
-                    </div>
                     <div>
                       <label className="block text-xs text-gray-600 mb-1">Catalog Title</label>
                       <input

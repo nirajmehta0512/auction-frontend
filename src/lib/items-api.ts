@@ -194,8 +194,6 @@ export class ArtworksAPI {
     });
 
     const fullUrl = `${API_BASE_URL}/items?${queryParams}`;
-    console.log('🔍 ITEMS API: Fetching from URL:', fullUrl);
-    console.log('🔍 ITEMS API: Headers:', getAuthHeaders());
 
     const response = await fetch(fullUrl, {
       method: 'GET',
@@ -224,10 +222,13 @@ export class ArtworksAPI {
 
   // Create new artwork
   static async createArtwork(artworkData: Omit<Artwork, 'id' | 'created_at' | 'updated_at'>, brand?: string): Promise<ArtworkResponse> {
+    // Filter out lot_num if present since it doesn't exist in the database schema
+    const { lot_num, ...filteredData } = artworkData;
+    console.log('🔍 ITEMS API: Creating artwork with data:', filteredData);
     const response = await fetch(`${API_BASE_URL}/items`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(artworkData),
+      body: JSON.stringify(filteredData),
     });
 
     await handleApiError(response);
@@ -247,10 +248,12 @@ export class ArtworksAPI {
 
   // Update existing artwork
   static async updateArtwork(id: string, artworkData: Partial<Artwork>, brand?: string): Promise<ArtworkResponse> {
+    // Filter out lot_num if present since it doesn't exist in the database schema
+    const { lot_num, ...filteredData } = artworkData;
     const response = await fetch(`${API_BASE_URL}/items/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify(artworkData),
+      body: JSON.stringify(filteredData),
     });
 
     await handleApiError(response);

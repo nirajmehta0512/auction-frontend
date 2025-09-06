@@ -7,40 +7,53 @@ import CSVUpload from '@/components/consignments/CSVUpload'
 import ConsignmentPDFGenerator from '@/components/consignments/ConsignmentPDFGenerator'
 import ConsignmentGoogleSheetsSync from '@/components/consignments/ConsignmentGoogleSheetsSync'
 import { isSuperAdmin } from '@/lib/auth-utils'
-import { Plus, Download, Upload, FileText, Share2, Printer } from 'lucide-react'
-import { getConsignments, exportConsignmentsCSV, bulkActionConsignments } from '@/lib/consignments-api'
-import type { Consignment } from '@/lib/consignments-api'
+import { Plus, Download, Upload } from 'lucide-react'
+import { getConsignments, exportConsignmentsCSV } from '@/lib/consignments-api'
+import { formatClientDisplay } from '@/lib/clients-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 
 // Convert API consignment to component consignment format
 const convertConsignmentFormat = (consignment: any) => {
-  const clientName = consignment.client_name
-    || [consignment.client_first_name, consignment.client_last_name].filter(Boolean).join(' ')
-    || consignment.client_company
-    || 'Unknown Client'
-  
-  // Format client ID similar to clients page
-  const formatClientId = (clientId: number, brandCode?: string): string => {
-    // Default to MSA if no brand code is available
-    const prefix = brandCode && brandCode.trim().length > 0
-      ? brandCode.trim().toUpperCase().slice(0, 3)
-      : 'MSA';
-    return `${prefix}-${clientId.toString().padStart(3, '0')}`;
+  // Extract client name from nested clients object
+  let clientName = 'Unknown Client'
+  if (consignment.clients) {
+    const client = consignment.clients
+    const firstName = client.first_name || ''
+    const lastName = client.last_name || ''
+    const companyName = client.company_name || ''
+
+    if (companyName) {
+      clientName = companyName
+    } else if (firstName || lastName) {
+      clientName = [firstName, lastName].filter(Boolean).join(' ')
+    }
+  } else {
+    // Fallback to old format if clients object doesn't exist
+    clientName = consignment.client_name
+      || [consignment.client_first_name, consignment.client_last_name].filter(Boolean).join(' ')
+      || consignment.client_company
+      || 'Unknown Client'
   }
-  
+
+  console.log('Consignment:', consignment)
+
+
   // Try to get brand code from various possible fields including nested client data
-  const brandCode = consignment.client_brand_code 
-    || consignment.brand_code 
-    || consignment.client_brand
+  const brandCode = consignment.client_brand_code
+    || consignment.brand_code
     || (consignment.clients && consignment.clients.brands && consignment.clients.brands.code)
     || null
-  
+
   return {
     id: consignment.id,
     number: consignment.id, // Use ID as the number display
     client: clientName,
     clientId: consignment.client_id,
-    clientIdFormatted: formatClientId(consignment.client_id, brandCode),
+    clientIdFormatted: formatClientDisplay({
+      id: consignment.client_id,
+      brand_code: brandCode,
+      brand: brandCode
+    } as any),
     itemsCount: consignment.items_count || 0,
     specialist: consignment.specialist_name || consignment.specialist || 'Unknown Specialist',
     defaultSale: consignment.default_sale || '',
@@ -63,7 +76,7 @@ export default function ConsignmentsPage() {
   const [consignments, setConsignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false)
-  const [consignmentSuggestions, setConsignmentSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [consignmentSuggestions, setConsignmentSuggestions] = useState<Array<{ value: string, label: string, description: string }>>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   // Check user role on component mount
@@ -77,21 +90,21 @@ export default function ConsignmentsPage() {
       setLoadingSuggestions(true)
       const response = await getConsignments({ limit: 200 }) // Get enough for good suggestions
       const consignmentsData = response.data || response.consignments || []
-      
+
       // Create search suggestions from actual consignments
       const suggestions = [
         { value: '', label: 'All Consignments', description: 'Show all consignments' }
       ]
-      
+
       // Add unique client names
       const clientNames = new Set<string>()
       const consignmentNumbers = new Set<string>()
-      
+
       consignmentsData.forEach((consignment: any) => {
-        const clientName = consignment.client_name || 
+        const clientName = consignment.client_name ||
           [consignment.client_first_name, consignment.client_last_name].filter(Boolean).join(' ') ||
           consignment.client_company;
-        
+
         if (clientName && !clientNames.has(clientName.toLowerCase())) {
           clientNames.add(clientName.toLowerCase())
           if (clientNames.size <= 10) { // Limit suggestions
@@ -102,7 +115,7 @@ export default function ConsignmentsPage() {
             })
           }
         }
-        
+
         // Add consignment numbers/IDs
         if (consignment.id && !consignmentNumbers.has(consignment.id.toString())) {
           consignmentNumbers.add(consignment.id.toString())
@@ -115,7 +128,7 @@ export default function ConsignmentsPage() {
           }
         }
       })
-      
+
       setConsignmentSuggestions(suggestions)
     } catch (error) {
       console.error('Error loading consignment suggestions:', error)
@@ -141,7 +154,7 @@ export default function ConsignmentsPage() {
         // Default: no status filter
         const response = await getConsignments()
         console.log('Consignments response:', response) // Debug log
-        
+
         // Handle both possible response structures
         const consignmentsData = response.data || response.consignments || []
         const formattedConsignments = consignmentsData.map(convertConsignmentFormat)
@@ -241,7 +254,7 @@ export default function ConsignmentsPage() {
       alert('Please select at least one consignment to generate a PDF report')
       return
     }
-    
+
     setShowPDFGenerator(true)
   }
 
@@ -253,10 +266,10 @@ export default function ConsignmentsPage() {
   const handleGeneratePdf = async (consignment: any, type: 'consignment' | 'collection' | 'presale') => {
     try {
       console.log(`Generating ${type} PDF for consignment ${consignment.id}`)
-      
+
       // For now, we'll use mock data since we don't have the full integration yet
       // In a real implementation, you would fetch the client and items data here
-      
+
       // Mock client data (this would come from an API call)
       const mockClient = {
         id: consignment.clientId,
@@ -325,7 +338,7 @@ export default function ConsignmentsPage() {
         client: mockClient,
         items: mockItems
       })
-      
+
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Failed to generate PDF. Please try again.')
@@ -340,7 +353,7 @@ export default function ConsignmentsPage() {
         text: `Consignment ${consignment.id} for ${consignment.client}`,
         url: consignmentUrl
       }
-      
+
       if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData)
       } else {
@@ -421,22 +434,19 @@ export default function ConsignmentsPage() {
               onClick={() => setShowGoogleSheetsSync(true)}
               className="flex items-center space-x-1 sm:space-x-2 text-green-600 hover:text-green-700 text-xs sm:text-sm cursor-pointer hover:underline"
             >
-              <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Google Sheets</span>
               <span className="sm:hidden">Sheets</span>
             </button>
-            
+
             {/* PDF Generation Button */}
             <button
               onClick={handleGenerateReportPDF}
               disabled={selectedConsignments.length === 0}
-              className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${
-                selectedConsignments.length === 0
+              className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${selectedConsignments.length === 0
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-blue-600 hover:text-blue-700 cursor-pointer hover:underline'
-              }`}
+                }`}
             >
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Generate PDF ({selectedConsignments.length})</span>
               <span className="sm:hidden">PDF ({selectedConsignments.length})</span>
               {userIsSuperAdmin && (
@@ -468,7 +478,7 @@ export default function ConsignmentsPage() {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={statusFilter}
-                onChange={(e)=> setStatusFilter(e.target.value as any)}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option value="all">All</option>
@@ -496,19 +506,16 @@ export default function ConsignmentsPage() {
         ) : (
           <div className="h-full flex flex-col">
             <div className="flex-1 overflow-auto">
-              <ConsignmentsTable 
+              <ConsignmentsTable
                 consignments={consignments}
                 selectedConsignments={selectedConsignments}
                 onSelectionChange={setSelectedConsignments}
                 onEdit={handleEditConsignment}
                 onDelete={handleDeleteConsignment}
                 onClientClick={handleClientClick}
-                onGeneratePdf={handleGeneratePdf}
-                onShare={handleShare}
-                onPrint={handlePrint}
               />
             </div>
-            
+
             {/* Pagination */}
             <div className="border-t border-gray-200 px-2 sm:px-4 py-3 sm:py-4 bg-gray-50 w-full">
               <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between w-full max-w-full">

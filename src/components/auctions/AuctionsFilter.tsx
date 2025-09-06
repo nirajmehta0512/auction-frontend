@@ -1,7 +1,7 @@
 // frontend/src/components/auctions/AuctionsFilter.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { getAuctions } from '@/lib/auctions-api'
@@ -65,11 +65,11 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const [loadingAuctions, setLoadingAuctions] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
 
-  // Get brand ID from brand code
-  const getBrandId = (brandCode: string): number | undefined => {
+  // Get brand ID from brand code - memoized to prevent infinite useEffect loops
+  const getBrandId = useCallback((brandCode: string): number | undefined => {
     const foundBrand = brands.find(b => b.code === brandCode)
     return foundBrand?.id
-  }
+  }, [brands])
 
   useEffect(() => {
     // Load specialists/users and auction suggestions

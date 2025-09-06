@@ -6,6 +6,7 @@ import { Upload, Sparkles, X, AlertCircle, CheckCircle, Loader2 } from 'lucide-r
 import { ArtistsAPI } from '../../lib/artists-api'
 import { autoSyncArtworkToGoogleSheet } from '../../lib/google-sheets-api'
 import { getBrands, Brand } from '../../lib/brands-api'
+import { ArtworksAPI } from '../../lib/items-api'
 
 interface AIUploadResult {
   title: string;
@@ -25,7 +26,9 @@ interface AIUploadResult {
   condition: string;
   low_est: number;
   high_est: number;
+  start_price?: number; // Optional start price
   artist_id?: number;
+  lot_num?: string; // Optional lot number (filtered out)
   imageUrl?: string; // Uploaded image URL
   // Artist information inclusion flags
   include_artist_description?: boolean;
@@ -42,9 +45,10 @@ interface AIImageUploadProps {
   onUploadComplete: (result: AIUploadResult & { selectedBrand: string }) => void;
   onClose: () => void;
   currentBrand?: string;
+  onArtworkCreated?: (artwork: any) => void;
 }
 
-export default function AIImageUpload({ onUploadComplete, onClose, currentBrand = 'MSABER' }: AIImageUploadProps) {
+export default function AIImageUpload({ onUploadComplete, onClose, currentBrand = 'MSABER', onArtworkCreated }: AIImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -249,29 +253,42 @@ export default function AIImageUpload({ onUploadComplete, onClose, currentBrand 
 
   const handleUseResults = async () => {
     if (result) {
-      // Pass the result to the parent component with selected brand and image URL
-      onUploadComplete({
-        ...result,
-        selectedBrand,
-        imageUrl: imagePreview || undefined // Include the uploaded image URL
-      })
-      
-      // Auto-sync to Google Sheets if brand is configured
+      setLoading(true)
       try {
-        if (selectedBrand && selectedBrand !== 'ALL') {
-          // Create a mock artwork object for sync (since the actual artwork will be created by parent)
-          const artworkForSync = {
-            ...result,
-            status: 'draft',
-            created_at: new Date().toISOString()
-          }
-          
-          // Attempt auto-sync (non-blocking)
-          await autoSyncArtworkToGoogleSheet(artworkForSync, selectedBrand)
+        // Filter out lot_num if present to prevent schema cache error
+        const { lot_num, ...filteredResult } = result;
+
+        // Create artwork data with proper fields
+        const artworkData = {
+          ...filteredResult,
+          start_price: filteredResult.start_price || Math.round(filteredResult.low_est * 0.5),
+          status: 'draft' as const,
+          image_file_1: imagePreview || undefined
         }
-      } catch (error) {
-        console.warn('Auto-sync to Google Sheets failed (non-critical):', error)
-        // Don't block the main flow if sync fails
+
+        console.log('Creating artwork with data:', artworkData)
+
+        // Create the artwork directly
+        const response = await ArtworksAPI.createArtwork(artworkData, selectedBrand)
+
+        if (response.success && response.data) {
+          console.log('Artwork created successfully:', response.data)
+          alert('Artwork created successfully!')
+
+          // Call the artwork created callback to add to consignment
+          if (onArtworkCreated) {
+            onArtworkCreated(response.data)
+          }
+
+          onClose() // Close the modal on success
+        } else {
+          throw new Error(response.message || 'Failed to create artwork')
+        }
+      } catch (error: any) {
+        console.error('Error creating artwork:', error)
+        alert(`Error creating artwork: ${error.message || 'Unknown error'}`)
+      } finally {
+        setLoading(false)
       }
     }
   }

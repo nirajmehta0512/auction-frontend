@@ -628,29 +628,54 @@ interface PreSaleInvoicePDFProps extends PreSaleInvoiceProps {
 const PreSaleInvoicePDF: React.FC<PreSaleInvoicePDFProps> = ({
   fileName = 'pre-sale-invoice.pdf',
   children,
-  ...props
+  consignment,
+  client,
+  auctionItems,
+  saleDetails,
+  brand_code
 }) => {
-  // Validate required props
-  if (!props.consignment || !props.client || !props.auctionItems || !props.saleDetails) {
-    console.error('PreSaleInvoicePDF: Missing required props', {
-      hasConsignment: !!props.consignment,
-      hasClient: !!props.client,
-      hasAuctionItems: !!props.auctionItems,
-      hasSaleDetails: !!props.saleDetails
-    })
-    return <span style={{ color: 'red' }}>Error: Missing required data for PDF generation</span>
+  // Validate required props - be more specific about what's missing
+  const missingProps = []
+  if (!consignment) missingProps.push('consignment')
+  if (!client) missingProps.push('client')
+  if (!auctionItems) missingProps.push('auctionItems')
+  if (!saleDetails) missingProps.push('saleDetails')
+  
+  if (missingProps.length > 0) {
+    console.error('PreSaleInvoicePDF: Missing required props:', missingProps.join(', '))
+    return <span style={{ color: 'red', fontSize: '12px' }}>Error: Missing {missingProps.join(', ')} for PDF generation</span>
+  }
+
+  // Additional validation for nested required properties
+  if (!client.first_name || !client.last_name) {
+    console.error('PreSaleInvoicePDF: Client missing required name fields')
+    return <span style={{ color: 'red', fontSize: '12px' }}>Error: Client information incomplete</span>
+  }
+
+  if (!auctionItems || auctionItems.length === 0) {
+    console.warn('PreSaleInvoicePDF: No auction items available')
+    return <span style={{ color: 'orange', fontSize: '12px' }}>No items available for pre-sale invoice</span>
+  }
+
+  // Prepare clean props object
+  const pdfProps = {
+    consignment,
+    client,
+    auctionItems,
+    saleDetails,
+    brand_code
   }
   
   return (
     <PDFDownloadLink
-      document={<PreSaleInvoiceDocument {...props} />}
+      document={<PreSaleInvoiceDocument {...pdfProps} />}
       fileName={fileName}
     >
       {({ loading, error }) => {
-        if (loading) return 'Generating PDF...'
+        if (loading) return <span style={{ color: 'blue', fontSize: '12px' }}>Generating PDF...</span>
         if (error) {
           console.error('PDF generation error:', error)
-          return 'Error generating PDF'
+          return <span style={{ color: 'red', fontSize: '12px' }}>Error generating PDF</span>
         }
         return children
       }}

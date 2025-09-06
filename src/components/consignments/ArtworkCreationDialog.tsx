@@ -618,6 +618,12 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
             setCreationMode('choose')
           }}
           currentBrand="MSABER"
+          onArtworkCreated={(artwork) => {
+            // When AI creates artwork, pass it to the parent onSave callback
+            onSave(artwork)
+            setShowAIUpload(false)
+            setCreationMode('choose')
+          }}
         />
       )}
 

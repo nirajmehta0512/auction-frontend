@@ -57,40 +57,77 @@ export default function AuctionViewPage() {
 
       // Load auction details
       const brandId = getBrandId(brand)
+      if (!brandId) {
+        console.error('Brand ID not found for brand:', brand)
+        console.error('Available brands:', brands)
+        setError(`Invalid brand configuration. Brand "${brand}" not found.`)
+        return
+      }
+
+      console.log('Loading auctions for brand ID:', brandId, 'brand code:', brand)
+
       const auctionsResponse = await getAuctions({
         page: 1,
         limit: 100, // Get all auctions to find the one we want
         brand_id: brandId
       })
 
-      const foundAuction = auctionsResponse.auctions.find(a => a.id.toString() === auctionId)
-
-      if (!foundAuction) {
-        setError('Auction not found')
+      if (!auctionsResponse || !auctionsResponse.auctions) {
+        console.error('Failed to load auctions response:', auctionsResponse)
+        setError('Failed to load auctions')
         return
       }
+
+      if (auctionsResponse.auctions.length === 0) {
+        console.error('No auctions found for brand ID:', brandId)
+        setError('No auctions found for this brand')
+        return
+      }
+
+      console.log('Loaded auctions:', auctionsResponse.auctions.length, 'auctions found')
+
+      // More robust ID comparison - handle both string and number IDs
+      const foundAuction = auctionsResponse.auctions.find(a => {
+        return a.id.toString() === auctionId.toString() || 
+               a.id === parseInt(auctionId)
+      })
+
+      if (!foundAuction) {
+        console.error('Auction not found. Available auctions:', auctionsResponse.auctions.map(a => ({ id: a.id, type: typeof a.id, name: a.short_name })))
+        console.error('Looking for auction ID:', auctionId, 'type:', typeof auctionId)
+        setError(`Auction with ID ${auctionId} not found`)
+        return
+      }
+
+      console.log('Found auction:', foundAuction.id, foundAuction.short_name)
 
       setAuction(foundAuction)
 
       // Load artworks for this auction using the auction's artwork_ids array
       if (foundAuction.artwork_ids && Array.isArray(foundAuction.artwork_ids) && foundAuction.artwork_ids.length > 0) {
-        const artworksResponse = await ArtworksAPI.getArtworks({
-          item_ids: foundAuction.artwork_ids.map(id => id.toString()),
-          page: 1,
-          limit: 1000,
-          status: 'all',
-          brand_code: brand as 'MSABER' | 'AURUM' | 'METSAB' || 'MSABER'
-        })
+        try {
+          const artworksResponse = await ArtworksAPI.getArtworks({
+            item_ids: foundAuction.artwork_ids.map(id => id.toString()),
+            page: 1,
+            limit: 1000,
+            status: 'all',
+            brand_code: brand || 'MSABER'
+          })
 
-        if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
-          const auctionArtworks = artworksResponse.data
-            .filter(artwork => artwork.id)
-            .map(artwork => ({
-              ...artwork,
-              id: artwork.id!
-            }))
-          setArtworks(auctionArtworks)
-        } else {
+          if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
+            const auctionArtworks = artworksResponse.data
+              .filter(artwork => artwork.id)
+              .map(artwork => ({
+                ...artwork,
+                id: artwork.id!
+              }))
+            setArtworks(auctionArtworks)
+          } else {
+            setArtworks([])
+          }
+        } catch (artworkError) {
+          console.error('Error loading artworks:', artworkError)
+          // Don't set error state for artworks, just show empty list
           setArtworks([])
         }
       } else {
@@ -99,11 +136,11 @@ export default function AuctionViewPage() {
 
     } catch (err: any) {
       console.error('Error loading auction details:', err)
-      setError(err.message || 'Failed to load auction details')
+      setError(err?.message || 'Failed to load auction details')
     } finally {
       setLoading(false)
     }
-  }, [auctionId, brand, getBrandId])
+  }, [auctionId, brand, getBrandId, brands])
 
   // Load brands on component mount
   useEffect(() => {
@@ -311,7 +348,7 @@ export default function AuctionViewPage() {
                 {showUrlMenu && getAvailableUrls().length > 1 && (
                   <div className="absolute top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                     <div className="py-2">
-                      {getAvailableUrls().map((urlItem, index) => (
+                      {getAvailableUrls().map((urlItem, _index) => (
                         <button
                           key={urlItem.key}
                           onClick={() => handleUrlSelect(urlItem.url!)}

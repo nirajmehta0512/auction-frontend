@@ -626,16 +626,47 @@ interface ConsignmentReceiptPDFProps extends ConsignmentReceiptProps {
 const ConsignmentReceiptPDF: React.FC<ConsignmentReceiptPDFProps> = ({
   fileName = 'consignment-receipt.pdf',
   children,
-  ...props
+  consignment,
+  client,
+  items,
+  brand_code
 }) => {
+  // Validate required props
+  const missingProps = []
+  if (!consignment) missingProps.push('consignment')
+  if (!client) missingProps.push('client')
+  if (!items) missingProps.push('items')
+  
+  if (missingProps.length > 0) {
+    console.error('ConsignmentReceiptPDF: Missing required props:', missingProps.join(', '))
+    return <span style={{ color: 'red', fontSize: '12px' }}>Error: Missing {missingProps.join(', ')} for PDF generation</span>
+  }
+
+  // Additional validation for nested required properties
+  if (!client.first_name || !client.last_name) {
+    console.error('ConsignmentReceiptPDF: Client missing required name fields')
+    return <span style={{ color: 'red', fontSize: '12px' }}>Error: Client information incomplete</span>
+  }
+
+  // Prepare clean props object
+  const pdfProps = {
+    consignment,
+    client,
+    items,
+    brand_code
+  }
+
   return (
     <PDFDownloadLink
-      document={<ConsignmentReceiptDocument {...props} />}
+      document={<ConsignmentReceiptDocument {...pdfProps} />}
       fileName={fileName}
     >
       {({ loading, error }) => {
-        if (loading) return 'Generating PDF...'
-        if (error) return 'Error generating PDF'
+        if (loading) return <span style={{ color: 'blue', fontSize: '12px' }}>Generating PDF...</span>
+        if (error) {
+          console.error('PDF generation error:', error)
+          return <span style={{ color: 'red', fontSize: '12px' }}>Error generating PDF</span>
+        }
         return children
       }}
     </PDFDownloadLink>
