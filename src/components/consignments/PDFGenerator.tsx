@@ -44,8 +44,8 @@ interface ItemData {
   school_name?: string
   dimensions?: string
   condition?: string
-  low_est: number
-  high_est: number
+  low_est?: number
+  high_est?: number
   reserve?: number
   status: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed' | 'returned'
   sale_price?: number

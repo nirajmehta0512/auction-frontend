@@ -13,8 +13,8 @@ export interface Artwork {
   lot_num?: string;                   // Optional: LotNum (up to 10 chars)
   title: string;                      // Required: Title
   description: string;                // Required: Description
-  low_est: number;                    // Required: Low Estimate
-  high_est: number;                   // Required: High Estimate
+  low_est?: number;                   // Optional: Low Estimate (can be null)
+  high_est?: number;                  // Optional: High Estimate (can be null)
   start_price?: number;               // Optional: Start Price
   condition?: string;                 // Optional: Condition
   reserve?: number;                   // Optional: Reserve price
@@ -601,10 +601,13 @@ export const validateArtworkData = (data: Partial<Artwork>): string[] => {
 };
 
 // Helper functions
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (amount: number | null | undefined): string => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '£0'
+  }
+  return new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'GBP',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount);

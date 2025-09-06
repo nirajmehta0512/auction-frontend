@@ -23,8 +23,8 @@ interface ConsignmentItem {
   school_name?: string
   dimensions?: string
   condition?: string
-  low_est: number
-  high_est: number
+  low_est?: number
+  high_est?: number
   reserve?: number
   vendor_commission?: number
   goods_received?: boolean
@@ -411,7 +411,10 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
     loadBrandData()
   }, [brand_code, brandDetails.name])
 
-  const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number | null | undefined): string => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '£0'
+    }
     return `£${amount.toLocaleString()}`
   }
 
@@ -423,7 +426,11 @@ const ConsignmentReceiptDocument: React.FC<ConsignmentReceiptProps> = ({
     })
   }
 
-  const totalEstimate = items.reduce((sum, item) => sum + ((item.low_est + item.high_est) / 2), 0)
+  const totalEstimate = items.reduce((sum, item) => {
+    const lowEst = item.low_est || 0
+    const highEst = item.high_est || 0
+    return sum + ((lowEst + highEst) / 2)
+  }, 0)
   const totalReserve = items.reduce((sum, item) => sum + (item.reserve || 0), 0)
 
   return (

@@ -66,7 +66,11 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
   const [brands, setBrands] = useState<Brand[]>([])
 
   // Get brand ID from brand code - memoized to prevent infinite useEffect loops
-  const getBrandId = useCallback((brandCode: string): number | undefined => {
+  // Handle "ALL" as no brand filter
+  const getBrandId = useCallback((brandCode: string): number | null | undefined => {
+    if (brandCode === 'ALL') {
+      return null; // No brand filter - all brands eligible
+    }
     const foundBrand = brands.find(b => b.code === brandCode)
     return foundBrand?.id
   }, [brands])
@@ -126,7 +130,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
         limit: 100,
         sort_field: 'created_at',
         sort_direction: 'desc',
-        brand_id: brandId
+        ...(brandId !== null && { brand_id: brandId }) // Only include brand_id if not null (ALL brands)
       })
 
       // Create suggestions from real auctions

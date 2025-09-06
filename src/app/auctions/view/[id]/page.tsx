@@ -7,10 +7,8 @@ import {
   ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload,
   FileText, Package, Edit, ExternalLink, ChevronDown, Eye
 } from 'lucide-react'
-import { getAuctions } from '@/lib/auctions-api'
-import { getBrands, type Brand } from '@/lib/brands-api'
+import { getAuction } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
-import { useBrand } from '@/lib/brand-context'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
 
@@ -32,7 +30,6 @@ interface AuctionArtwork {
 export default function AuctionViewPage() {
   const router = useRouter()
   const params = useParams()
-  const { brand } = useBrand()
   const auctionId = params.id as string
 
   const [auction, setAuction] = useState<Auction | null>(null)
@@ -42,62 +39,16 @@ export default function AuctionViewPage() {
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
   const [showUrlMenu, setShowUrlMenu] = useState(false)
-  const [brands, setBrands] = useState<Brand[]>([])
-
-  // Get brand ID from brand code
-  const getBrandId = useCallback((brandCode: string): number | undefined => {
-    const foundBrand = brands.find(b => b.code === brandCode)
-    return foundBrand?.id
-  }, [brands])
 
   const loadAuctionDetails = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Load auction details
-      const brandId = getBrandId(brand)
-      if (!brandId) {
-        console.error('Brand ID not found for brand:', brand)
-        console.error('Available brands:', brands)
-        setError(`Invalid brand configuration. Brand "${brand}" not found.`)
-        return
-      }
+      console.log('Loading auction with ID:', auctionId)
 
-      console.log('Loading auctions for brand ID:', brandId, 'brand code:', brand)
-
-      const auctionsResponse = await getAuctions({
-        page: 1,
-        limit: 100, // Get all auctions to find the one we want
-        brand_id: brandId
-      })
-
-      if (!auctionsResponse || !auctionsResponse.auctions) {
-        console.error('Failed to load auctions response:', auctionsResponse)
-        setError('Failed to load auctions')
-        return
-      }
-
-      if (auctionsResponse.auctions.length === 0) {
-        console.error('No auctions found for brand ID:', brandId)
-        setError('No auctions found for this brand')
-        return
-      }
-
-      console.log('Loaded auctions:', auctionsResponse.auctions.length, 'auctions found')
-
-      // More robust ID comparison - handle both string and number IDs
-      const foundAuction = auctionsResponse.auctions.find(a => {
-        return a.id.toString() === auctionId.toString() || 
-               a.id === parseInt(auctionId)
-      })
-
-      if (!foundAuction) {
-        console.error('Auction not found. Available auctions:', auctionsResponse.auctions.map(a => ({ id: a.id, type: typeof a.id, name: a.short_name })))
-        console.error('Looking for auction ID:', auctionId, 'type:', typeof auctionId)
-        setError(`Auction with ID ${auctionId} not found`)
-        return
-      }
+      // Use the specific auction endpoint - no brand filtering for individual auction views
+      const foundAuction = await getAuction(auctionId)
 
       console.log('Found auction:', foundAuction.id, foundAuction.short_name)
 
@@ -110,8 +61,7 @@ export default function AuctionViewPage() {
             item_ids: foundAuction.artwork_ids.map(id => id.toString()),
             page: 1,
             limit: 1000,
-            status: 'all',
-            brand_code: brand || 'MSABER'
+            status: 'all'
           })
 
           if (artworksResponse && artworksResponse.data && Array.isArray(artworksResponse.data)) {
@@ -136,32 +86,21 @@ export default function AuctionViewPage() {
 
     } catch (err: any) {
       console.error('Error loading auction details:', err)
-      setError(err?.message || 'Failed to load auction details')
+      if (err.message && err.message.includes('not found')) {
+        setError('Auction not found')
+      } else {
+        setError(err?.message || 'Failed to load auction details')
+      }
     } finally {
       setLoading(false)
     }
-  }, [auctionId, brand, getBrandId, brands])
-
-  // Load brands on component mount
-  useEffect(() => {
-    const loadBrands = async () => {
-      try {
-        const response = await getBrands()
-        if (response.success) {
-          setBrands(response.data)
-        }
-      } catch (err: any) {
-        console.error('Error loading brands:', err)
-      }
-    }
-    loadBrands()
-  }, [])
+  }, [auctionId])
 
   useEffect(() => {
-    if (auctionId && brands.length > 0) {
+    if (auctionId) {
       loadAuctionDetails()
     }
-  }, [auctionId, loadAuctionDetails, brands.length])
+  }, [auctionId, loadAuctionDetails])
 
   // Close URL menu when clicking outside
   useEffect(() => {
@@ -728,7 +667,6 @@ export default function AuctionViewPage() {
           <AuctionExportDialog
             onClose={() => setShowExportDialog(false)}
             selectedAuctions={[parseInt(auctionId)]}
-            brand={brand}
           />
         </div>
       )}
