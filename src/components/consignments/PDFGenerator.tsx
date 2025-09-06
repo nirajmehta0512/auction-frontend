@@ -1,10 +1,8 @@
 // frontend/src/components/consignments/PDFGenerator.tsx
 "use client"
 
-import React from 'react'
-import ConsignmentReceiptPDF from './ConsignmentReceiptPDF'
-import CollectionReceiptPDF from './CollectionReceiptPDF'
-import PreSaleInvoicePDF from './PreSaleInvoicePDF'
+import React, { useState } from 'react'
+import ConsignmentPDFButtons from './ConsignmentPDFButtons'
 import { getBrandDetails, BrandCode } from '@/lib/brand-context'
 
 interface ConsignmentData {
@@ -153,77 +151,92 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   children,
   fileName
 }) => {
-  // Filter items based on PDF type
-  const filteredItems = filterItemsByType(items, type)
-  
-  // If no items for this type, return disabled children
-  if (filteredItems.length === 0 && type !== 'consignment') {
-    return <span style={{ opacity: 0.5, cursor: 'not-allowed' }}>{children}</span>
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    
+    if (isGenerating) return
+
+    setIsGenerating(true)
+    
+    try {
+      // Import the API functions dynamically
+      const { 
+        generateConsignmentReceiptPDF, 
+        generatePreSaleInvoicePDF, 
+        generateCollectionReceiptPDF 
+      } = await import('@/lib/consignment-pdf-api')
+
+      switch (type) {
+        case 'consignment':
+          await generateConsignmentReceiptPDF(
+            consignment.id
+          )
+          break
+
+        case 'presale':
+          const defaultSaleDetails = saleDetails || {
+            sale_name: 'Upcoming Auction',
+            sale_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            sale_location: getBrandDetails(brand_code).address || 'TBD',
+            viewing_dates: ['Two days prior to sale', 'Morning of sale']
+          }
+
+          await generatePreSaleInvoicePDF(
+            consignment.id,
+            defaultSaleDetails
+          )
+          break
+
+        case 'collection':
+          // Transform items for collection receipt
+          const returnedItems = items.map(item => ({
+            id: item.id,
+            lot_number: item.lot_number,
+            title: item.title,
+            description: item.description,
+            artist_name: item.artist_name,
+            school_name: item.school_name,
+            dimensions: item.dimensions,
+            condition: item.condition,
+            return_reason: item.return_reason || 'Collection',
+            return_date: item.return_date || new Date().toISOString(),
+            location: item.location || 'A Store Shelf L3'
+          }))
+
+          await generateCollectionReceiptPDF(
+            consignment.id,
+            returnedItems,
+            {
+              collectionDate: new Date().toLocaleDateString('en-GB')
+            }
+          )
+          break
+
+        default:
+          console.warn('Unknown PDF type:', type)
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error generating PDF. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
-  // Default sale details if not provided
-  const defaultSaleDetails = saleDetails || {
-    sale_name: 'Upcoming Auction',
-    sale_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-    sale_location: getBrandDetails(brand_code).address || 'TBD',
-    viewing_dates: ['Two days prior to sale', 'Morning of sale']
-  }
-
-  // Generate appropriate filename if not provided
-  const defaultFileName = fileName || `${type}-${consignment.consignment_number}-${new Date().toISOString().split('T')[0]}.pdf`
-
-  switch (type) {
-    case 'consignment':
-      return (
-        <ConsignmentReceiptPDF
-          consignment={consignment}
-          client={client}
-          items={transformItemsForConsignmentReceipt(filteredItems)}
-          brand_code={brand_code}
-          fileName={defaultFileName}
-        >
+  // Wrap the children in a clickable element
+  return (
+    <div onClick={handleClick} style={{ cursor: isGenerating ? 'wait' : 'pointer' }}>
+      {isGenerating ? (
+        <div style={{ opacity: 0.7 }}>
           {children}
-        </ConsignmentReceiptPDF>
-      )
-    
-    case 'collection':
-      return (
-        <CollectionReceiptPDF
-          consignment={consignment}
-          client={client}
-          returnedItems={transformItemsForCollectionReceipt(filteredItems)}
-          brand_code={brand_code}
-          fileName={defaultFileName}
-          collectionDate={new Date().toLocaleDateString('en-GB')}
-        >
-          {children}
-        </CollectionReceiptPDF>
-      )
-    
-    case 'presale':
-      const transformedItems = transformItemsForPreSaleInvoice(filteredItems)
-      console.log('PreSale PDF data:', {
-        consignment,
-        client,
-        auctionItems: transformedItems,
-        saleDetails: defaultSaleDetails
-      })
-      return (
-        <PreSaleInvoicePDF
-          consignment={consignment}
-          client={client}
-          auctionItems={transformedItems}
-          saleDetails={defaultSaleDetails}
-          brand_code={brand_code}
-          fileName={defaultFileName}
-        >
-          {children}
-        </PreSaleInvoicePDF>
-      )
-    
-    default:
-      return <span>{children}</span>
-  }
+        </div>
+      ) : (
+        children
+      )}
+    </div>
+  )
 }
 
 export default PDFGenerator

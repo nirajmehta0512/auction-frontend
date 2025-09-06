@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ConsignmentsTable from '@/components/consignments/ConsignmentsTable'
 import CSVUpload from '@/components/consignments/CSVUpload'
-import ConsignmentPDFGenerator from '@/components/consignments/ConsignmentPDFGenerator'
+import ConsignmentPDFGeneratorBackend from '@/components/consignments/ConsignmentPDFGeneratorBackend'
 import ConsignmentGoogleSheetsSync from '@/components/consignments/ConsignmentGoogleSheetsSync'
 import { isSuperAdmin } from '@/lib/auth-utils'
 import { Plus, Download, Upload } from 'lucide-react'
@@ -48,7 +48,7 @@ const convertConsignmentFormat = (consignment: any) => {
     id: consignment.id,
     number: consignment.id, // Use ID as the number display
     client: clientName,
-    clientId: consignment.client_id,
+    client_id: consignment.client_id,
     clientIdFormatted: formatClientDisplay({
       id: consignment.client_id,
       brand_code: brandCode,
@@ -443,8 +443,8 @@ export default function ConsignmentsPage() {
               onClick={handleGenerateReportPDF}
               disabled={selectedConsignments.length === 0}
               className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${selectedConsignments.length === 0
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-blue-600 hover:text-blue-700 cursor-pointer hover:underline'
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-blue-600 hover:text-blue-700 cursor-pointer hover:underline'
                 }`}
             >
               <span className="hidden sm:inline">Generate PDF ({selectedConsignments.length})</span>
@@ -479,7 +479,7 @@ export default function ConsignmentsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -522,10 +522,8 @@ export default function ConsignmentsPage() {
                 <span className="text-xs sm:text-sm text-gray-600">
                   {`( Items: ${consignments.length} )`}
                 </span>
-                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-                  * Times are shown in UTC timezone.
-                </div>
-                <select className="border border-gray-300 rounded text-xs sm:text-sm px-2 py-1 w-fit self-center sm:self-auto">
+
+                <select className="border border-gray-300 rounded text-xs sm:text-sm px-2 py-1 w-fit self-center sm:self-auto cursor-pointer">
                   <option>25</option>
                   <option>50</option>
                   <option>100</option>
@@ -549,7 +547,7 @@ export default function ConsignmentsPage() {
 
       {/* PDF Generator Modal */}
       {showPDFGenerator && (
-        <ConsignmentPDFGenerator
+        <ConsignmentPDFGeneratorBackend
           selectedConsignments={consignments.filter(c => selectedConsignments.includes(c.id))}
           onClose={handlePDFComplete}
         />

@@ -530,7 +530,7 @@ export default function ItemsPage() {
                         <button
                           key={1}
                           onClick={() => setPage(1)}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                         >
                           1
                         </button>
@@ -546,7 +546,7 @@ export default function ItemsPage() {
                         <button
                           key={i}
                           onClick={() => setPage(i)}
-                          className={`px-2 py-1 border rounded text-xs font-medium ${
+                          className={`px-2 py-1 border rounded text-xs font-medium cursor-pointer ${
                             i === page
                               ? 'bg-teal-600 text-white border-teal-600'
                               : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -566,7 +566,7 @@ export default function ItemsPage() {
                         <button
                           key={totalPages}
                           onClick={() => setPage(totalPages)}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                         >
                           {totalPages}
                         </button>
@@ -579,7 +579,7 @@ export default function ItemsPage() {
                   <button
                     onClick={() => setPage(Math.min(totalPages, page + 1))}
                     disabled={page === totalPages}
-                    className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     ›
                   </button>
@@ -738,7 +738,7 @@ export default function ItemsPage() {
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${!page || page > 1 ? 'cursor-pointer' : ''}`}
                 >
                   ‹
                 </button>
@@ -761,7 +761,7 @@ export default function ItemsPage() {
                       <button
                         key={1}
                         onClick={() => setPage(1)}
-                        className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         1
                       </button>
@@ -777,7 +777,7 @@ export default function ItemsPage() {
                       <button
                         key={i}
                         onClick={() => setPage(i)}
-                        className={`px-2 py-1 border rounded text-xs font-medium ${
+                        className={`px-2 py-1 border rounded text-xs font-medium cursor-pointer ${
                           i === page
                             ? 'bg-teal-600 text-white border-teal-600'
                             : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -797,7 +797,7 @@ export default function ItemsPage() {
                       <button
                         key={totalPages}
                         onClick={() => setPage(totalPages)}
-                        className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         {totalPages}
                       </button>
@@ -810,7 +810,7 @@ export default function ItemsPage() {
                 <button
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${page < totalPages ? 'cursor-pointer' : ''}`}
                 >
                   ›
                 </button>

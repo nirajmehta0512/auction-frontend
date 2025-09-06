@@ -233,7 +233,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
           {getActiveFiltersCount() > 0 && (
             <button
               onClick={clearAllFilters}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              className="text-sm text-gray-500 hover:text-gray-700 underline cursor-pointer"
             >
               Clear all
             </button>
@@ -242,7 +242,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
           {/* Toggle Filters Button */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <Filter className="h-4 w-4" />
             <span className="text-sm">
@@ -259,7 +259,7 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
             <button
               key={status.value}
               onClick={() => handleFilterChange('status', status.value)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === status.value
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors cursor-pointer ${filters.status === status.value
                   ? status.color
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
@@ -345,13 +345,13 @@ export default function AuctionsFilter({ filters, onFilterChange, statusCounts }
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleFilterChange('status', 'in_progress')}
-                    className="px-3 py-2 bg-orange-100 text-orange-800 rounded-lg text-xs hover:bg-orange-200 transition-colors"
+                    className="px-3 py-2 bg-orange-100 text-orange-800 rounded-lg text-xs hover:bg-orange-200 transition-colors cursor-pointer"
                   >
                     Active Now
                   </button>
                   <button
                     onClick={() => handleFilterChange('dateRange', 'this_week')}
-                    className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-xs hover:bg-blue-200 transition-colors"
+                    className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-xs hover:bg-blue-200 transition-colors cursor-pointer"
                   >
                     This Week
                   </button>

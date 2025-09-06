@@ -421,9 +421,9 @@ export default function AuctionsPage() {
       {error && (
         <div className="mx-2 sm:mx-4 mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg w-auto max-w-full">
           <p className="text-red-800 text-sm">{error}</p>
-          <button 
+          <button
             onClick={() => setError(null)}
-            className="mt-2 text-red-600 hover:text-red-800 underline text-xs sm:text-sm"
+            className="mt-2 text-red-600 hover:text-red-800 underline text-xs sm:text-sm cursor-pointer"
           >
             Dismiss
           </button>
@@ -478,9 +478,7 @@ export default function AuctionsPage() {
             <span className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
               Items: {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)} - {Math.min(pagination.page * pagination.limit, pagination.total)} from {pagination.total}
             </span>
-            <div className="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
-              * Times are shown in UTC timezone.
-            </div>
+            
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
               <select 
                 value={pagination.limit}
@@ -496,7 +494,7 @@ export default function AuctionsPage() {
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                     disabled={pagination.page === 1}
-                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     Previous
                   </button>
@@ -506,7 +504,7 @@ export default function AuctionsPage() {
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                     disabled={pagination.page >= pagination.pages}
-                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 sm:px-3 sm:py-1 border border-gray-300 rounded text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     Next
                   </button>

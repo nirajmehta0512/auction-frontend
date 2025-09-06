@@ -8,7 +8,8 @@ interface Consignment {
   id: number
   number: string
   client: string
-  client_id: number
+  client_id?: number
+  clientId?: number
   clientIdFormatted: string
   itemsCount: number
   created: string
@@ -70,20 +71,20 @@ export default function ConsignmentsTable({
     if (sortField !== field) {
       return <ChevronUp className="h-4 w-4 text-gray-400" />
     }
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="h-4 w-4 text-gray-600" /> : 
+    return sortDirection === 'asc' ?
+      <ChevronUp className="h-4 w-4 text-gray-600" /> :
       <ChevronDown className="h-4 w-4 text-gray-600" />
   }
 
   const sortedConsignments = [...consignments].sort((a, b) => {
     const aValue = a[sortField]
     const bValue = b[sortField]
-    
+
     // Handle undefined values
     if (aValue === undefined && bValue === undefined) return 0
     if (aValue === undefined) return sortDirection === 'asc' ? 1 : -1
     if (bValue === undefined) return sortDirection === 'asc' ? -1 : 1
-    
+
     if (sortDirection === 'asc') {
       return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
     } else {
@@ -105,30 +106,30 @@ export default function ConsignmentsTable({
                   className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                 />
               </th>
-              
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('number')}
-                          className="flex items-center space-x-1 hover:text-gray-700"
-                        >
-                          <span>Number</span>
-                          <SortIcon field="number" />
-                        </button>
-                      </th>
 
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Client ID
-                      </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button
+                  onClick={() => handleSort('number')}
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                >
+                  <span>Number</span>
+                  <SortIcon field="number" />
+                </button>
+              </th>
 
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('client')}
-                          className="flex items-center space-x-1 hover:text-gray-700"
-                        >
-                          <span>Client</span>
-                          <SortIcon field="client" />
-                        </button>
-                      </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Client ID
+              </th>
+
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button
+                  onClick={() => handleSort('client')}
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                >
+                  <span>Client</span>
+                  <SortIcon field="client" />
+                </button>
+              </th>
 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 # Items
@@ -137,7 +138,7 @@ export default function ConsignmentsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('created')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Created</span>
                   <SortIcon field="created" />
@@ -147,7 +148,7 @@ export default function ConsignmentsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('signed')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Signed</span>
                   <SortIcon field="signed" />
@@ -159,7 +160,7 @@ export default function ConsignmentsTable({
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedConsignments.map((consignment) => (
               <tr key={consignment.id} className="hover:bg-gray-50">
@@ -172,27 +173,34 @@ export default function ConsignmentsTable({
                   />
                 </td>
 
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <Link href={`/consignments/view/${consignment.id}`} className="text-teal-600 hover:text-teal-700 font-medium hover:underline">
-                            {consignment.number}
-                          </Link>
-                        </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <Link href={`/consignments/view/${consignment.id}`} className="text-teal-600 hover:text-teal-700 font-medium hover:underline">
+                    {consignment.number}
+                  </Link>
+                </td>
 
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {consignment.clientIdFormatted}
-                        </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {consignment.clientIdFormatted}
+                </td>
 
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <User className="h-4 w-4 text-teal-500 mr-2" />
-                            <span
-                              className="text-sm text-teal-600 hover:text-teal-700 cursor-pointer hover:underline"
-                              onClick={() => onClientClick?.(consignment.client_id)}
-                            >
-                              {consignment.client}
-                            </span>
-                          </div>
-                        </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <User className="h-4 w-4 text-teal-500 mr-2" />
+                    <span
+                      className="text-sm text-teal-600 hover:text-teal-700 cursor-pointer hover:underline"
+                      onClick={() => {
+                        const clientId = consignment.client_id || consignment.clientId;
+                        if (clientId) {
+                          onClientClick?.(clientId);
+                        } else {
+                          console.error('No client ID available for consignment:', consignment);
+                        }
+                      }}
+                    >
+                      {consignment.client}
+                    </span>
+                  </div>
+                </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {consignment.itemsCount}
@@ -218,14 +226,14 @@ export default function ConsignmentsTable({
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => onEdit?.(consignment)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-600 hover:text-blue-800 cursor-pointer"
                       title="Edit consignment"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => onDelete?.(consignment)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 cursor-pointer"
                       title="Delete consignment"
                     >
                       <Trash2 className="h-4 w-4" />

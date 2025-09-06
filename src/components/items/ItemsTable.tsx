@@ -122,7 +122,7 @@ export default function ItemsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('id')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>ID</span>
                   <SortIcon field="id" />
@@ -132,7 +132,7 @@ export default function ItemsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('title')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Title</span>
                   <SortIcon field="title" />
@@ -142,7 +142,7 @@ export default function ItemsTable({
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                 <button
                   onClick={() => handleSort('category')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Category</span>
                   <SortIcon field="category" />
@@ -152,7 +152,7 @@ export default function ItemsTable({
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('low_est')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Low Est</span>
                   <SortIcon field="low_est" />
@@ -162,7 +162,7 @@ export default function ItemsTable({
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('high_est')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>High Est</span>
                   <SortIcon field="high_est" />
@@ -172,7 +172,7 @@ export default function ItemsTable({
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 <button
                   onClick={() => handleSort('start_price')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Start Price</span>
                   <SortIcon field="start_price" />
@@ -182,7 +182,7 @@ export default function ItemsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('created_at')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Created</span>
                   <SortIcon field="created_at" />
@@ -309,7 +309,7 @@ export default function ItemsTable({
                       <div className="relative">
                         <button
                           onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id!)}
-                          className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                          className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 cursor-pointer"
                         >
                           <MoreVertical className="h-4 w-4" />
                         </button>
@@ -319,19 +319,19 @@ export default function ItemsTable({
                             <div className="py-1">
                               <button
                                 onClick={() => handlePreview(item.id!)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-purple-600 hover:bg-gray-100"
+                                className="flex items-center w-full px-4 py-2 text-sm text-purple-600 hover:bg-gray-100 cursor-pointer"
                               >
                                 Preview
                               </button>
                               <button
                                 onClick={() => handleEdit(item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => handleDelete(item.id!)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
                               >
                                 Delete
                               </button>

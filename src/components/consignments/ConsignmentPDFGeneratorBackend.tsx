@@ -1,34 +1,15 @@
-// frontend/src/components/consignments/ConsignmentPDFGenerator.tsx
+// frontend/src/components/consignments/ConsignmentPDFGeneratorBackend.tsx
 "use client"
 
 import React, { useState, useEffect } from 'react'
 import { X, Download, Share2, Printer, Eye, Settings, FileText, Check, Users } from 'lucide-react'
 import { isSuperAdmin } from '@/lib/auth-utils'
+import { useConsignmentPDF, PDFCustomization } from '@/lib/consignment-pdf-api'
 import type { Consignment } from '@/lib/consignments-api'
 
 interface ConsignmentPDFGeneratorProps {
   selectedConsignments: any[]
   onClose: () => void
-}
-
-interface PDFCustomization {
-  includeHeader: boolean
-  includeFooter: boolean
-  includeLogo: boolean
-  includeClientDetails: boolean
-  includeItemDetails: boolean
-  includeSpecialistInfo: boolean
-  includeSignatures: boolean
-  includeTermsConditions: boolean
-  headerText: string
-  footerText: string
-  documentTitle: string
-  customNotes: string
-  fontSize: 'small' | 'medium' | 'large'
-  orientation: 'portrait' | 'landscape'
-  paperSize: 'A4' | 'A3' | 'Letter'
-  margin: 'small' | 'medium' | 'large'
-  branding: 'minimal' | 'standard' | 'full'
 }
 
 const defaultCustomization: PDFCustomization = {
@@ -51,14 +32,13 @@ const defaultCustomization: PDFCustomization = {
   branding: 'standard'
 }
 
-export default function ConsignmentPDFGenerator({ selectedConsignments, onClose }: ConsignmentPDFGeneratorProps) {
+export default function ConsignmentPDFGeneratorBackend({ selectedConsignments, onClose }: ConsignmentPDFGeneratorProps) {
   const [currentStep, setCurrentStep] = useState<'select-type' | 'customize' | 'generating' | 'complete'>('select-type')
   const [selectedTemplate, setSelectedTemplate] = useState<'summary' | 'detailed' | 'financial' | 'custom'>('summary')
   const [customization, setCustomization] = useState<PDFCustomization>(defaultCustomization)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedPDFUrl, setGeneratedPDFUrl] = useState<string | null>(null)
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+  const { generatePDF, isGenerating, error, clearError } = useConsignmentPDF()
 
   useEffect(() => {
     setUserIsSuperAdmin(isSuperAdmin())
@@ -98,7 +78,7 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
       setCurrentStep('customize')
     } else {
       // For non-super admin users, generate PDF directly with default settings
-      generatePDF(templateId)
+      handleGeneratePDF(templateId)
     }
   }
 
@@ -109,139 +89,63 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
     }))
   }
 
-  const generatePDF = async (template?: string) => {
-    setIsGenerating(true)
+  const handleGeneratePDF = async (template?: string) => {
     setCurrentStep('generating')
+    clearError()
 
     try {
-      // Prepare PDF generation data
       const pdfData = {
         consignments: selectedConsignments,
         template: template || selectedTemplate,
         customization: userIsSuperAdmin ? customization : defaultCustomization,
-        userRole: userIsSuperAdmin ? 'super_admin' : 'user'
-      }
-
-      console.log('Generating PDF with data:', pdfData)
-
-      // Call backend API to generate HTML
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/consignments/generate-pdf`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pdfData),
-      })
-
-      if (!response.ok) {
-        throw new Error(`PDF generation failed: ${response.statusText}`)
-      }
-
-      // Get HTML content and convert to PDF using browser's print functionality
-      const htmlContent = await response.text()
-      
-      // Create a blob URL for the HTML content
-      const htmlBlob = new Blob([htmlContent], { type: 'text/html' })
-      const htmlUrl = URL.createObjectURL(htmlBlob)
-      
-      // Open in new window for PDF generation
-      const printWindow = window.open(htmlUrl, '_blank')
-      if (printWindow) {
-        printWindow.onload = () => {
-          // Set up for PDF generation
-          printWindow.document.title = `consignments-${selectedTemplate}-${Date.now()}`
-          
-          // Store reference for download functionality
-          setGeneratedPDFUrl(htmlUrl)
-          setCurrentStep('complete')
+        options: {
+          userRole: userIsSuperAdmin ? 'super_admin' : 'user',
+          brandCode: 'MSABER' // You can make this configurable
         }
-      } else {
-        // Fallback: use iframe
-        setGeneratedPDFUrl(htmlUrl)
-        setCurrentStep('complete')
       }
+
+      await generatePDF('custom', pdfData, false)
+      setCurrentStep('complete')
 
     } catch (error: any) {
       console.error('PDF generation error:', error)
-      alert(`PDF generation failed: ${error.message}`)
       setCurrentStep('select-type')
-    } finally {
-      setIsGenerating(false)
     }
   }
 
-  const handleDownload = () => {
-    if (generatedPDFUrl) {
-      // Open the HTML in a new window and trigger browser's save as PDF
-      const printWindow = window.open(generatedPDFUrl, '_blank')
-      if (printWindow) {
-        printWindow.onload = () => {
-          // Add print styles for better PDF generation
-          const style = printWindow.document.createElement('style')
-          style.textContent = `
-            @media print {
-              body { -webkit-print-color-adjust: exact; }
-              .no-print { display: none !important; }
-            }
-          `
-          printWindow.document.head.appendChild(style)
-          
-          // Trigger print dialog (user can save as PDF)
-          setTimeout(() => {
-            printWindow.print()
-          }, 500)
+  const handlePreview = async () => {
+    try {
+      const pdfData = {
+        consignments: selectedConsignments,
+        template: selectedTemplate,
+        customization: userIsSuperAdmin ? customization : defaultCustomization,
+        options: {
+          userRole: userIsSuperAdmin ? 'super_admin' : 'user',
+          brandCode: 'MSABER'
         }
       }
+
+      await generatePDF('custom', pdfData, true)
+    } catch (error: any) {
+      console.error('PDF preview error:', error)
     }
   }
 
-  const handlePrint = () => {
-    if (generatedPDFUrl) {
-      const printWindow = window.open(generatedPDFUrl, '_blank')
-      if (printWindow) {
-        printWindow.onload = () => {
-          // Add print styles
-          const style = printWindow.document.createElement('style')
-          style.textContent = `
-            @media print {
-              body { -webkit-print-color-adjust: exact; }
-              .no-print { display: none !important; }
-            }
-          `
-          printWindow.document.head.appendChild(style)
-          
-          setTimeout(() => {
-            printWindow.print()
-          }, 500)
+  const handleDownload = async () => {
+    try {
+      const pdfData = {
+        consignments: selectedConsignments,
+        template: selectedTemplate,
+        customization: userIsSuperAdmin ? customization : defaultCustomization,
+        options: {
+          userRole: userIsSuperAdmin ? 'super_admin' : 'user',
+          brandCode: 'MSABER'
         }
       }
-    }
-  }
 
-  const handleShare = async () => {
-    if (generatedPDFUrl && navigator.share) {
-      try {
-        const response = await fetch(generatedPDFUrl)
-        const blob = await response.blob()
-        const file = new File([blob], `consignments-${selectedTemplate}.pdf`, { type: 'application/pdf' })
-        
-        await navigator.share({
-          title: 'Consignment Report',
-          text: `Consignment ${selectedTemplate} report`,
-          files: [file]
-        })
-      } catch (error) {
-        console.error('Sharing failed:', error)
-        // Fallback: copy URL to clipboard
-        navigator.clipboard.writeText(generatedPDFUrl)
-        alert('PDF URL copied to clipboard')
-      }
-    } else {
-      // Fallback for browsers without Web Share API
-      navigator.clipboard.writeText(generatedPDFUrl || '')
-      alert('PDF URL copied to clipboard')
+      await generatePDF('custom', pdfData, false)
+    } catch (error: any) {
+      console.error('PDF download error:', error)
     }
   }
 
@@ -271,6 +175,29 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-6">
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <X className="h-5 w-5 text-red-400" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error generating PDF</h3>
+                  <p className="mt-1 text-sm text-red-600">{error}</p>
+                </div>
+                <div className="ml-auto pl-3">
+                  <button
+                    onClick={clearError}
+                    className="text-red-400 hover:text-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {currentStep === 'select-type' && (
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Choose Report Type</h3>
@@ -477,10 +404,19 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
                   Back
                 </button>
                 <button
-                  onClick={() => generatePDF()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  onClick={handlePreview}
+                  disabled={isGenerating}
+                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
                 >
-                  Generate PDF
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
+                </button>
+                <button
+                  onClick={() => handleGeneratePDF()}
+                  disabled={isGenerating}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isGenerating ? 'Generating...' : 'Generate PDF'}
                 </button>
               </div>
             </div>
@@ -501,19 +437,8 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">PDF Generated Successfully</h3>
               <p className="text-sm text-gray-600 mb-6">
-                Your consignment report is ready for download, printing, or sharing.
+                Your consignment report has been downloaded to your device.
               </p>
-
-              {/* PDF Preview */}
-              {generatedPDFUrl && (
-                <div className="mb-6">
-                  <iframe
-                    src={generatedPDFUrl}
-                    className="w-full h-64 border border-gray-300 rounded-lg"
-                    title="PDF Preview"
-                  />
-                </div>
-              )}
 
               <div className="flex justify-center space-x-3">
                 <button
@@ -521,21 +446,14 @@ export default function ConsignmentPDFGenerator({ selectedConsignments, onClose 
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download
+                  Download Again
                 </button>
                 <button
-                  onClick={handlePrint}
+                  onClick={handlePreview}
                   className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                 >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
                 </button>
               </div>
 

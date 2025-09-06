@@ -113,7 +113,7 @@ export default function SchoolsTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('name')}
-                className="flex items-center space-x-1 hover:text-gray-700"
+                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
                 <span>Name</span>
                 {getSortIcon('name')}
@@ -122,7 +122,7 @@ export default function SchoolsTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('founded_year')}
-                className="flex items-center space-x-1 hover:text-gray-700"
+                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
                 <span>Years Active</span>
                 {getSortIcon('founded_year')}
@@ -131,7 +131,7 @@ export default function SchoolsTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('location')}
-                className="flex items-center space-x-1 hover:text-gray-700"
+                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
                 <span>Location</span>
                 {getSortIcon('location')}
@@ -140,7 +140,7 @@ export default function SchoolsTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('school_type')}
-                className="flex items-center space-x-1 hover:text-gray-700"
+                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
                 <span>Type</span>
                 {getSortIcon('school_type')}
@@ -152,7 +152,7 @@ export default function SchoolsTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 onClick={() => onSort('created_at')}
-                className="flex items-center space-x-1 hover:text-gray-700"
+                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
                 <span>Created</span>
                 {getSortIcon('created_at')}
@@ -215,14 +215,14 @@ export default function SchoolsTable({
                 <div className="flex items-center justify-end space-x-2">
                   <button
                     onClick={() => onEdit(school.id!)}
-                    className="text-indigo-600 hover:text-indigo-900"
+                    className="text-indigo-600 hover:text-indigo-900 cursor-pointer"
                     title="Edit school"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => onDelete(school.id!)}
-                    className="text-red-600 hover:text-red-900"
+                    className="text-red-600 hover:text-red-900 cursor-pointer"
                     title="Archive school"
                   >
                     <Trash2 className="h-4 w-4" />

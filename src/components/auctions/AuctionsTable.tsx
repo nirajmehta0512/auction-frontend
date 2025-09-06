@@ -213,7 +213,7 @@ export default function AuctionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('id')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>#</span>
                   <SortIcon field="id" />
@@ -225,7 +225,7 @@ export default function AuctionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('long_name')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Name</span>
                   <SortIcon field="long_name" />
@@ -235,7 +235,7 @@ export default function AuctionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('type')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Type</span>
                   <SortIcon field="type" />
@@ -253,7 +253,7 @@ export default function AuctionsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
                   onClick={() => handleSort('endingDate')}
-                  className="flex items-center space-x-1 hover:text-gray-700"
+                  className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
                   <span>Ending Date</span>
                   <SortIcon field="endingDate" />
@@ -335,7 +335,7 @@ export default function AuctionsTable({
                   <div className="relative">
                     <button
                       onClick={() => setActionMenuOpen(actionMenuOpen === auction.id ? null : auction.id)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 hover:text-gray-600 cursor-pointer"
                       title="More actions"
                     >
                       <MoreVertical className="h-5 w-5" />
@@ -349,27 +349,29 @@ export default function AuctionsTable({
                               handleView(auction.id)
                               setActionMenuOpen(null)
                             }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                           >
                             <Eye className="h-4 w-4 mr-3" />
                             View Auction
                           </button>
-                          <button
-                            onClick={() => {
-                              handleEdit(auction.id)
-                              setActionMenuOpen(null)
-                            }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            <Edit className="h-4 w-4 mr-3" />
-                            Edit Auction
-                          </button>
+                          {getAuctionStatus(auction).status !== 'Past' && (
+                            <button
+                              onClick={() => {
+                                handleEdit(auction.id)
+                                setActionMenuOpen(null)
+                              }}
+                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4 mr-3" />
+                              Edit Auction
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               handleImportEOA(auction.id)
                               setActionMenuOpen(null)
                             }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-purple-700 hover:bg-purple-50"
+                            className="flex items-center w-full px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 cursor-pointer"
                           >
                             <Upload className="h-4 w-4 mr-3" />
                             Import EOA Data
@@ -379,7 +381,7 @@ export default function AuctionsTable({
                               handleGenerateInvoice(auction.id)
                               setActionMenuOpen(null)
                             }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
+                            className="flex items-center w-full px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 cursor-pointer"
                           >
                             <FileText className="h-4 w-4 mr-3" />
                             View Auction Invoices
@@ -389,7 +391,7 @@ export default function AuctionsTable({
                               handleGeneratePassedAuction(auction.id)
                               setActionMenuOpen(null)
                             }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
+                            className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 cursor-pointer"
                           >
                             <Plus className="h-4 w-4 mr-3" />
                             Generate Passed Auction
@@ -399,7 +401,7 @@ export default function AuctionsTable({
                               handleDelete(auction.id)
                               setActionMenuOpen(null)
                             }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50 cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4 mr-3" />
                             Delete Auction
@@ -432,7 +434,7 @@ export default function AuctionsTable({
                   setPassedAuctionDialogOpen(null)
                   setSelectedAuctionForPassed(null)
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -458,7 +460,7 @@ export default function AuctionsTable({
                     key={subtype.value}
                     onClick={() => handlePassedAuctionSubtypeSelect(subtype.value)}
                     disabled={generatingPassedAuction}
-                    className="w-full p-3 text-left border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full p-3 text-left border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <div className="font-medium text-sm text-gray-900">{subtype.label}</div>
                     <div className="text-xs text-gray-500 mt-1">{subtype.description}</div>

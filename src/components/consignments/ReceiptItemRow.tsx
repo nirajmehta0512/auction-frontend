@@ -61,7 +61,7 @@ interface Props {
   receiptItem: ReceiptItem
   items: ReceiptItemRowItemOption[]
   artists: ReceiptItemRowArtistOption[]
-  users: { id: number; first_name: string; last_name: string; role: string }[]
+  users: { id: number; first_name: string; last_name: string; role: string; email: string }[]
   onChange: (id: string, field: keyof ReceiptItem, value: any) => void
   onRemove?: (id: string) => void
   onAddArtist?: () => void
@@ -153,22 +153,19 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
     <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select Artwork</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Inventory</label>
           <SearchableSelect
             value={receiptItem.artwork_id || ''}
             onChange={(v)=>handleArtworkChange(String(v))}
             options={[{ value: 'create_new', label: '+ Create New Artwork (Manual Entry)' }, ...items.map((it)=>({
               value: it.id || '',
-              label: `${it.title || ''}${it.lot_num ? ` (Lot: ${it.lot_num})` : ''}`,
+              label: `#${it.id} - ${it.title || ''}${it.lot_num ? ` (Lot: ${it.lot_num})` : ''}`,
               description: `£${it.low_est || 0}-${it.high_est || 0}`
             }))]}
             placeholder="Select or search artwork"
           />
           {receiptItem.artwork_id === 'new' && (
             <p className="text-sm text-blue-600 mt-1">🔧 Manual entry mode: Fill in the details below manually</p>
-          )}
-          {receiptItem.artwork_id && receiptItem.artwork_id !== 'new' && (
-            <p className="text-sm text-green-600 mt-1">✅ Existing artwork selected - details loaded automatically</p>
           )}
         </div>
 
@@ -372,7 +369,7 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-gray-500">Title:</span>
-                      <div className="font-medium">{receiptItem.artwork_title || '—'}</div>
+                      <div className="font-medium">{receiptItem.artwork_id && receiptItem.artwork_id !== 'new' ? `#${receiptItem.artwork_id} - ` : ''}{receiptItem.artwork_title || '—'}</div>
                     </div>
                     <div>
                       <span className="text-gray-500">Artist:</span>
@@ -447,8 +444,22 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                     onChange(receiptItem.id, 'returned_by_user_id', String(value))
                     onChange(receiptItem.id, 'returned_by_user_name', selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : '')
                   }}
-                  options={users.map((u)=>({ value: u.id.toString(), label: `${u.first_name} ${u.last_name}`, description: u.role }))}
+                  options={users.map((u)=>({ value: u.id.toString(), label: `${u.first_name} ${u.last_name} (${u.role})`, description: u.email }))}
                   placeholder="Select staff member"
+                  onSearch={async (query) => {
+                    // Filter users based on search query
+                    const filteredUsers = users.filter(user =>
+                      `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
+                      user.role.toLowerCase().includes(query.toLowerCase()) ||
+                      user.email.toLowerCase().includes(query.toLowerCase())
+                    );
+                    return filteredUsers.map((user) => ({
+                      value: user.id.toString(),
+                      label: `${user.first_name} ${user.last_name} (${user.role})`,
+                      description: user.email
+                    }));
+                  }}
+                  enableDynamicSearch={true}
                 />
               </div>
               <div>

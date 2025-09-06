@@ -265,7 +265,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4 mr-1" />
                 Clear All
@@ -273,7 +273,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
             )}
             <button
               onClick={() => setShowFilters(false)}
-              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-4 w-4 mr-1" />
               Hide
@@ -298,7 +298,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                 <button
                   key={status.value}
                   onClick={() => onFilterChange({ status: status.value })}
-                  className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
                     filters.status === status.value
                       ? 'bg-teal-100 text-teal-800 border-2 border-teal-300 shadow-sm'
                       : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
@@ -505,7 +505,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Status: {statuses.find(s => s.value === filters.status)?.label}
                   <button
                     onClick={() => onFilterChange({ status: 'all' })}
-                    className="ml-2 text-teal-600 hover:text-teal-800"
+                    className="ml-2 text-teal-600 hover:text-teal-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -517,7 +517,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Category: {filters.category}
                   <button
                     onClick={() => onFilterChange({ category: '' })}
-                    className="ml-2 text-blue-600 hover:text-blue-800"
+                    className="ml-2 text-blue-600 hover:text-blue-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -529,7 +529,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Search: "{filters.search}"
                   <button
                     onClick={() => onFilterChange({ search: '' })}
-                    className="ml-2 text-purple-600 hover:text-purple-800"
+                    className="ml-2 text-purple-600 hover:text-purple-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -541,7 +541,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Item ID: {filters.item_id}
                   <button
                     onClick={() => onFilterChange({ item_id: '' })}
-                    className="ml-2 text-green-600 hover:text-green-800"
+                    className="ml-2 text-green-600 hover:text-green-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -553,7 +553,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Brand: {brands.find(b => b.code === filters.brand)?.name || filters.brand}
                   <button
                     onClick={() => onFilterChange({ brand: '' })}
-                    className="ml-2 text-orange-600 hover:text-orange-800"
+                    className="ml-2 text-orange-600 hover:text-orange-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -565,7 +565,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Low Est: {filters.low_est_min || '0'} - {filters.low_est_max || '∞'}
                   <button
                     onClick={() => onFilterChange({ low_est_min: '', low_est_max: '' })}
-                    className="ml-2 text-indigo-600 hover:text-indigo-800"
+                    className="ml-2 text-indigo-600 hover:text-indigo-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -577,7 +577,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   High Est: {filters.high_est_min || '0'} - {filters.high_est_max || '∞'}
                   <button
                     onClick={() => onFilterChange({ high_est_min: '', high_est_max: '' })}
-                    className="ml-2 text-pink-600 hover:text-pink-800"
+                    className="ml-2 text-pink-600 hover:text-pink-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -589,7 +589,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Start Price: {filters.start_price_min || '0'} - {filters.start_price_max || '∞'}
                   <button
                     onClick={() => onFilterChange({ start_price_min: '', start_price_max: '' })}
-                    className="ml-2 text-cyan-600 hover:text-cyan-800"
+                    className="ml-2 text-cyan-600 hover:text-cyan-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -601,7 +601,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Condition: {filters.condition}
                   <button
                     onClick={() => onFilterChange({ condition: '' })}
-                    className="ml-2 text-yellow-600 hover:text-yellow-800"
+                    className="ml-2 text-yellow-600 hover:text-yellow-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -613,7 +613,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Period: {filters.period_age}
                   <button
                     onClick={() => onFilterChange({ period_age: '' })}
-                    className="ml-2 text-emerald-600 hover:text-emerald-800"
+                    className="ml-2 text-emerald-600 hover:text-emerald-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -625,7 +625,7 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   Materials: {filters.materials}
                   <button
                     onClick={() => onFilterChange({ materials: '' })}
-                    className="ml-2 text-rose-600 hover:text-rose-800"
+                    className="ml-2 text-rose-600 hover:text-rose-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>

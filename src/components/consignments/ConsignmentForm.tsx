@@ -227,7 +227,7 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         setClients(clientsResponse.data)
         setItems(itemsResponse.data)
         setArtists(artistsResponse.data)
-        setUsers(usersResponse.users || [])
+        setUsers(usersResponse.data || [])
 
         // If editing an existing consignment, load its items
         if (consignment?.id) {
@@ -626,19 +626,37 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
               Specialist
             </Label>
             <SearchableSelect
-              value={formData.specialist_id || 0}
+              value={formData.specialist_id?.toString() || ''}
               onChange={(val) => {
-                const selectedUser = users.find(u => u.id === val)
+                const selectedUser = users.find(u => u.id.toString() === val.toString())
                 if (selectedUser) {
-                  handleInputChange('specialist_id', val)
+                  handleInputChange('specialist_id', parseInt(val.toString(), 10))
                   handleInputChange('specialist_name', `${selectedUser.first_name} ${selectedUser.last_name}`)
+                } else if (val === '') {
+                  handleInputChange('specialist_id', 0)
+                  handleInputChange('specialist_name', '')
                 }
               }}
               options={users.map((user) => ({
-                value: user.id,
-                label: `${user.first_name} ${user.last_name} (${user.role})`
+                value: user.id.toString(),
+                label: `${user.first_name} ${user.last_name} (${user.role})`,
+                description: user.email
               }))}
               placeholder="Type to search specialists"
+              onSearch={async (query) => {
+                // Filter users based on search query
+                const filteredUsers = users.filter(user =>
+                  `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
+                  user.role.toLowerCase().includes(query.toLowerCase()) ||
+                  user.email.toLowerCase().includes(query.toLowerCase())
+                );
+                return filteredUsers.map((user) => ({
+                  value: user.id.toString(),
+                  label: `${user.first_name} ${user.last_name} (${user.role})`,
+                  description: user.email
+                }));
+              }}
+              enableDynamicSearch={true}
             />
           </div>
 
@@ -646,17 +664,29 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
             <Label htmlFor="released_by_staff" className="block text-sm font-medium text-gray-700 mb-2">
               By Staff
             </Label>
-            <Select
-              value={formData.released_by_staff}
-              onValueChange={(value) => handleInputChange('released_by_staff', value)}
-            >
-              <SelectValue placeholder="Select staff member" />
-              {users.map((user) => (
-                <SelectItem key={user.id} value={`${user.first_name} ${user.last_name}`}>
-                  {user.first_name} {user.last_name} ({user.role})
-                </SelectItem>
-              ))}
-            </Select>
+            <SearchableSelect
+              value={formData.released_by_staff || ''}
+              onChange={(value) => handleInputChange('released_by_staff', value || '')}
+              options={users.map((user) => ({
+                value: `${user.first_name} ${user.last_name}`,
+                label: `${user.first_name} ${user.last_name} (${user.role})`
+              }))}
+              placeholder="Type to search staff"
+              onSearch={async (query) => {
+                // Filter users based on search query
+                const filteredUsers = users.filter(user =>
+                  `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
+                  user.role.toLowerCase().includes(query.toLowerCase()) ||
+                  user.email.toLowerCase().includes(query.toLowerCase())
+                );
+                return filteredUsers.map((user) => ({
+                  value: `${user.first_name} ${user.last_name}`,
+                  label: `${user.first_name} ${user.last_name} (${user.role})`,
+                  description: user.email
+                }));
+              }}
+              enableDynamicSearch={true}
+            />
           </div>
 
           <div>
@@ -789,22 +819,22 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
           </div>
         </div>
 
-        {/* Receipt No. Section */}
+        {/* Consignment Number Section */}
         <div className="border-t pt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Receipt No.</h3>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Label htmlFor="receipt_no" className="text-sm font-medium text-gray-700">
+                {/* <Label htmlFor="receipt_no" className="text-sm font-medium text-gray-700">
                   Receipt No.
-                </Label>
-                <Input
+                </Label> */}
+                {/* <Input
                   id="receipt_no"
                   value={formData.receipt_no}
                   placeholder="Auto-generated"
                   className="w-32 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
                   disabled
-                />
+                /> */}
               </div>
               <div className="flex items-center space-x-2">
                 <Button

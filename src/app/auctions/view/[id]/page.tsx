@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload,
-  FileText, Package, Edit, ExternalLink, ChevronDown, Eye
+  FileText, Package, Edit, ExternalLink, ChevronDown, Eye, Share2
 } from 'lucide-react'
 import { getAuction } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
@@ -25,6 +25,8 @@ interface AuctionArtwork {
   image_file_2?: string
   condition?: string
   dimensions?: string
+  status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed'
+  hammer_price?: number
 }
 
 export default function AuctionViewPage() {
@@ -39,6 +41,7 @@ export default function AuctionViewPage() {
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showEOADialog, setShowEOADialog] = useState(false)
   const [showUrlMenu, setShowUrlMenu] = useState(false)
+  const [showShareMenu, setShowShareMenu] = useState(false)
 
   const loadAuctionDetails = useCallback(async () => {
     try {
@@ -108,13 +111,16 @@ export default function AuctionViewPage() {
       if (showUrlMenu && !(event.target as Element).closest('.url-menu-container')) {
         setShowUrlMenu(false)
       }
+      if (showShareMenu && !(event.target as Element).closest('.share-menu-container')) {
+        setShowShareMenu(false)
+      }
     }
 
-    if (showUrlMenu) {
+    if (showUrlMenu || showShareMenu) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showUrlMenu])
+  }, [showUrlMenu, showShareMenu])
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set'
@@ -149,6 +155,44 @@ export default function AuctionViewPage() {
     }
   }
 
+  const isAuctionPast = (auction: Auction) => {
+    const today = new Date()
+    const settlementDate = new Date(auction.settlement_date)
+    return today > settlementDate
+  }
+
+  const getArtworkStatusBadge = (artwork: AuctionArtwork, auction: Auction) => {
+    // If artwork is sold
+    if (artwork.status === 'sold' && artwork.hammer_price) {
+      return {
+        text: `Sold at ${formatCurrency(artwork.hammer_price)}`,
+        color: 'bg-green-100 text-green-800 border-green-200'
+      }
+    }
+
+    // If auction is past and artwork is not sold
+    if (isAuctionPast(auction) && artwork.status !== 'sold') {
+      return {
+        text: 'Lot Passed',
+        color: 'bg-red-100 text-red-800 border-red-200'
+      }
+    }
+
+    // If auction is still active and artwork is not sold
+    if (!isAuctionPast(auction) && artwork.status !== 'sold') {
+      return {
+        text: 'Ongoing',
+        color: 'bg-blue-100 text-blue-800 border-blue-200'
+      }
+    }
+
+    // Default fallback
+    return {
+      text: 'Active',
+      color: 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
   const getDynamicStatusColor = (auction: Auction) => {
     const today = new Date()
     const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
@@ -169,6 +213,41 @@ export default function AuctionViewPage() {
 
   const handleGenerateInvoice = () => {
     router.push(`/auctions/${auctionId}/invoices`)
+  }
+
+  // Handle sharing auction
+  const handleShare = (method: 'email' | 'whatsapp' | 'message') => {
+    if (!auction) return
+
+    const auctionUrl = getAvailableUrls().length > 0 ? getAvailableUrls()[0].url : window.location.href
+    const auctionTitle = auction.long_name || auction.short_name
+    const shareText = `Check out this auction: ${auctionTitle}\n${auctionUrl}`
+
+    switch (method) {
+      case 'email':
+        window.open(`mailto:?subject=${encodeURIComponent(auctionTitle)}&body=${encodeURIComponent(shareText)}`)
+        break
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`)
+        break
+      case 'message':
+        // For iOS Safari, try to use SMS
+        if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+          window.open(`sms:&body=${encodeURIComponent(shareText)}`)
+        } else {
+          // Fallback to general messaging
+          navigator.share?.({
+            title: auctionTitle,
+            text: shareText,
+            url: auctionUrl
+          }).catch(() => {
+            // Fallback if Web Share API not supported
+            window.open(`mailto:?subject=${encodeURIComponent(auctionTitle)}&body=${encodeURIComponent(shareText)}`)
+          })
+        }
+        break
+    }
+    setShowShareMenu(false)
   }
 
   // Get available auction URLs
@@ -247,7 +326,7 @@ export default function AuctionViewPage() {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => router.push('/auctions')}
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                  className="text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
@@ -274,7 +353,7 @@ export default function AuctionViewPage() {
               <div className="relative url-menu-container">
                 <button
                   onClick={handleViewAuction}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 cursor-pointer"
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Auction
@@ -291,7 +370,7 @@ export default function AuctionViewPage() {
                         <button
                           key={urlItem.key}
                           onClick={() => handleUrlSelect(urlItem.url!)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg flex items-center space-x-3"
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg flex items-center space-x-3 cursor-pointer"
                         >
                           <ExternalLink className="h-4 w-4 text-gray-500" />
                           <div>
@@ -307,7 +386,7 @@ export default function AuctionViewPage() {
 
               <button
                 onClick={() => router.push(`/auctions/edit/${auctionId}`)}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm cursor-pointer"
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Auction
@@ -315,17 +394,57 @@ export default function AuctionViewPage() {
 
               <button
                 onClick={() => router.push('/items')}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm border border-gray-300"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm border border-gray-300 cursor-pointer"
               >
                 <Package className="h-4 w-4 mr-2" />
                 Manage Items
               </button>
 
+              {/* Share Button with Menu */}
+              <div className="relative share-menu-container">
+                <button
+                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 cursor-pointer"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </button>
+
+                {/* Share Menu */}
+                {showShareMenu && (
+                  <div className="absolute top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-2">
+                      <button
+                        onClick={() => handleShare('email')}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center space-x-3 cursor-pointer"
+                      >
+                        <span className="text-lg">📧</span>
+                        <span className="font-medium text-gray-900">Email</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare('whatsapp')}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center space-x-3 cursor-pointer"
+                      >
+                        <span className="text-lg">💬</span>
+                        <span className="font-medium text-gray-900">WhatsApp</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare('message')}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center space-x-3 cursor-pointer"
+                      >
+                        <span className="text-lg">📱</span>
+                        <span className="font-medium text-gray-900">Message</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Secondary Actions */}
               <div className="border-l border-gray-300 pl-3 ml-2 flex items-center space-x-2">
                 <button
                   onClick={handleImportEOA}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors cursor-pointer"
                 >
                   <Upload className="h-4 w-4 mr-1" />
                   Import EOA
@@ -333,7 +452,7 @@ export default function AuctionViewPage() {
 
                 <button
                   onClick={handleGenerateInvoice}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors cursor-pointer"
                 >
                   <FileText className="h-4 w-4 mr-1" />
                   Invoice
@@ -341,7 +460,7 @@ export default function AuctionViewPage() {
 
                 <button
                   onClick={() => setShowExportDialog(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer"
                 >
                   <Download className="h-4 w-4 mr-1" />
                   Export
@@ -536,16 +655,11 @@ export default function AuctionViewPage() {
                   </div>
                   <div className="ml-11">
                     <div className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded-full ${getDynamicStatusLabel(auction) === 'Present' ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                      <div className={`w-3 h-3 rounded-full ${auction.upload_status === 'uploaded' ? 'bg-green-400' : 'bg-gray-400'}`}></div>
                       <span className="text-white font-semibold">
-                        {getDynamicStatusLabel(auction) === 'Present' ? 'Live & Published' : 'Not Published'}
+                        {auction.upload_status === 'uploaded' ? 'Published' : 'Not Published'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {getDynamicStatusLabel(auction) === 'Present'
-                        ? 'Catalog is live and accepting bids'
-                        : 'Catalog will be published soon'}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -563,7 +677,7 @@ export default function AuctionViewPage() {
                 {getAvailableUrls().length > 0 && (
                   <button
                     onClick={handleViewAuction}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-all duration-200 hover:shadow-md transform hover:scale-105 cursor-pointer"
                   >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     {getAvailableUrls().length === 1 ? 'View Auction' : `View on ${getAvailableUrls()[0].platform}`}
@@ -579,82 +693,82 @@ export default function AuctionViewPage() {
                 <p className="text-gray-500 text-sm mt-2">Items will appear here once they're added to the catalog.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-                {artworks.map((artwork) => (
-                  <div key={artwork.id} className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-gray-300">
-                    {/* Artwork Image */}
-                    <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                      {artwork.image_file_1 ? (
-                        <img
-                          src={artwork.image_file_1}
-                          alt={artwork.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-                          <Trophy className="h-16 w-16" />
-                        </div>
-                      )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-8">
+                {artworks.map((artwork, index) => {
+                  // Calculate lot number based on position in artwork_ids array + 1
+                  const lotNumber = auction.artwork_ids ? auction.artwork_ids.indexOf(parseInt(artwork.id)) + 1 : index + 1;
 
-                      {/* Lot Number Badge */}
-                      <div className="absolute top-3 left-3 bg-black bg-opacity-75 text-white px-2 py-1 rounded-md text-xs font-medium">
-                        Lot {artwork.lot_num}
-                      </div>
-
-                      {/* Live Auction Link Overlay - Commented out for now */}
-                      {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center">
-                        <button
-                          onClick={() => window.open(`https://liveauctioneers.com/lot/${artwork.id}`, '_blank')}
-                          className="opacity-0 group-hover:opacity-100 bg-white text-gray-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all duration-200 flex items-center space-x-1 shadow-lg"
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span>View Live</span>
-                        </button>
-                      </div> */}
-                    </div>
-
-                    {/* Artwork Details */}
-                    <div className="p-4">
-                      <div className="space-y-3">
-                        {/* Title */}
-                        <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
-                          {artwork.title}
-                        </h3>
-
-                        {/* Artist */}
-                        {artwork.artist_maker && (
-                          <p className="text-sm text-gray-600 font-medium">
-                            {artwork.artist_maker}
-                          </p>
-                        )}
-
-                        {/* Estimates */}
-                        {(artwork.low_est || artwork.high_est) && (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 font-medium">Estimate</p>
-                            <p className="text-sm font-bold text-gray-900">
-                              {formatCurrency(artwork.low_est)} - {formatCurrency(artwork.high_est)}
-                            </p>
+                  return (
+                    <div key={artwork.id} className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-gray-300">
+                      {/* Artwork Image */}
+                      <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                        {artwork.image_file_1 ? (
+                          <img
+                            src={artwork.image_file_1}
+                            alt={artwork.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
+                            <Trophy className="h-16 w-16" />
                           </div>
                         )}
 
-                        {/* Additional Details */}
-                        <div className="space-y-1">
-                          {artwork.dimensions && (
-                            <p className="text-xs text-gray-500">
-                              {artwork.dimensions}
+
+                      </div>
+
+                      {/* Artwork Details */}
+                      <div className="p-4">
+                        <div className="space-y-3">
+                          {/* Title with Lot Number */}
+                          <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
+                            {lotNumber.toString().padStart(4, '0')}: {artwork.title}
+                          </h3>
+
+                          {/* Artist */}
+                          {artwork.artist_maker && (
+                            <p className="text-sm text-gray-600 font-medium">
+                              {artwork.artist_maker}
                             </p>
                           )}
-                          {artwork.condition && (
-                            <p className="text-xs text-gray-500">
-                              Condition: {artwork.condition}
-                            </p>
+
+                          {/* Estimates */}
+                          {(artwork.low_est || artwork.high_est) && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-bold text-gray-900">
+                                Est. {formatCurrency(artwork.low_est)} - {formatCurrency(artwork.high_est)}
+                              </p>
+
+                              {/* Status Badge */}
+                              {(() => {
+                                const statusBadge = getArtworkStatusBadge(artwork, auction);
+                                return (
+                                  <div className={`inline-block px-2 py-1 rounded-md text-xs font-medium border ${statusBadge.color}`}>
+                                    {statusBadge.text}
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           )}
+
+                          {/* Additional Details */}
+                          <div className="space-y-1">
+                            {artwork.dimensions && (
+                              <p className="text-xs text-gray-500">
+                                {artwork.dimensions}
+                              </p>
+                            )}
+                            {artwork.condition && (
+                              <p className="text-xs text-gray-500">
+                                Condition: {artwork.condition}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
