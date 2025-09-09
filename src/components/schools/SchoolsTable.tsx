@@ -99,7 +99,7 @@ export default function SchoolsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full" style={{ minWidth: '1200px' }}>
+      <table className="min-w-full">
         <thead className="bg-gray-50">
           <tr>
             <th className="w-12 px-6 py-3 text-left">
@@ -126,15 +126,6 @@ export default function SchoolsTable({
               >
                 <span>Location</span>
                 {getSortIcon('location')}
-              </button>
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <button
-                onClick={() => onSort('school_type')}
-                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-              >
-                <span>Type</span>
-                {getSortIcon('school_type')}
               </button>
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -179,16 +170,13 @@ export default function SchoolsTable({
               <td className="px-6 py-4 text-sm text-gray-900">
                 <div>
                   {school.location && (
-                    <div className="font-medium">{school.location}</div>
+                    <div className="font-medium truncate text-xs max-w-xs">{school.location}</div>
                   )}
                   {school.country && (
-                    <div className="text-gray-500">{school.country}</div>
+                    <div className="text-gray-500 truncate text-xs max-w-xs">{school.country}</div>
                   )}
                   {!school.location && !school.country && '—'}
                 </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-900">
-                {school.school_type || '—'}
               </td>
               <td className="px-6 py-4 text-sm text-gray-900">
                 <div className="max-w-xs break-words">

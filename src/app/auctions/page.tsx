@@ -26,7 +26,9 @@ const convertAuctionFormat = (auction: Auction) => ({
   endingDate: auction.settlement_date ? new Date(auction.settlement_date).toLocaleDateString() : '',
   catalogue_launch_date: auction.catalogue_launch_date,
   settlement_date: auction.settlement_date,
-  upload_status: auction.upload_status
+  upload_status: auction.upload_status,
+  brand: auction.brand,
+  platform: auction.platform
 })
 
 interface FilterState {

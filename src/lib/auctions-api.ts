@@ -563,6 +563,11 @@ export interface PlatformInfo {
   description: string;
 }
 
+// Brand auction counts interface
+export interface BrandAuctionCounts {
+  [brandId: number]: number;
+}
+
 export const PLATFORM_OPTIONS: PlatformInfo[] = [
   {
     id: 'liveauctioneers',
@@ -595,3 +600,50 @@ export const PLATFORM_OPTIONS: PlatformInfo[] = [
     description: 'Database format: lot_1_img_1.jpg, lot_1_img_2.jpg'
   }
 ];
+
+// Brand interface for auction count loading
+export interface Brand {
+  id: number;
+  code: string;
+  name: string;
+}
+
+// Get auction counts for multiple brands
+export async function getBrandAuctionCounts(brands: Brand[]): Promise<BrandAuctionCounts> {
+  const counts: BrandAuctionCounts = {};
+
+  try {
+    // Extract brand IDs
+    const brandIds = brands.map(brand => brand.id);
+
+    // Use the new backend endpoint to get counts for all brands at once
+    const response = await fetch(`${API_BASE_URL}/auctions/counts/brands?brand_ids=${brandIds.join(',')}`, {
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch auction counts: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.counts) {
+      // Use the counts from the backend
+      Object.assign(counts, data.counts);
+    } else {
+      throw new Error('Invalid response format from backend');
+    }
+
+  } catch (error) {
+    console.error('Error loading brand auction counts:', error);
+    // Return empty counts if there's a general error
+    brands.forEach(brand => {
+      counts[brand.id] = 0;
+    });
+  }
+
+  return counts;
+}

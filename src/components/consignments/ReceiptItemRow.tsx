@@ -23,6 +23,7 @@ export interface ReceiptItemRowItemOption {
   reserve?: number
   artist_id?: string
   images?: string[]
+  consignment_id?: string
 }
 
 export interface ReceiptItemRowArtistOption {
@@ -60,9 +61,10 @@ interface Props {
   onRemove?: (id: string) => void
   onAddArtist?: () => void
   onEditArtwork?: (artworkId: string) => void
+  onAddToAuction?: (artworkId: string) => void
 }
 
-export default function ReceiptItemRow({ receiptItem, items, artists, users, onChange, onRemove, onAddArtist, onEditArtwork }: Props) {
+export default function ReceiptItemRow({ receiptItem, items, artists, users, onChange, onRemove, onAddArtist, onEditArtwork, onAddToAuction }: Props) {
   const handleArtworkChange = (artworkId: string) => {
     // Handle "Create New" option
     if (artworkId === 'create_new') {
@@ -151,7 +153,11 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
           <SearchableSelect
             value={receiptItem.artwork_id || ''}
             onChange={(v)=>handleArtworkChange(String(v))}
-            options={[{ value: 'create_new', label: '+ Create New Artwork (Manual Entry)' }, ...items.map((it)=>({
+            options={[{ value: 'create_new', label: '+ Create New Artwork (Manual Entry)' }, ...items.filter(item => !item.consignment_id).sort((a, b) => {
+              const aId = parseInt(a.id?.toString() || '0', 10)
+              const bId = parseInt(b.id?.toString() || '0', 10)
+              return aId - bId
+            }).map((it)=>({
               value: it.id || '',
               label: `#${it.id} - ${it.title || ''}${it.lot_num ? ` (Lot: ${it.lot_num})` : ''}`,
               description: `£${it.low_est || 0}-${it.high_est || 0}`
@@ -170,7 +176,7 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
               value={receiptItem.artwork_title || ''}
               onChange={(e)=> onChange(receiptItem.id, 'artwork_title', e.target.value)}
               placeholder="Enter artwork title"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
             />
           </div>
         )}
@@ -198,7 +204,13 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                   <div className="text-xs text-green-600 mt-1">Selected: {receiptItem.artist_name}</div>
                 )}
               </div>
-              <button type="button" onClick={onAddArtist} className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded">+ Artist</button>
+              <button
+                type="button"
+                onClick={onAddArtist}
+                className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded transition-all duration-200 ease-in-out cursor-pointer hover:scale-105 active:scale-95"
+              >
+                + Artist
+              </button>
             </div>
           </div>
         )}
@@ -212,31 +224,31 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                   value={receiptItem.height_inches || ''}
                   onChange={(e)=> onChange(receiptItem.id, 'height_inches', e.target.value)}
                   placeholder="Height (inches)"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
                 />
                 <input
                   value={receiptItem.width_inches || ''}
                   onChange={(e)=> onChange(receiptItem.id, 'width_inches', e.target.value)}
                   placeholder="Width (inches)"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
                 />
                 <input
                   value={receiptItem.height_cm || ''}
                   onChange={(e)=> onChange(receiptItem.id, 'height_cm', e.target.value)}
                   placeholder="Height (cm)"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
                 />
                 <input
                   value={receiptItem.width_cm || ''}
                   onChange={(e)=> onChange(receiptItem.id, 'width_cm', e.target.value)}
                   placeholder="Width (cm)"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
                 />
                 <input
                   value={receiptItem.weight || ''}
                   onChange={(e)=> onChange(receiptItem.id, 'weight', e.target.value)}
                   placeholder="Weight"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 col-span-2"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400 col-span-2"
                 />
               </div>
             </div>
@@ -248,7 +260,7 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                 onChange={(e)=> onChange(receiptItem.id, 'low_estimate', parseFloat(e.target.value) || 0)}
                 placeholder="0"
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
               />
             </div>
             <div>
@@ -259,7 +271,7 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                 onChange={(e)=> onChange(receiptItem.id, 'high_estimate', parseFloat(e.target.value) || 0)}
                 placeholder="0"
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
               />
             </div>
             <div>
@@ -270,7 +282,7 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                 onChange={(e)=> onChange(receiptItem.id, 'reserve', parseFloat(e.target.value) || 0)}
                 placeholder="0"
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:border-gray-400"
               />
             </div>
           </>
@@ -282,65 +294,117 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
             <div className="bg-gray-50 p-3 rounded-md mb-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-medium text-gray-700">Selected Artwork Details</h4>
-                {onEditArtwork && (
-                  <button
-                    type="button"
-                    onClick={() => onEditArtwork(receiptItem.artwork_id!)}
-                    className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
-                  >
-                    Edit Artwork
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {onEditArtwork && (
+                    <button
+                      type="button"
+                      onClick={() => onEditArtwork(receiptItem.artwork_id!)}
+                      className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded cursor-pointer transition-all duration-200 ease-in-out shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                    >
+                      Edit Artwork
+                    </button>
+                  )}
+                  {onAddToAuction && receiptItem.artwork_id && receiptItem.artwork_id !== 'new' && (
+                    <div
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onAddToAuction(receiptItem.artwork_id!)
+                      }}
+                      className="px-3 py-1 text-xs bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white rounded flex items-center gap-1 cursor-pointer transition-all duration-200 ease-in-out shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                      style={{ pointerEvents: 'auto', zIndex: 10 }}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                      Add to Auction
+                    </div>
+                  )}
+                </div>
               </div>
               
-              <div className="flex gap-4">
+              <div className="flex gap-6">
                 {/* Artwork Images */}
-                <div className="flex gap-2">
-                  {(() => {
-                    const selectedArtwork = items.find(item => String(item.id) === String(receiptItem.artwork_id))
+                <div className="flex gap-2 flex-shrink-0 max-w-[120px]">
+                {(() => {
+                  console.log('🔍 ReceiptItemRow - Image Debug:', {
+                    artwork_id: receiptItem.artwork_id,
+                    artwork_title: receiptItem.artwork_title,
+                    items_count: items.length,
+                    sample_item: items[0] ? {
+                      id: items[0].id,
+                      title: items[0].title,
+                      hasImages: !!items[0].images,
+                      imagesCount: items[0].images?.length || 0
+                    } : 'No items'
+                  })
 
-                    if (!selectedArtwork) {
-                      return (
-                        <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                          No Image
-                        </div>
-                      )
-                    }
+                  const selectedArtwork = items.find(item => String(item.id) === String(receiptItem.artwork_id))
 
-                    // Get images from the selected artwork
-                    const images = selectedArtwork.images
-
-                    if (!images || images.length === 0) {
-                      return (
-                        <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                          No Image
-                        </div>
-                      )
-                    }
-
+                  if (!selectedArtwork) {
+                    console.warn('⚠️ No artwork found for ID:', receiptItem.artwork_id, 'in items array')
+                    console.log('Available artwork IDs:', items.slice(0, 10).map(item => item.id).filter(Boolean))
                     return (
-                      <>
-                        {images[0] && (
-                          <MediaRenderer
-                            src={images[0]}
-                            alt="Artwork 1"
-                            className="w-20 h-20 object-cover rounded border"
-                            aspectRatio="square"
-                            showControls={false}
-                          />
-                        )}
-                        {images.length > 1 && images[1] && (
-                          <MediaRenderer
-                            src={images[1]}
-                            alt="Artwork 2"
-                            className="w-20 h-20 object-cover rounded border"
-                            aspectRatio="square"
-                            showControls={false}
-                          />
-                        )}
-                      </>
+                      <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                        Artwork Not Found
+                      </div>
                     )
-                  })()}
+                  }
+
+                  const images = selectedArtwork.images
+                  console.log('📸 Artwork images:', {
+                    artwork_id: selectedArtwork.id,
+                    title: selectedArtwork.title,
+                    images: images,
+                    hasImages: !!images,
+                    imagesLength: images?.length || 0,
+                    imagesType: typeof images
+                  })
+
+                  if (!images || images.length === 0) {
+                    console.warn('⚠️ No images available for artwork:', selectedArtwork.title)
+                    return (
+                      <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                        No Images
+                      </div>
+                    )
+                  }
+
+                  // Filter out invalid/empty image URLs
+                  const validImages = images.filter(img => img && typeof img === 'string' && img.trim() !== '')
+                  console.log('✅ Valid images found:', validImages.length, 'out of', images.length)
+
+                  if (validImages.length === 0) {
+                    return (
+                      <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                        Invalid URLs
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="flex gap-1">
+                      {validImages[0] && (
+                        <MediaRenderer
+                          src={validImages[0]}
+                          alt={`Artwork: ${selectedArtwork.title}`}
+                          className="w-20 h-20 object-cover rounded border"
+                          aspectRatio="square"
+                          showControls={false}
+                        />
+                      )}
+                      {validImages.length > 1 && validImages[1] && (
+                        <MediaRenderer
+                          src={validImages[1]}
+                          alt={`Artwork: ${selectedArtwork.title} (2)`}
+                          className="w-20 h-20 object-cover rounded border"
+                          aspectRatio="square"
+                          showControls={false}
+                        />
+                      )}
+                    </div>
+                  )
+                })()}
                 </div>
                 
                 {/* Artwork Details */}
@@ -395,7 +459,13 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
 
       {onRemove && (
         <div className="flex items-center justify-end mt-3">
-          <button type="button" onClick={()=> onRemove(receiptItem.id)} className="text-red-600 hover:text-red-800 text-sm">Remove</button>
+          <button
+            type="button"
+            onClick={()=> onRemove(receiptItem.id)}
+            className="px-3 py-1 text-red-600 hover:text-red-800 active:text-red-900 hover:bg-red-50 active:bg-red-100 text-sm rounded transition-all duration-200 ease-in-out cursor-pointer"
+          >
+            Remove
+          </button>
         </div>
       )}
     </div>

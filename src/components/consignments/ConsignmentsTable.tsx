@@ -112,7 +112,7 @@ export default function ConsignmentsTable({
                   onClick={() => handleSort('number')}
                   className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                 >
-                  <span>Number</span>
+                  <span>Consignment Number</span>
                   <SortIcon field="number" />
                 </button>
               </th>

@@ -126,7 +126,7 @@ export default function SearchableSelect<T = string | number>({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full px-3 py-2 border rounded-md text-left overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : ''} border-gray-300 bg-white`}
+        className={`w-full px-3 py-2 border rounded-md text-left overflow-hidden transition-all duration-200 ease-in-out hover:shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'} border-gray-300 bg-white`}
       >
         <span className="truncate block min-w-0 text-gray-900">
           {currentLabel || placeholder}
@@ -161,11 +161,11 @@ export default function SearchableSelect<T = string | number>({
                   setQuery('');
                   onChange?.(opt.value)
                 }}
-                className={`w-full text-left px-3 py-2 hover:bg-gray-50 ${String(value) === String(opt.value) ? 'bg-gray-100' : ''}`}
+                className={`w-full text-left px-3 py-2 transition-colors duration-150 ease-in-out hover:bg-blue-50 hover:text-blue-900 cursor-pointer ${String(value) === String(opt.value) ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
               >
-                <div className="text-sm text-gray-900">{opt.label}</div>
+                <div className="text-sm">{opt.label}</div>
                 {opt.description && (
-                  <div className="text-xs text-gray-500">{opt.description}</div>
+                  <div className={`text-xs ${String(value) === String(opt.value) ? 'text-blue-700' : 'text-gray-500'}`}>{opt.description}</div>
                 )}
               </button>
             ))}

@@ -18,6 +18,12 @@ interface Auction {
   catalogue_launch_date?: string
   settlement_date: string
   upload_status?: string
+  brand?: {
+    id: number
+    code: string
+    name: string
+  }
+  platform?: string
 }
 
 interface AuctionsTableProps {
@@ -297,6 +303,18 @@ export default function AuctionsTable({
                     <div className="flex flex-col">
                       <span>{auction.long_name}</span>
                       <span className="text-xs text-gray-500">{auction.short_name}</span>
+                      <div className="flex items-center mt-1 space-x-2 text-xs text-gray-400">
+                        {auction.brand?.name && (
+                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
+                            {auction.brand.name}
+                          </span>
+                        )}
+                        {auction.platform && (
+                          <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">
+                            {auction.platform}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center mt-1 space-x-2">
                         <div
                           className={cn("px-2 py-0.5 rounded-full text-xs font-medium", getAuctionStatus(auction).color)}

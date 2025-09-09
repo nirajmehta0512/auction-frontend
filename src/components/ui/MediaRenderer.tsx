@@ -52,8 +52,8 @@ interface MediaRendererProps {
 }
 
 /**
- * MediaRenderer component that handles both regular images and Google Drive embedded previews
- * Automatically detects Google Drive URLs and renders appropriate component
+ * MediaRenderer component that handles both regular images and Google Drive images
+ * Automatically detects Google Drive URLs and renders them using img tags with the new lh3 format
  */
 export default function MediaRenderer({
   src,
@@ -71,26 +71,29 @@ export default function MediaRenderer({
   // State to track if media failed to load
   const [mediaError, setMediaError] = useState(false)
 
-  // Function to render Google Drive preview iframe
-  const renderDrivePreview = (url: string, altText: string) => {
+  // Helper function to check if width or height classes are already present
+  const hasSizeClasses = (classes: string) => {
+    return /\b(w|h)-\d+/.test(classes) || /\b(w|h)-\w+/.test(classes)
+  }
+
+  // Function to render Google Drive image using img tag with new format
+  const renderDriveImage = (url: string, altText: string) => {
     const fileId = extractDriveFileId(url)
     if (!fileId || mediaError) {
       return renderPlaceholder()
     }
 
-    const embedUrl = showControls
-      ? `https://drive.google.com/file/d/${fileId}/preview`
-      : `https://drive.google.com/file/d/${fileId}/preview?rm=minimal&embedded=true`
+    // Use new Google Drive image format
+    const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`
+
+    // Only apply w-full h-full if no size classes are specified
+    const sizeClasses = hasSizeClasses(className) ? '' : 'w-full h-full'
 
     return (
-      <iframe
-        src={embedUrl}
-        width="100%"
-        height="100%"
-        style={{ border: 'none' }}
-        allow="autoplay"
-        title={altText}
-        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ${className}`}
+      <img
+        src={imageUrl}
+        alt={altText}
+        className={`${className} ${sizeClasses} object-cover group-hover:scale-105 transition-transform duration-200`}
         onClick={onClick}
         onError={() => setMediaError(true)}
         onLoad={() => setMediaError(false)}
@@ -104,11 +107,14 @@ export default function MediaRenderer({
       return renderPlaceholder()
     }
 
+    // Only apply w-full h-full if no size classes are specified
+    const sizeClasses = hasSizeClasses(className) ? '' : 'w-full h-full'
+
     return (
       <img
         src={url}
         alt={altText}
-        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ${className}`}
+        className={`${className} ${sizeClasses} object-cover group-hover:scale-105 transition-transform duration-200`}
         onClick={onClick}
         onError={() => setMediaError(true)}
         onLoad={() => setMediaError(false)}
@@ -132,6 +138,12 @@ export default function MediaRenderer({
   // Determine container classes based on aspect ratio
   const getContainerClasses = () => {
     const baseClasses = 'bg-gray-50 overflow-hidden relative'
+
+    // If custom size classes are provided, don't apply aspect ratio
+    if (hasSizeClasses(className)) {
+      return baseClasses
+    }
+
     switch (aspectRatio) {
       case 'square':
         return `${baseClasses} aspect-square`
@@ -151,7 +163,7 @@ export default function MediaRenderer({
     }
 
     if (isDriveUrl(mediaUrl)) {
-      return renderDrivePreview(mediaUrl, alt)
+      return renderDriveImage(mediaUrl, alt)
     } else {
       return renderImage(mediaUrl, alt)
     }

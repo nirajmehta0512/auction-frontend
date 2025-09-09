@@ -358,7 +358,7 @@ export default function GenerateAuctionModal({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+    <div className="w-full p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-orange-600" />

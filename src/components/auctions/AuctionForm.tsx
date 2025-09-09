@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Plus, Minus, ChevronDown, ChevronUp, Clock, Calendar, Info, DollarSign, Save, X, AlertCircle, Search, Image, Trash2, Check } from 'lucide-react'
-import { createAuction, updateAuction } from '@/lib/auctions-api'
+import { createAuction, updateAuction, getBrandAuctionCounts, type BrandAuctionCounts, type Brand } from '@/lib/auctions-api'
 import { ArtworksAPI, type Artwork } from '@/lib/items-api'
 import type { Auction } from '@/lib/auctions-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
@@ -236,6 +236,7 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
   const [error, setError] = useState<string | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [brands, setBrands] = useState<any[]>([])
+  const [brandAuctionCounts, setBrandAuctionCounts] = useState<BrandAuctionCounts>({})
 
   // Artwork selection state
   const [selectedArtworks, setSelectedArtworks] = useState<number[]>(
@@ -261,6 +262,15 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
         ])
         setUsers(usersResponse.users || [])
         setBrands(brandsResponse.data || brandsResponse.brands || [])
+
+        // Load auction counts for each brand
+        const brandList: Brand[] = (brandsResponse.data || brandsResponse.brands || []).map((brand: any) => ({
+          id: brand.id,
+          code: brand.code,
+          name: brand.name
+        }));
+        const auctionCounts = await getBrandAuctionCounts(brandList);
+        setBrandAuctionCounts(auctionCounts)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -271,6 +281,30 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
     fetchData()
     loadArtworks()
   }, [artworkSearchQuery])
+
+  // Update short name when brand changes (only for new auctions)
+  useEffect(() => {
+    // Only auto-fill for new auctions (not editing existing ones)
+    if (auction?.id) return
+
+    if (formData.brand_id && brands.length > 0 && Object.keys(brandAuctionCounts).length > 0) {
+      const selectedBrand = brands.find(b => b.id === parseInt(formData.brand_id!.toString()))
+      if (selectedBrand) {
+        const auctionCount = brandAuctionCounts[selectedBrand.id] || 0
+        const nextAuctionNumber = auctionCount + 1
+        const suggestedShortName = `${selectedBrand.code} ${nextAuctionNumber}`
+
+        // Only set if the field is empty or matches the current pattern
+        if (!formData.short_name || formData.short_name.trim() === '' ||
+            /^\w+\s+\d+$/.test(formData.short_name)) {
+          setFormData(prev => ({
+            ...prev,
+            short_name: suggestedShortName
+          }))
+        }
+      }
+    }
+  }, [formData.brand_id, brands, brandAuctionCounts, auction?.id, formData.short_name])
 
   const loadArtworks = async () => {
     try {
@@ -486,9 +520,14 @@ export default function AuctionForm({ auction, onSave, onCancel, initialSelected
                     id="short_name"
                     value={formData.short_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, short_name: e.target.value }))}
-                    placeholder="e.g., Winter Sale 2024"
+                    placeholder={formData.brand_id ? `e.g., Aurum 5` : "Select brand first for auto-suggestion"}
                     required
                   />
+                  {formData.brand_id && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Auto-suggested based on brand auction count
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="long_name" required>Long Name</Label>

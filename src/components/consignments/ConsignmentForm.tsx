@@ -19,6 +19,7 @@ import ArtistForm from '@/components/artists/ArtistForm'
 import ClientForm from '@/components/clients/ClientForm'
 import ArtworkCreationDialog from '@/components/consignments/ArtworkCreationDialog'
 import ItemForm from '@/components/items/ItemForm'
+import GenerateAuctionModal from '@/components/items/GenerateAuctionModal'
 import { Search, Check, Plus } from 'lucide-react'
 
 // User interface for app staff dropdown
@@ -116,11 +117,12 @@ const Button = ({ type = "button", variant, onClick, disabled, className, childr
     disabled={disabled}
     className={`
       px-4 py-2 text-sm font-medium rounded-md border focus:outline-none focus:ring-2 focus:ring-offset-2
+      transition-all duration-200 ease-in-out
       ${variant === 'outline'
-        ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-indigo-500'
-        : className || 'border-transparent text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
+        ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:ring-indigo-500'
+        : className || 'border-transparent text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 focus:ring-indigo-500'
       }
-      ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+      ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'}
     `}
   >
     {children}
@@ -147,8 +149,10 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
   const [showArtworkModal, setShowArtworkModal] = useState(false)
   const [showEditArtworkModal, setShowEditArtworkModal] = useState(false)
   const [showInventorySelectionModal, setShowInventorySelectionModal] = useState(false)
+  const [showAuctionModal, setShowAuctionModal] = useState(false)
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null)
   const [selectedArtworks, setSelectedArtworks] = useState<Set<string>>(new Set())
+  const [auctionArtworkIds, setAuctionArtworkIds] = useState<string[]>([])
   const [inventorySearchTerm, setInventorySearchTerm] = useState('')
 
   // Google Places refs
@@ -233,11 +237,11 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         if (consignment?.id) {
           try {
             // Load consignment items
-            const consignmentItemsResponse = await ArtworksAPI.getArtworks({ 
-              consignment_id: consignment.id.toString(), 
-              limit: 2000 
+            const consignmentItemsResponse = await ArtworksAPI.getArtworks({
+              consignment_id: consignment.id.toString(),
+              limit: 2000
             })
-            
+
             if (consignmentItemsResponse.success && consignmentItemsResponse.data.length > 0) {
               const loadedReceiptItems = consignmentItemsResponse.data.map((item, index) => ({
                 id: item.id?.toString() || `item_${index}`,
@@ -260,8 +264,20 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 reserve: item.reserve,
                 is_returned: false // Default to false, can be updated later
               }))
-              
+
               setReceiptItems(loadedReceiptItems)
+
+              // Ensure consignment items are available in the dropdown items array
+              // Combine general items with consignment-specific items to ensure all are available
+              const consignmentItemIds = new Set(consignmentItemsResponse.data.map(item => item.id?.toString()).filter(Boolean))
+              const missingConsignmentItems = consignmentItemsResponse.data.filter(item =>
+                !items.some(existingItem => existingItem.id?.toString() === item.id?.toString())
+              )
+
+              if (missingConsignmentItems.length > 0) {
+                console.log('Adding missing consignment items to dropdown:', missingConsignmentItems.length)
+                setItems(prev => [...prev, ...missingConsignmentItems])
+              }
             }
           } catch (error) {
             console.error('Error loading consignment items:', error)
@@ -423,6 +439,20 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
       setEditingArtwork(artwork)
       setShowEditArtworkModal(true)
     }
+  }
+
+  // Handle add to auction
+  const handleAddToAuction = (artworkId: string) => {
+    setAuctionArtworkIds([artworkId])
+    setShowAuctionModal(true)
+  }
+
+  // Handle auction completion
+  const handleAuctionComplete = (auctionId: string) => {
+    setShowAuctionModal(false)
+    setAuctionArtworkIds([])
+    // Optionally refresh data or show success message
+    console.log(`Artwork added to auction ${auctionId}`)
   }
 
   // Inventory selection modal functions
@@ -849,13 +879,14 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                   </div>
                   <ReceiptItemRow
                     receiptItem={receiptItem}
-                    items={items.filter(item => !item.consignment_id) as any}
+                    items={items as any}  // Pass all items (including consignment items) for image display, ReceiptItemRow will filter dropdown options
                     artists={artists as any}
                     users={users}
                     onChange={updateReceiptItem}
                     onRemove={removeReceiptItem}
                     onAddArtist={() => setShowArtistModal(true)}
                     onEditArtwork={handleEditArtwork}
+                    onAddToAuction={handleAddToAuction}
                   />
                 </div>
               ))
@@ -1227,6 +1258,32 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
                 Add Selected ({selectedArtworks.size})
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showAuctionModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAuctionModal(false)
+              setAuctionArtworkIds([])
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GenerateAuctionModal
+              onClose={() => {
+                setShowAuctionModal(false)
+                setAuctionArtworkIds([])
+              }}
+              selectedArtworks={auctionArtworkIds}
+              onComplete={handleAuctionComplete}
+            />
           </div>
         </div>
       )}
