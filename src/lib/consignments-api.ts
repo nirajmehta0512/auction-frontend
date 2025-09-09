@@ -64,6 +64,52 @@ export interface ConsignmentResponse {
   };
 }
 
+export interface PresaleOption {
+  auction_id: number;
+  auction_short_name: string;
+  auction_long_name: string;
+  auction_settlement_date: string;
+  auction_type: string;
+  auction_subtype?: string;
+  auction_catalogue_launch_date?: string;
+  brand_id?: number;
+  brand_code?: string;
+  brand_name?: string;
+  specialist_id?: number;
+  specialist_name?: string;
+  items_count: number;
+  items: PresaleItem[];
+  total_low_est: number;
+  total_high_est: number;
+  total_reserve: number;
+}
+
+export interface PresaleItem {
+  id: number;
+  title: string;
+  description?: string;
+  status: string;
+  low_est?: number;
+  high_est?: number;
+  reserve?: number;
+  artist_id?: number;
+  artists?: {
+    id: number;
+    name: string;
+  };
+  auction_id: number;
+  auction_short_name: string;
+  auction_long_name: string;
+  auction_settlement_date: string;
+}
+
+export interface PresaleOptionsResponse {
+  consignment_id: number;
+  total_items: number;
+  presaleOptions: PresaleOption[];
+  message: string;
+}
+
 // Get all consignments
 export async function getConsignments(filters: ConsignmentFilters = {}): Promise<any> {
   const token = getAuthToken();
@@ -236,34 +282,10 @@ export async function bulkActionConsignments(consignmentIds: string[], action: s
   }
 }
 
-// Export consignments to CSV
-export async function exportConsignmentsCSV(filters: ConsignmentFilters = {}): Promise<Blob> {
-  const token = getAuthToken();
-  
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, value.toString());
-    }
-  });
-  
-  const response = await fetch(`${API_BASE_URL}/consignments/export/csv?${params.toString()}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Error exporting consignments: ${response.statusText}`);
-  }
-  
-  return response.blob();
-}
-
 // Import consignments from CSV
 export async function importConsignmentsCSV(csvData: any[]): Promise<any> {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${API_BASE_URL}/consignments/upload/csv`, {
     method: 'POST',
     headers: {
@@ -272,10 +294,53 @@ export async function importConsignmentsCSV(csvData: any[]): Promise<any> {
     },
     body: JSON.stringify({ csv_data: csvData })
   });
-  
+
   if (!response.ok) {
     throw new Error(`Error importing consignments: ${response.statusText}`);
   }
-  
+
   return response.json();
+}
+
+// Export consignments to CSV
+export async function exportConsignmentsCSV(filters: ConsignmentFilters = {}): Promise<Blob> {
+  const token = getAuthToken();
+
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      params.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(`${API_BASE_URL}/consignments/export/csv?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error exporting consignments: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+// Get presale invoice options for a consignment
+export async function getPresaleOptions(consignmentId: string): Promise<PresaleOptionsResponse> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/presale-options`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error fetching presale options: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json?.data || json;
 } 

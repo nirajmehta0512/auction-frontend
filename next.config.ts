@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Core configuration
   reactStrictMode: true,
-  
+
   // Image configuration
   images: {
     remotePatterns: [
@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
       'bufferutil': 'commonjs bufferutil',
     })
     return config
+  },
+
+  // API proxy configuration
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/api/:path*',
+      },
+    ];
   },
 
   // Optional redirects for authentication

@@ -7,6 +7,7 @@ import { Artwork } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { fetchClient, Client } from '@/lib/clients-api'
 import { ArtworkPreviewOptions, generateArtworkPreview } from '@/lib/artwork-preview'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 // Define types for PDF catalog generation
 interface CatalogOptions {
   includeTitle: boolean
@@ -93,7 +94,7 @@ const defaultOptions: CatalogOptions = {
   includeFooter: true,
   logoUrl: '',
   showBrandLogos: true,
-  imagesPerItem: 2, // Show first two images by default
+  imagesPerItem: 3, // Show first three images by default (unlimited support)
   imageSize: 'medium',
   showImageBorder: true
 }
@@ -300,7 +301,17 @@ export default function PDFCatalogGenerator({
 
   // Helper function to get the best available image URL
   const getBestImageUrl = (artwork: ArtworkPreviewData): string | null => {
-    // Try image_file_1 first, then fall back to others
+    // Check for new images array format (unlimited images)
+    if (artwork.images && Array.isArray(artwork.images) && artwork.images.length > 0) {
+      // Return the first non-blob URL image
+      for (const url of artwork.images) {
+        if (url && url.trim() && !url.includes('blob:')) {
+          return url
+        }
+      }
+    }
+
+    // Fallback to old image_file format for backward compatibility
     const imageFields = ['image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5']
     for (const field of imageFields) {
       const url = (artwork as any)[field]
@@ -529,6 +540,9 @@ export default function PDFCatalogGenerator({
                             <option value={3}>3 Images</option>
                             <option value={4}>4 Images</option>
                             <option value={5}>5 Images</option>
+                            <option value={6}>6 Images</option>
+                            <option value={8}>8 Images</option>
+                            <option value={10}>10 Images</option>
                           </select>
                         </div>
                         <div>
@@ -585,18 +599,16 @@ export default function PDFCatalogGenerator({
                     />
                     {options.includeImages && getBestImageUrl(artwork) && (
                       <div className="mt-2">
-                        <img
+                        <MediaRenderer
                           src={getBestImageUrl(artwork) || ''}
                           alt={artwork.title || 'Artwork'}
-                          className="w-16 h-16 object-cover border border-gray-300 rounded"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                            const parent = target.parentElement
-                            if (parent) {
-                              parent.innerHTML = '<div class="text-xs text-gray-500">[Image failed to load]</div>'
-                            }
-                          }}
+                          className="w-16 h-16 border border-gray-300 rounded"
+                          aspectRatio="square"
+                          placeholder={
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 border border-gray-300 rounded">
+                              <Image className="h-6 w-6" />
+                            </div>
+                          }
                         />
                       </div>
                     )}

@@ -5,7 +5,9 @@
  * Replaces frontend react-pdf components with backend PDFKit generation
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : 'http://localhost:3001/api';
 
 // Interface definitions to match backend
 export interface PDFCustomization {
@@ -82,7 +84,7 @@ export async function generateConsignmentReceiptPDF(
   download: boolean = true
 ): Promise<Blob> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/receipt-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/receipt-pdf`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({}),
@@ -107,7 +109,7 @@ export async function generateConsignmentReceiptPDF(
 }
 
 /**
- * Generate Pre-Sale Invoice PDF
+ * Generate Pre-Sale Invoice PDF (legacy - all non-returned items)
  */
 export async function generatePreSaleInvoicePDF(
   consignmentId: string | number,
@@ -115,7 +117,7 @@ export async function generatePreSaleInvoicePDF(
   download: boolean = true
 ): Promise<Blob> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/presale-invoice-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/presale-invoice-pdf`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -129,14 +131,50 @@ export async function generatePreSaleInvoicePDF(
     }
 
     const blob = await response.blob();
-    
+
     if (download) {
       downloadBlob(blob, `presale-invoice-${consignmentId}.pdf`);
     }
-    
+
     return blob;
   } catch (error) {
     console.error('Error generating pre-sale invoice PDF:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate Auction-Specific Pre-Sale Invoice PDF
+ */
+export async function generateAuctionPreSaleInvoicePDF(
+  consignmentId: string | number,
+  auctionId: string | number,
+  saleDetails: SaleDetails,
+  download: boolean = true
+): Promise<Blob> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/presale-invoice-pdf/${auctionId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        sale_details: saleDetails
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    if (download) {
+      downloadBlob(blob, `presale-invoice-${consignmentId}-auction-${auctionId}.pdf`);
+    }
+
+    return blob;
+  } catch (error) {
+    console.error('Error generating auction-specific pre-sale invoice PDF:', error);
     throw error;
   }
 }
@@ -155,7 +193,7 @@ export async function generateCollectionReceiptPDF(
   download: boolean = true
 ): Promise<Blob> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/consignments/${consignmentId}/collection-receipt-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/consignments/${consignmentId}/collection-receipt-pdf`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -197,7 +235,7 @@ export async function generateCustomConsignmentReportPDF(
   download: boolean = true
 ): Promise<Blob> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/consignments/custom-report-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/consignments/custom-report-pdf`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -252,15 +290,137 @@ export async function previewConsignmentPDF(
       default:
         throw new Error('Invalid PDF type');
     }
-    
+
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-    
+
     // Clean up URL after a delay
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    
+
   } catch (error) {
     console.error('Error previewing PDF:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate Public Consignment Receipt PDF (for client-facing pages)
+ */
+export async function generatePublicConsignmentReceiptPDF(
+  consignmentId: string | number,
+  accessToken?: string,
+  download: boolean = true
+): Promise<Blob> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/public/consignments/${consignmentId}/receipt-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    if (download) {
+      downloadBlob(blob, `consignment-receipt-${consignmentId}.pdf`);
+    }
+
+    return blob;
+  } catch (error) {
+    console.error('Error generating public consignment receipt PDF:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate Public Pre-Sale Invoice PDF (for client-facing pages)
+ */
+export async function generatePublicPreSaleInvoicePDF(
+  consignmentId: string | number,
+  saleDetails: SaleDetails,
+  accessToken?: string,
+  download: boolean = true
+): Promise<Blob> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/public/consignments/${consignmentId}/presale-invoice-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+      },
+      body: JSON.stringify({
+        sale_details: saleDetails
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    if (download) {
+      downloadBlob(blob, `presale-invoice-${consignmentId}.pdf`);
+    }
+
+    return blob;
+  } catch (error) {
+    console.error('Error generating public pre-sale invoice PDF:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate Public Collection Receipt PDF (for client-facing pages)
+ */
+export async function generatePublicCollectionReceiptPDF(
+  consignmentId: string | number,
+  returnedItems: ReturnedItem[],
+  options: {
+    collectionDate?: string;
+    collectedBy?: string;
+    releasedBy?: string;
+  } = {},
+  accessToken?: string,
+  download: boolean = true
+): Promise<Blob> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/public/consignments/${consignmentId}/collection-receipt-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+      },
+      body: JSON.stringify({
+        returned_items: returnedItems,
+        collection_date: options.collectionDate,
+        collected_by: options.collectedBy,
+        released_by: options.releasedBy
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    if (download) {
+      downloadBlob(blob, `collection-receipt-${consignmentId}.pdf`);
+    }
+
+    return blob;
+  } catch (error) {
+    console.error('Error generating public collection receipt PDF:', error);
     throw error;
   }
 }

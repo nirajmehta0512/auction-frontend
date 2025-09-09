@@ -3,6 +3,7 @@
 
 import React from 'react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 
 export interface ReceiptItemRowItemOption {
   id?: string
@@ -21,8 +22,7 @@ export interface ReceiptItemRowItemOption {
   high_est?: number
   reserve?: number
   artist_id?: string
-  image_file_1?: string
-  image_file_2?: string
+  images?: string[]
 }
 
 export interface ReceiptItemRowArtistOption {
@@ -49,12 +49,6 @@ export interface ReceiptItem {
   low_estimate?: number
   high_estimate?: number
   reserve?: number
-  is_returned: boolean
-  return_date?: string
-  return_reason?: string
-  return_location?: string
-  returned_by_user_id?: string
-  returned_by_user_name?: string
 }
 
 interface Props {
@@ -304,59 +298,44 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
                 <div className="flex gap-2">
                   {(() => {
                     const selectedArtwork = items.find(item => String(item.id) === String(receiptItem.artwork_id))
-                    
-                    // Helper function to get proper image URL
-                    const getImageUrl = (imageFile: string | undefined) => {
-                      if (!imageFile) return null
-                      
-                      // If it's already a full URL, return as is
-                      if (imageFile.startsWith('http')) return imageFile
-                      
-                      // If it's a relative path, construct the full URL
-                      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-                      if (imageFile.startsWith('/')) {
-                        return `${baseUrl}${imageFile}`
-                      }
-                      
-                      // If it's just a filename, assume it's in the storage bucket
-                      return `${baseUrl}/storage/v1/object/public/artwork-images/${imageFile}`
-                    }
-                    
-                    const image1 = getImageUrl(selectedArtwork?.image_file_1)
-                    const image2 = getImageUrl(selectedArtwork?.image_file_2)
-                    
-                    if (!image1 && !image2) {
+
+                    if (!selectedArtwork) {
                       return (
                         <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
                           No Image
                         </div>
                       )
                     }
-                    
+
+                    // Get images from the selected artwork
+                    const images = selectedArtwork.images
+
+                    if (!images || images.length === 0) {
+                      return (
+                        <div className="w-20 h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                          No Image
+                        </div>
+                      )
+                    }
+
                     return (
                       <>
-                        {image1 && (
-                          <img
-                            src={image1}
+                        {images[0] && (
+                          <MediaRenderer
+                            src={images[0]}
                             alt="Artwork 1"
                             className="w-20 h-20 object-cover rounded border"
-                            onError={(e) => {
-                              // Fallback for broken images
-                              const target = e.target as HTMLImageElement
-                              target.style.display = 'none'
-                            }}
+                            aspectRatio="square"
+                            showControls={false}
                           />
                         )}
-                        {image2 && (
-                          <img
-                            src={image2}
+                        {images.length > 1 && images[1] && (
+                          <MediaRenderer
+                            src={images[1]}
                             alt="Artwork 2"
                             className="w-20 h-20 object-cover rounded border"
-                            onError={(e) => {
-                              // Fallback for broken images
-                              const target = e.target as HTMLImageElement
-                              target.style.display = 'none'
-                            }}
+                            aspectRatio="square"
+                            showControls={false}
                           />
                         )}
                       </>
@@ -412,79 +391,6 @@ export default function ReceiptItemRow({ receiptItem, items, artists, users, onC
           </div>
         )}
 
-        <div className="lg:col-span-3">
-          <div className="flex items-center space-x-2 mb-4">
-            <input
-              type="checkbox"
-              id={`returned_${receiptItem.id}`}
-              checked={receiptItem.is_returned}
-              onChange={(e)=> onChange(receiptItem.id, 'is_returned', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor={`returned_${receiptItem.id}`} className="text-sm font-medium text-gray-700">Item returned</label>
-          </div>
-
-          {receiptItem.is_returned && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Return Date</label>
-                <input
-                  type="date"
-                  value={receiptItem.return_date || ''}
-                  onChange={(e)=> onChange(receiptItem.id, 'return_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Returned By</label>
-                <SearchableSelect
-                  value={receiptItem.returned_by_user_id || ''}
-                  onChange={(value)=>{
-                    const selectedUser = users.find(u => u.id.toString() === String(value))
-                    onChange(receiptItem.id, 'returned_by_user_id', String(value))
-                    onChange(receiptItem.id, 'returned_by_user_name', selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : '')
-                  }}
-                  options={users.map((u)=>({ value: u.id.toString(), label: `${u.first_name} ${u.last_name} (${u.role})`, description: u.email }))}
-                  placeholder="Select staff member"
-                  onSearch={async (query) => {
-                    // Filter users based on search query
-                    const filteredUsers = users.filter(user =>
-                      `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
-                      user.role.toLowerCase().includes(query.toLowerCase()) ||
-                      user.email.toLowerCase().includes(query.toLowerCase())
-                    );
-                    return filteredUsers.map((user) => ({
-                      value: user.id.toString(),
-                      label: `${user.first_name} ${user.last_name} (${user.role})`,
-                      description: user.email
-                    }));
-                  }}
-                  enableDynamicSearch={true}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Return Reason</label>
-                <input
-                  type="text"
-                  value={receiptItem.return_reason || ''}
-                  onChange={(e)=> onChange(receiptItem.id, 'return_reason', e.target.value)}
-                  placeholder="e.g., Unsold, Withdrawn, etc."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Return Location</label>
-                <input
-                  type="text"
-                  value={receiptItem.return_location || ''}
-                  onChange={(e)=> onChange(receiptItem.id, 'return_location', e.target.value)}
-                  placeholder="e.g., Client address, Warehouse, etc."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {onRemove && (

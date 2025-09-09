@@ -3,6 +3,7 @@
 
 import React, { useState, useRef } from 'react'
 import { Upload, X, ImageIcon } from 'lucide-react'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -177,42 +178,17 @@ export default function ImageUploadField({
         <div className="relative group">
           {/* Image Preview */}
           <div className="relative bg-gray-50 border border-gray-300 rounded-md overflow-hidden">
-            <img
+            <MediaRenderer
               src={value}
               alt={`${label} preview`}
               className="w-full h-32 object-cover"
-              onError={(e) => {
-                console.error('Image load error for:', value)
-                const img = e.target as HTMLImageElement
-                img.style.display = 'none'
-
-                // If it's a blob URL and fails, try to recreate it
-                if (value.startsWith('blob:') && selectedFile) {
-                  try {
-                    const reader = new FileReader()
-                    reader.onload = (event) => {
-                      if (event.target?.result) {
-                        const newUrl = event.target.result as string
-                        onChange(newUrl, selectedFile)
-                      }
-                    }
-                    reader.readAsDataURL(selectedFile)
-                  } catch (readerError) {
-                    setError('Unable to load image preview')
-                  }
-                } else {
-                  setError('Unable to load image preview')
+              aspectRatio="auto"
+              showControls={false}
+              containerProps={{
+                style: {
+                  backgroundColor: '#f3f4f6',
+                  minHeight: '128px'
                 }
-              }}
-              onLoad={(e) => {
-                if (error?.includes('Unable to load')) setError(null)
-                const img = e.target as HTMLImageElement
-                if (img) img.style.display = 'block'
-              }}
-              style={{
-                backgroundColor: '#f3f4f6',
-                minHeight: '128px',
-                display: 'block'
               }}
             />
 

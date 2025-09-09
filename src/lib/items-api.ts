@@ -22,7 +22,7 @@ export interface Artwork {
   buyer_id?: number;                  // Optional: Buyer ID (foreign key to clients)
 
   // Additional auction management fields
-  status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed';
+  status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed' | 'returned';
   category?: string;
   subcategory?: string;
   materials?: string;
@@ -57,17 +57,8 @@ export interface Artwork {
   restoration_by?: string;
   condition_report?: string;
 
-  // Image fields (1-10 images)
-  image_file_1?: string;
-  image_file_2?: string;
-  image_file_3?: string;
-  image_file_4?: string;
-  image_file_5?: string;
-  image_file_6?: string;
-  image_file_7?: string;
-  image_file_8?: string;
-  image_file_9?: string;
-  image_file_10?: string;
+  // Images array (unlimited images)
+  images?: string[];
 
   // Artist information inclusion flags for export descriptions
   include_artist_description?: boolean;
@@ -78,6 +69,13 @@ export interface Artwork {
   include_artist_awards_honors?: boolean;
   include_artist_market_value_range?: boolean;
   include_artist_signature_style?: boolean;
+
+  // Return fields
+  return_date?: string;
+  return_location?: string;
+  return_reason?: string;
+  returned_by_user_id?: string;
+  returned_by_user_name?: string;
 
   // Audit fields
   created_at?: string;
@@ -110,6 +108,7 @@ export interface ArtworksResponse {
     sold: number;
     withdrawn: number;
     passed: number;
+    returned: number;
   };
 }
 
@@ -504,9 +503,21 @@ export class ArtworksAPI {
   static async detectDuplicateImages(params: {
     brand_code?: string;
     similarity_threshold?: number; // 0.8 = 80% similarity
-    check_range?: 'all' | 'last_30_days' | 'last_7_days' | 'custom';
-    custom_date_range?: { start_date: string; end_date: string };
     status_filter?: string[];
+    // Advanced filters
+    item_id_filter?: string;
+    category?: string;
+    low_est_min?: string;
+    low_est_max?: string;
+    high_est_min?: string;
+    high_est_max?: string;
+    start_price_min?: string;
+    start_price_max?: string;
+    condition?: string;
+    period_age?: string;
+    materials?: string;
+    artist_id?: string;
+    school_id?: string;
   } = {}): Promise<{
     success: boolean;
     duplicates?: {
@@ -620,6 +631,7 @@ export const getStatusColor = (status: string): string => {
     case 'withdrawn': return 'bg-red-500';
     case 'passed': return 'bg-gray-500';
     case 'draft': return 'bg-yellow-500';
+    case 'returned': return 'bg-orange-500';
     default: return 'bg-gray-400';
   }
 };
@@ -631,6 +643,7 @@ export const getStatusLabel = (status: string): string => {
     case 'withdrawn': return 'Withdrawn';
     case 'passed': return 'Passed';
     case 'draft': return 'Draft';
+    case 'returned': return 'Returned';
     default: return 'Unknown';
   }
 };
@@ -747,5 +760,6 @@ export const ITEM_STATUSES = [
   { value: 'active', label: 'Active' },
   { value: 'sold', label: 'Sold' },
   { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'passed', label: 'Passed' }
+  { value: 'passed', label: 'Passed' },
+  { value: 'returned', label: 'Returned' }
 ]; 

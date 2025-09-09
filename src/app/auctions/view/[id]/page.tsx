@@ -11,6 +11,7 @@ import { getAuction } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 
 import type { Auction } from '@/lib/auctions-api'
 
@@ -21,11 +22,12 @@ interface AuctionArtwork {
   artist_maker?: string
   low_est?: number
   high_est?: number
-  image_file_1?: string
+  images?: string[] // Unlimited images array
+  image_file_1?: string // Keep for backward compatibility
   image_file_2?: string
   condition?: string
   dimensions?: string
-  status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed'
+  status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed' | 'returned'
   hammer_price?: number
 }
 
@@ -42,6 +44,7 @@ export default function AuctionViewPage() {
   const [showEOADialog, setShowEOADialog] = useState(false)
   const [showUrlMenu, setShowUrlMenu] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
+
 
   const loadAuctionDetails = useCallback(async () => {
     try {
@@ -213,6 +216,10 @@ export default function AuctionViewPage() {
 
   const handleGenerateInvoice = () => {
     router.push(`/auctions/${auctionId}/invoices`)
+  }
+
+  const handlePreview = (artworkId: string) => {
+    router.push(`/preview/${artworkId}`)
   }
 
   // Handle sharing auction
@@ -701,21 +708,13 @@ export default function AuctionViewPage() {
                   return (
                     <div key={artwork.id} className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-gray-300">
                       {/* Artwork Image */}
-                      <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                        {artwork.image_file_1 ? (
-                          <img
-                            src={artwork.image_file_1}
-                            alt={artwork.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-                            <Trophy className="h-16 w-16" />
-                          </div>
-                        )}
-
-
-                      </div>
+                      <MediaRenderer
+                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0] : artwork.image_file_1 || ''}
+                        alt={artwork.title}
+                        aspectRatio="square"
+                        showControls={false}
+                        onClick={() => handlePreview(artwork.id)}
+                      />
 
                       {/* Artwork Details */}
                       <div className="p-4">

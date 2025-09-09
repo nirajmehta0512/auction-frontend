@@ -121,15 +121,6 @@ export default function SchoolsTable({
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
-                onClick={() => onSort('founded_year')}
-                className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-              >
-                <span>Years Active</span>
-                {getSortIcon('founded_year')}
-              </button>
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <button
                 onClick={() => onSort('location')}
                 className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
               >
@@ -181,9 +172,9 @@ export default function SchoolsTable({
                   </div>
                   {getAIGeneratedIndicator(school)}
                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatYears(school.founded_year, school.closed_year)}
+                <div className="text-xs text-gray-500 mt-1">
+                  {formatYears(school.founded_year, school.closed_year)}
+                </div>
               </td>
               <td className="px-6 py-4 text-sm text-gray-900">
                 <div>

@@ -75,11 +75,11 @@ export default function CSVUpload({ onUploadComplete, onClose, className = '' }:
   const handleImport = async (data: any[]) => {
     try {
       const result = await importConsignmentsCSV(data)
-      setImportResult(result)
+      setImportResult(result.results)
       setStep('complete')
-      
-      if (result.success > 0 && onUploadComplete) {
-        onUploadComplete(result.success)
+
+      if (result.results.success > 0 && onUploadComplete) {
+        onUploadComplete(result.results.success)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import consignments')

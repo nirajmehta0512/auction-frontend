@@ -2,8 +2,8 @@
 "use client"
 
 import React, { useState } from 'react'
-import { X, Search, Eye, AlertTriangle, Check, Clock, RefreshCw, Trash2, Shield, Users } from 'lucide-react'
-import { ArtworksAPI } from '@/lib/items-api'
+import { X, Search, Eye, AlertTriangle, Check, Clock, RefreshCw, Trash2, Shield, Users, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import { ArtworksAPI, ITEM_CATEGORIES, ITEM_CONDITIONS, ITEM_PERIODS, ITEM_MATERIALS } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 
 interface DuplicateDetectionModalProps {
@@ -33,12 +33,25 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   
   // Scan settings
   const [similarityThreshold, setSimilarityThreshold] = useState(80)
-  const [checkRange, setCheckRange] = useState<'all' | 'last_30_days' | 'last_7_days' | 'custom'>('last_30_days')
-  const [customDateRange, setCustomDateRange] = useState({
-    start_date: '',
-    end_date: ''
-  })
   const [statusFilter, setStatusFilter] = useState<string[]>(['draft', 'active'])
+
+  // New advanced filters
+  const [itemIdFilter, setItemIdFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [conditionFilter, setConditionFilter] = useState('')
+  const [periodFilter, setPeriodFilter] = useState('')
+  const [materialsFilter, setMaterialsFilter] = useState('')
+  const [artistIdFilter, setArtistIdFilter] = useState('')
+  const [schoolIdFilter, setSchoolIdFilter] = useState('')
+  const [lowEstMin, setLowEstMin] = useState('')
+  const [lowEstMax, setLowEstMax] = useState('')
+  const [highEstMin, setHighEstMin] = useState('')
+  const [highEstMax, setHighEstMax] = useState('')
+  const [startPriceMin, setStartPriceMin] = useState('')
+  const [startPriceMax, setStartPriceMax] = useState('')
+
+  // Show advanced filters toggle
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const handleStartScan = async () => {
     setIsScanning(true)
@@ -50,12 +63,42 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
       const params: any = {
         brand_code: brand,
         similarity_threshold: similarityThreshold / 100, // Convert percentage to decimal
-        check_range: checkRange,
         status_filter: statusFilter
       }
-      
-      if (checkRange === 'custom' && customDateRange.start_date && customDateRange.end_date) {
-        params.custom_date_range = customDateRange
+
+      // Add new advanced filters
+      if (itemIdFilter.trim()) {
+        params.item_id_filter = itemIdFilter.trim()
+      }
+      if (categoryFilter) {
+        params.category = categoryFilter
+      }
+      if (conditionFilter) {
+        params.condition = conditionFilter
+      }
+      if (periodFilter) {
+        params.period_age = periodFilter
+      }
+      if (materialsFilter) {
+        params.materials = materialsFilter
+      }
+      if (artistIdFilter) {
+        params.artist_id = artistIdFilter
+      }
+      if (schoolIdFilter) {
+        params.school_id = schoolIdFilter
+      }
+      if (lowEstMin || lowEstMax) {
+        params.low_est_min = lowEstMin || undefined
+        params.low_est_max = lowEstMax || undefined
+      }
+      if (highEstMin || highEstMax) {
+        params.high_est_min = highEstMin || undefined
+        params.high_est_max = highEstMax || undefined
+      }
+      if (startPriceMin || startPriceMax) {
+        params.start_price_min = startPriceMin || undefined
+        params.start_price_max = startPriceMax || undefined
       }
       
       const result = await ArtworksAPI.detectDuplicateImages(params)
@@ -147,22 +190,43 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Duplicate Image Detection</h2>
             <p className="text-gray-600 mt-1">Scan inventory for duplicate or similar images</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            {!scanComplete && (
+              <button
+                onClick={handleStartScan}
+                disabled={isScanning || statusFilter.length === 0}
+                className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {isScanning ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    Start Scan
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Settings */}
         {!scanComplete && (
-          <div className="p-6 border-b border-gray-200">
+          <div className="flex-1 overflow-auto p-6 border-b border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Similarity Threshold */}
               <div>
@@ -183,52 +247,6 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                 </div>
               </div>
 
-              {/* Date Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Check Range
-                </label>
-                <select
-                  value={checkRange}
-                  onChange={(e) => setCheckRange(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="last_7_days">Last 7 days</option>
-                  <option value="last_30_days">Last 30 days</option>
-                  <option value="all">All items</option>
-                  <option value="custom">Custom range</option>
-                </select>
-              </div>
-
-              {/* Custom Date Range */}
-              {checkRange === 'custom' && (
-                <div className="md:col-span-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={customDateRange.start_date}
-                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, start_date: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={customDateRange.end_date}
-                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, end_date: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Status Filter */}
               <div className="md:col-span-2">
@@ -259,25 +277,231 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
               </div>
             </div>
 
-            <div className="flex justify-end mt-6">
+            {/* Advanced Filters Toggle */}
+            <div className="mt-6 border-t border-gray-200 pt-4">
               <button
-                onClick={handleStartScan}
-                disabled={isScanning || statusFilter.length === 0}
-                className="flex items-center px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                {isScanning ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Scanning...
-                  </>
+                <div className="flex items-center">
+                  <Filter className="h-4 w-4 mr-2 text-teal-600" />
+                  <span className="text-sm font-medium text-gray-700">Advanced Filters</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    ({[
+                      itemIdFilter && 'Item IDs',
+                      categoryFilter && 'Category',
+                      conditionFilter && 'Condition',
+                      periodFilter && 'Period',
+                      materialsFilter && 'Materials',
+                      artistIdFilter && 'Artist',
+                      schoolIdFilter && 'School',
+                      (lowEstMin || lowEstMax) && 'Low Est',
+                      (highEstMin || highEstMax) && 'High Est',
+                      (startPriceMin || startPriceMax) && 'Start Price'
+                    ].filter(Boolean).length} applied)
+                  </span>
+                </div>
+                {showAdvancedFilters ? (
+                  <ChevronUp className="h-4 w-4 text-gray-500" />
                 ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Start Scan
-                  </>
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
                 )}
               </button>
             </div>
+
+            {/* Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="mt-4 space-y-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                {/* Item ID Filter */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Item IDs
+                      <span className="text-xs text-gray-500 ml-2">
+                        (e.g., 1,2,3 or 1-10 or 1,5,12)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter IDs or ranges..."
+                      value={itemIdFilter}
+                      onChange={(e) => setItemIdFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    >
+                      <option value="">All Categories</option>
+                      {ITEM_CATEGORIES.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Condition, Period, Materials */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Condition
+                    </label>
+                    <select
+                      value={conditionFilter}
+                      onChange={(e) => setConditionFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    >
+                      <option value="">All Conditions</option>
+                      {ITEM_CONDITIONS.map(condition => (
+                        <option key={condition} value={condition}>{condition}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Period/Age
+                    </label>
+                    <select
+                      value={periodFilter}
+                      onChange={(e) => setPeriodFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    >
+                      <option value="">All Periods</option>
+                      {ITEM_PERIODS.map(period => (
+                        <option key={period} value={period}>{period}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Materials
+                    </label>
+                    <select
+                      value={materialsFilter}
+                      onChange={(e) => setMaterialsFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    >
+                      <option value="">All Materials</option>
+                      {ITEM_MATERIALS.map(material => (
+                        <option key={material} value={material}>{material}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Artist and School ID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Artist ID
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter artist ID..."
+                      value={artistIdFilter}
+                      onChange={(e) => setArtistIdFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      School ID
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter school ID..."
+                      value={schoolIdFilter}
+                      onChange={(e) => setSchoolIdFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Price Ranges */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">Price Ranges</h4>
+
+                  {/* Low Estimate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Low Estimate ($)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={lowEstMin}
+                        onChange={(e) => setLowEstMin(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={lowEstMax}
+                        onChange={(e) => setLowEstMax(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* High Estimate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      High Estimate ($)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={highEstMin}
+                        onChange={(e) => setHighEstMin(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={highEstMax}
+                        onChange={(e) => setHighEstMax(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Start Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Price ($)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={startPriceMin}
+                        onChange={(e) => setStartPriceMin(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={startPriceMax}
+                        onChange={(e) => setStartPriceMax(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -440,7 +664,7 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-end">
+        <div className="flex-shrink-0 p-6 border-t border-gray-200 flex justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:text-gray-800"

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronUp, ChevronDown, Edit, Trash2, MoreVertical, Eye } from 'lucide-react'
 import { Artwork } from '@/lib/items-api'
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/lib/items-api'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 
 interface ItemsTableProps {
   items: Artwork[]
@@ -35,16 +36,10 @@ export default function ItemsTable({
 
   // Helper function to get first two images from an item
   const getItemImages = (item: Artwork): string[] => {
-    const images: string[] = []
-    for (let i = 1; i <= 10; i++) {
-      const imageKey = `image_file_${i}` as keyof Artwork
-      const imageUrl = item[imageKey] as string
-      if (imageUrl && imageUrl.trim()) {
-        images.push(imageUrl)
-        if (images.length >= 2) break // Only need first 2 images
-      }
+    if (item.images && Array.isArray(item.images)) {
+      return item.images.slice(0, 2).filter(url => url && url.trim())
     }
-    return images
+    return []
   }
 
   const handleSort = (field: SortField) => {
@@ -243,35 +238,37 @@ export default function ItemsTable({
                       {/* Item Images */}
                       {(() => {
                         const images = getItemImages(item)
-                        return images.length > 0 ? (
-                          <div className="flex space-x-1 mt-2">
-                            {images.map((imageUrl, index) => (
-                              <div key={index} className="relative">
-                                <img
-                                  src={imageUrl}
-                                  alt={`${item.title} - Image ${index + 1}`}
-                                  className="w-24 h-24 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80"
-                                  onClick={() => handlePreview(item.id!)}
-                                  onError={(e) => {
-                                    // Hide broken images
-                                    (e.target as HTMLImageElement).style.display = 'none'
-                                  }}
-                                />
-                              </div>
-                            ))}
-                            {images.length < 2 && (
+                        if (images.length > 0) {
+                          return (
+                            <div className="flex space-x-1 mt-2">
+                              {images.map((imageUrl, index) => (
+                                <div key={index} className="relative">
+                                  <MediaRenderer
+                                    src={imageUrl}
+                                    alt={`${item.title} - Image ${index + 1}`}
+                                    className="w-24 h-24 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80"
+                                    showControls={false}
+                                    aspectRatio="auto"
+                                    onClick={() => handlePreview(item.id!)}
+                                  />
+                                </div>
+                              ))}
+                              {images.length < 2 && (
+                                <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
+                                  <span className="text-gray-400 text-xs">No Image</span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        } else {
+                          return (
+                            <div className="flex space-x-1 mt-2">
                               <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
                                 <span className="text-gray-400 text-xs">No Image</span>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex space-x-1 mt-2">
-                            <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
-                              <span className="text-gray-400 text-xs">No Image</span>
                             </div>
-                          </div>
-                        )
+                          )
+                        }
                       })()}
                     </div>
                   </td>

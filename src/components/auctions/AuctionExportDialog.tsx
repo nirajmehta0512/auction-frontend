@@ -22,9 +22,7 @@ interface Artwork {
   title: string
   description: string
   artist_maker: string
-  image_file_1?: string
-  image_file_2?: string
-  image_file_3?: string
+  images?: string[] // Unlimited images array
   status: string
   auction_name?: string
 }
@@ -46,8 +44,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
       'status', 'category', 'subcategory', 'dimensions', 'weight', 'materials', 'artist_maker', 'period_age', 'provenance', 'auction_id',
       'artist_id', 'school_id', 'dimensions_inches', 'dimensions_cm', 'dimensions_with_frame_inches', 'dimensions_with_frame_cm',
       'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
-      'restoration_done', 'restoration_by', 'image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5',
-      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10', 'created_at', 'updated_at'
+      'restoration_done', 'restoration_by', 'images', 'created_at', 'updated_at'
     ],
     requiredFields: ['lot_num', 'title', 'description', 'low_est', 'high_est']
   },
@@ -548,7 +545,7 @@ export default function AuctionExportDialog({
                           {artwork.auction_name} • {artwork.artist_maker} • ID: {artwork.id}
                         </div>
                       </div>
-                      {artwork.image_file_1 && (
+                      {artwork.images && artwork.images.length > 0 && (
                         <ImageIcon className="h-4 w-4 text-green-600 ml-2" />
                       )}
                     </div>

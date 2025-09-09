@@ -67,6 +67,13 @@ export default function ArtworkPreviewPage() {
 
   const getItemImages = () => {
     if (!item) return []
+
+    // Check for new images array format (unlimited images)
+    if (item.images && Array.isArray(item.images)) {
+      return item.images.filter(url => url && url.trim())
+    }
+
+    // Fallback to old image_file format for backward compatibility
     const images = []
     for (let i = 1; i <= 10; i++) {
       const imageUrl = item[`image_file_${i}` as keyof Artwork] as string

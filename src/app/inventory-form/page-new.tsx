@@ -1,33 +1,26 @@
-// frontend/src/components/items/ItemForm.tsx
+// frontend/src/app/inventory-form/page.tsx
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
 import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
-import { getAuctions, Auction } from '@/lib/auctions-api'
-import { fetchClients, Client, getClientDisplayName, formatClientDisplay } from '@/lib/clients-api'
-import { getConsignments, type Consignment } from '@/lib/consignments-api'
-import { GalleriesAPI, Gallery } from '@/lib/galleries-api'
-import { getBrands, Brand } from '@/lib/brands-api'
-import { useBrand } from '@/lib/brand-context'
-import UsersAPI, { User } from '@/lib/users-api'
-import ImageUploadField from './ImageUploadField'
+import ImageUploadField from '@/components/items/ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
-import { createClient } from '@/lib/supabase/client'
+import { getApiBaseUrl } from '@/lib/google-sheets-api'
 
-interface ItemFormProps {
-  itemId?: string
-  initialData?: Partial<Artwork>
-  mode: 'create' | 'edit'
-  onSave?: (artwork: Artwork) => void
-  onCancel?: () => void
+interface ClientInfo {
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  company_name?: string
 }
 
-interface FormData {
+interface PublicItemInput {
   // LiveAuctioneers required fields
+  id?: string
   title: string
   description: string
   low_est: string
@@ -39,14 +32,10 @@ interface FormData {
   reserve: string
 
   // Enhanced client fields (using database field names)
-  vendor_id: string
-  buyer_id: string
-
-  // Consignment field
   consignment_id: string
+  vendor_id?: string
 
   // Additional auction management fields
-  status: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed' | 'returned'
   category: string
   subcategory: string
   weight: string
@@ -95,21 +84,11 @@ interface FormData {
   restoration_done_file: string
   restoration_by: string
 
-  // Brand field
-  brand_id: string
-
-  // Return fields
-  return_date: string
-  return_location: string
-  return_reason: string
-  returned_by_user_id: string
-  returned_by_user_name: string
-
   // Images array (unlimited images)
   images: string[]
 }
 
-const initialFormData: FormData = {
+const initialItemData: PublicItemInput = {
   title: '',
   description: '',
   low_est: '',
@@ -117,10 +96,7 @@ const initialFormData: FormData = {
   start_price: '',
   condition: '',
   reserve: '',
-  vendor_id: '',
-  buyer_id: '',
   consignment_id: '',
-  status: 'draft',
   category: '',
   subcategory: '',
   height_inches: '',
@@ -160,16 +136,8 @@ const initialFormData: FormData = {
   restoration_done: false,
   restoration_done_file: '',
   restoration_by: '',
-  brand_id: '',
-  return_date: '',
-  return_location: '',
-  return_reason: '',
-  returned_by_user_id: '',
-  returned_by_user_name: '',
   images: []
 }
-
-// Removed ImageFieldKey type - now using images array
 
 // Utility functions for dimension conversion
 const convertInchesToCm = (inchStr: string): string => {
@@ -216,85 +184,41 @@ const materialOptions = ITEM_MATERIALS.map(material => ({
   label: material
 }))
 
-const statuses = [
-  { value: 'draft', label: 'Draft', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'active', label: 'Active', color: 'bg-green-100 text-green-800' },
-  { value: 'sold', label: 'Sold', color: 'bg-blue-100 text-blue-800' },
-  { value: 'withdrawn', label: 'Withdrawn', color: 'bg-red-100 text-red-800' },
-  { value: 'passed', label: 'Passed', color: 'bg-gray-100 text-gray-800' },
-  { value: 'returned', label: 'Returned', color: 'bg-orange-100 text-orange-800' }
-]
+async function submitPublicInventory(payload: any) {
+  const apiUrl = getApiBaseUrl()
+  const res = await fetch(`${apiUrl}/public/inventory/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Submission failed')
+  return data
+}
 
-export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }: ItemFormProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { brand } = useBrand()
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
+export default function InventoryFormPage() {
+  const [clientId, setClientId] = useState('')
+  const [clientInfo, setClientInfo] = useState<ClientInfo>({})
+  const [item, setItem] = useState<PublicItemInput>(initialItemData)
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('basic')
-  const [formData, setFormData] = useState<FormData>(initialFormData)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [artists, setArtists] = useState<Artist[]>([])
   const [schools, setSchools] = useState<School[]>([])
-  const [auctions, setAuctions] = useState<Auction[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [consignments, setConsignments] = useState<Consignment[]>([])
-  const [galleries, setGalleries] = useState<Gallery[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [loadingArtistsSchools, setLoadingArtistsSchools] = useState(false)
-  const [loadingAuctions, setLoadingAuctions] = useState(false)
-
-  // Get brand ID from brand code
-  const getBrandId = (brandCode: string): number | undefined => {
-    const foundBrand = brands.find(b => b.code === brandCode)
-    return foundBrand?.id
-  }
-  const [loadingClients, setLoadingClients] = useState(false)
-  const [loadingConsignments, setLoadingConsignments] = useState(false)
-  const [loadingGalleries, setLoadingGalleries] = useState(false)
-  const [loadingBrands, setLoadingBrands] = useState(false)
-  const [loadingUsers, setLoadingUsers] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
   const [pendingCertificationFiles, setPendingCertificationFiles] = useState<Record<string, File>>({})
 
-  // Load artists, schools, auctions, clients and consignments data
+  // Load artists and schools data
   useEffect(() => {
-    const loadAllData = async () => {
+    const loadArtistsSchools = async () => {
       try {
         setLoadingArtistsSchools(true)
-        setLoadingAuctions(true)
-        setLoadingClients(true)
-        setLoadingConsignments(true)
-        setLoadingGalleries(true)
-        setLoadingBrands(true)
-        setLoadingUsers(true)
-
-        const [artistsResponse, schoolsResponse, auctionsResponse, clientsResponse, consignmentsResponse, galleriesResponse, brandsResponse, usersResponse] = await Promise.all([
+        const [artistsResponse, schoolsResponse] = await Promise.all([
           ArtistsAPI.getArtists({ status: 'active', limit: 1000 }),
           SchoolsAPI.getSchools({ status: 'active', limit: 1000 }),
-          getAuctions({
-            brand_id: getBrandId(brand) || getBrandId('MSABER'),
-            limit: 1000,
-            sort_field: 'created_at',
-            sort_direction: 'desc'
-          }),
-          fetchClients({
-            status: 'active',
-            limit: 1000,
-            brand_code: brand || 'MSABER'
-          }),
-          getConsignments({
-            status: 'active',
-            limit: 1000
-          }),
-          GalleriesAPI.getGalleries({
-            status: 'active',
-            limit: 1000
-          }),
-          getBrands(),
-          UsersAPI.getUsers({ brand_id: getBrandId(brand) || getBrandId('MSABER') })
         ])
 
         if (artistsResponse.success) {
@@ -303,62 +227,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         if (schoolsResponse.success) {
           setSchools(schoolsResponse.data)
         }
-        if (auctionsResponse.auctions) {
-          setAuctions(auctionsResponse.auctions)
-        }
-        if (clientsResponse.success) {
-          setClients(clientsResponse.data)
-        }
-        if (consignmentsResponse.success) {
-          setConsignments(consignmentsResponse.data)
-        }
-        if (galleriesResponse.success) {
-          setGalleries(galleriesResponse.data)
-        }
-        if (brandsResponse.success) {
-          setBrands(brandsResponse.data)
-        }
-        if (usersResponse.success) {
-          setUsers(usersResponse.data)
-        }
       } catch (err) {
-        console.error('Failed to load data:', err)
+        console.error('Failed to load artists/schools:', err)
       } finally {
         setLoadingArtistsSchools(false)
-        setLoadingAuctions(false)
-        setLoadingClients(false)
-        setLoadingConsignments(false)
-        setLoadingGalleries(false)
-        setLoadingBrands(false)
-        setLoadingUsers(false)
       }
     }
 
-    loadAllData()
-  }, [brand])
-
-
-
-  // Debug effect to track artist selection and client loading
-  useEffect(() => {
-    console.log('Debug - Artists loaded:', artists.length, artists.map(a => ({ id: a.id, name: a.name })))
-    console.log('Debug - Current artist_id:', formData.artist_id)
-    console.log('Debug - Artist options:', createArtistOptions())
-    const currentArtist = artists.find(a => a.id?.toString() === formData.artist_id)
-    console.log('Debug - Found current artist:', currentArtist)
-  }, [artists, formData.artist_id])
-
-  // Debug effect to track client loading
-  useEffect(() => {
-    console.log('Debug - Clients loaded:', clients.length, clients.map(c => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, type: c.client_type })))
-    console.log('Debug - Consigner options:', createConsignerOptions())
-    console.log('Debug - Loading clients:', loadingClients)
-  }, [clients, loadingClients])
+    loadArtistsSchools()
+  }, [])
 
   // Helper function to generate auto title format
-  // Format: ArtistFullName | (Birth-Death) | ArtworkSubject/Untitled | Medium (Materials) | Signature placement | Period
-  const generateAutoTitle = (data?: FormData): string => {
-    const currentData = data || formData
+  const generateAutoTitle = (data?: PublicItemInput): string => {
+    const currentData = data || item
     const parts: string[] = []
 
     // 1. Artist name with birth-death years in parentheses
@@ -412,49 +293,49 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     const parts: string[] = []
 
     // Title (always first)
-    const currentTitle = formData.title || generateAutoTitle() || 'Untitled Artwork'
+    const currentTitle = item.title || generateAutoTitle() || 'Untitled Artwork'
     parts.push(currentTitle)
 
     // Artwork description (double line break after title)
-    if (formData.description?.trim()) {
-      parts.push(formData.description.trim())
+    if (item.description?.trim()) {
+      parts.push(item.description.trim())
     }
 
     // Artist info (if checkboxes are selected)
-    if (formData.artist_id) {
-      const artist = artists.find(a => a.id?.toString() === formData.artist_id)
+    if (item.artist_id) {
+      const artist = artists.find(a => a.id?.toString() === item.artist_id)
       if (artist) {
         const artistParts: string[] = []
 
-        if (formData.include_artist_description && artist.description) {
+        if (item.include_artist_description && artist.description) {
           artistParts.push(artist.description)
         }
 
-        if (formData.include_artist_key_description && artist.key_description) {
+        if (item.include_artist_key_description && artist.key_description) {
           artistParts.push(artist.key_description)
         }
 
-        if (formData.include_artist_biography && artist.biography) {
+        if (item.include_artist_biography && artist.biography) {
           artistParts.push(artist.biography)
         }
 
-        if (formData.include_artist_notable_works && artist.notable_works) {
+        if (item.include_artist_notable_works && artist.notable_works) {
           artistParts.push(`Notable Works: ${artist.notable_works}`)
         }
 
-        if (formData.include_artist_major_exhibitions && artist.exhibitions) {
+        if (item.include_artist_major_exhibitions && artist.exhibitions) {
           artistParts.push(`Major Exhibitions: ${artist.exhibitions}`)
         }
 
-        if (formData.include_artist_awards_honors && artist.awards) {
+        if (item.include_artist_awards_honors && artist.awards) {
           artistParts.push(`Awards and Honors: ${artist.awards}`)
         }
 
-        if (formData.include_artist_market_value_range && artist.market_value_range) {
+        if (item.include_artist_market_value_range && artist.market_value_range) {
           artistParts.push(`Market Value Range: ${artist.market_value_range}`)
         }
 
-        if (formData.include_artist_signature_style && artist.signature_style) {
+        if (item.include_artist_signature_style && artist.signature_style) {
           artistParts.push(`Signature Style: ${artist.signature_style}`)
         }
 
@@ -466,15 +347,15 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }
 
     // Dimensions (single line break before dimensions)
-    if (formData.height_inches || formData.width_inches || formData.height_cm || formData.width_cm) {
+    if (item.height_inches || item.width_inches || item.height_cm || item.width_cm) {
       let dimensionText = 'Dimensions: '
-      if (formData.height_inches && formData.width_inches) {
-        dimensionText += `${formData.height_inches} × ${formData.width_inches} inches`
-        if (formData.height_cm && formData.width_cm) {
-          dimensionText += ` (${formData.height_cm} × ${formData.width_cm} cm)`
+      if (item.height_inches && item.width_inches) {
+        dimensionText += `${item.height_inches} × ${item.width_inches} inches`
+        if (item.height_cm && item.width_cm) {
+          dimensionText += ` (${item.height_cm} × ${item.width_cm} cm)`
         }
-      } else if (formData.height_cm && formData.width_cm) {
-        dimensionText += `${formData.height_cm} × ${formData.width_cm} cm`
+      } else if (item.height_cm && item.width_cm) {
+        dimensionText += `${item.height_cm} × ${item.width_cm} cm`
       }
       parts.push(dimensionText)
     }
@@ -501,21 +382,21 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       return parts[0] || 'Untitled Artwork'
     }
   }, [
-    formData.title,
-    formData.description,
-    formData.artist_id,
-    formData.include_artist_description,
-    formData.include_artist_key_description,
-    formData.include_artist_biography,
-    formData.include_artist_notable_works,
-    formData.include_artist_major_exhibitions,
-    formData.include_artist_awards_honors,
-    formData.include_artist_market_value_range,
-    formData.include_artist_signature_style,
-    formData.height_inches,
-    formData.width_inches,
-    formData.height_cm,
-    formData.width_cm,
+    item.title,
+    item.description,
+    item.artist_id,
+    item.include_artist_description,
+    item.include_artist_key_description,
+    item.include_artist_biography,
+    item.include_artist_notable_works,
+    item.include_artist_major_exhibitions,
+    item.include_artist_awards_honors,
+    item.include_artist_market_value_range,
+    item.include_artist_signature_style,
+    item.height_inches,
+    item.width_inches,
+    item.height_cm,
+    item.width_cm,
     artists
   ])
 
@@ -534,7 +415,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       }))
   }
 
-  // Helper function to create school options for SearchableSelect  
+  // Helper function to create school options for SearchableSelect
   const createSchoolOptions = (): SearchableOption[] => {
     return schools
       .filter(school => school.id) // Ensure id exists
@@ -545,275 +426,9 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       }))
   }
 
-  // Helper function to create client options for SearchableSelect
-  const createClientOptions = (): SearchableOption[] => {
-    return clients
-      .filter(client => client.id) // Ensure id exists
-      .map(client => ({
-        value: client.id!.toString(),
-        label: getClientDisplayName(client),
-        description: `${formatClientDisplay(client)} - ${client.client_type || 'buyer'}`
-      }))
-  }
-
-  // Helper function to create consigner client options (vendors only)
-  const createConsignerOptions = (): SearchableOption[] => {
-    return clients
-      .filter(client =>
-        client.id &&
-        (client.client_type === 'buyer' || client.client_type === 'vendor' || client.client_type === 'buyer_vendor')
-      )
-      .map(client => ({
-        value: client.id!.toString(),
-        label: getClientDisplayName(client),
-        description: `${formatClientDisplay(client)} - Vendor`
-      }))
-  }
-
-  // Helper function to create vendor client options (vendors only)
-  const createVendorOptions = (): SearchableOption[] => {
-    return clients
-      .filter(client =>
-        client.id &&
-        (client.client_type === 'vendor' || client.client_type === 'buyer' || client.client_type === 'buyer_vendor')
-      )
-      .map(client => ({
-        value: client.id!.toString(),
-        label: getClientDisplayName(client),
-        description: `${formatClientDisplay(client)} - Vendor`
-      }))
-  }
-
-  const createBuyerOptions = (): SearchableOption[] => {
-    return clients
-      .filter(client =>
-        client.id &&
-        (client.client_type === 'buyer' || client.client_type === 'buyer_vendor')
-      )
-      .map(client => ({
-        value: client.id!.toString(),
-        label: getClientDisplayName(client),
-        description: `${formatClientDisplay(client)} - Buyer`
-      }))
-  }
-
-  // Helper function to create consignment options for SearchableSelect
-  const createConsignmentOptions = (): SearchableOption[] => {
-    return consignments
-      .filter(consignment => consignment.id) // Ensure id exists
-      .map(consignment => ({
-        value: consignment.id!.toString(),
-        label: `Consignment ${consignment.id}`,
-        description: `Client: ${consignment.client_name || 'Unknown'} - ${consignment.status || 'No status'} - ${consignment.items_count || 0} items`
-      }))
-  }
-
-  // Helper function to create brand options for SearchableSelect
-  const createBrandOptions = (): SearchableOption[] => {
-    return brands
-      .filter(brand => brand.id) // Ensure id exists
-      .map(brand => ({
-        value: brand.id!.toString(),
-        label: brand.name,
-        description: `${brand.code} - ${brand.contact_email || 'No email'}`
-      }))
-  }
-
-  // Load item data if editing or handle AI data
-  useEffect(() => {
-    if (mode === 'edit' && itemId) {
-      loadItemData()
-    } else if (initialData) {
-      populateFormData(initialData)
-    } else if (mode === 'create') {
-      // Check for AI data in URL parameters
-      const aiDataParam = searchParams.get('ai_data')
-      if (aiDataParam) {
-        try {
-          const aiData = JSON.parse(decodeURIComponent(aiDataParam))
-          populateAIData(aiData)
-        } catch (error) {
-          console.error('Failed to parse AI data:', error)
-        }
-      }
-    }
-  }, [itemId, mode, initialData, searchParams])
-
-  const loadItemData = async () => {
-    if (!itemId) return
-
-    try {
-      setLoading(true)
-      const response = await ArtworksAPI.getArtwork(itemId)
-      if (response.success) {
-        populateFormData(response.data)
-      } else {
-        setError('Failed to load item data')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load item data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-
-
-  const populateFormData = (data: Partial<Artwork>) => {
-    // Auto-generate start_price and reserve if low_est exists but they're missing
-    let startPrice = data.start_price?.toString() || ''
-    let reservePrice = data.reserve?.toString() || ''
-
-    if (data.low_est && !data.start_price) {
-      const lowEst = data.low_est
-      startPrice = generateStartPrice(lowEst).toString()
-    }
-
-    if ((data.low_est || data.start_price) && !data.reserve) {
-      if (data.start_price) {
-        reservePrice = data.start_price.toString()
-      } else if (data.low_est) {
-        const startPriceNum = generateStartPrice(data.low_est)
-        reservePrice = startPriceNum.toString()
-      }
-    }
-
-    setFormData({
-      title: data.title || '',
-      description: data.description || '',
-      low_est: data.low_est?.toString() || '',
-      high_est: data.high_est?.toString() || '',
-      start_price: startPrice,
-      condition: data.condition || '',
-      reserve: reservePrice,
-      vendor_id: (data as any).vendor_id?.toString() || '',
-      buyer_id: (data as any).buyer_id?.toString() || '',
-      consignment_id: data.consignment_id?.toString() || '',
-      status: data.status || 'draft',
-      category: data.category || '',
-      subcategory: data.subcategory || '',
-      height_inches: data.height_inches || '',
-      width_inches: data.width_inches || '',
-      height_cm: data.height_cm || '',
-      width_cm: data.width_cm || '',
-      height_with_frame_inches: data.height_with_frame_inches || '',
-      width_with_frame_inches: data.width_with_frame_inches || '',
-      height_with_frame_cm: data.height_with_frame_cm || '',
-      width_with_frame_cm: data.width_with_frame_cm || '',
-      weight: data.weight || '',
-      materials: data.materials || '',
-      artist_id: data.artist_id?.toString() || '',
-      school_id: data.school_id || '',
-      period_age: data.period_age || '',
-      provenance: data.provenance || '',
-      artwork_subject: (data as any).artwork_subject || '',
-      signature_placement: (data as any).signature_placement || '',
-      medium: (data as any).medium || '',
-      include_artist_description: (data as any).include_artist_description !== undefined ? Boolean((data as any).include_artist_description) : true,
-      include_artist_key_description: (data as any).include_artist_key_description !== undefined ? Boolean((data as any).include_artist_key_description) : true,
-      include_artist_biography: Boolean((data as any).include_artist_biography) || false,
-      include_artist_notable_works: Boolean((data as any).include_artist_notable_works) || false,
-      include_artist_major_exhibitions: Boolean((data as any).include_artist_major_exhibitions) || false,
-      include_artist_awards_honors: Boolean((data as any).include_artist_awards_honors) || false,
-      include_artist_market_value_range: Boolean((data as any).include_artist_market_value_range) || false,
-      include_artist_signature_style: Boolean((data as any).include_artist_signature_style) || false,
-      condition_report: (data as any).condition_report || '',
-      gallery_certification: (data as any).gallery_certification || false,
-      gallery_certification_file: (data as any).gallery_certification_file || '',
-      gallery_id: (data as any).gallery_id || '',
-      artist_certification: (data as any).artist_certification || false,
-      artist_certification_file: (data as any).artist_certification_file || '',
-      certified_artist_id: (data as any).certified_artist_id || '',
-      artist_family_certification: (data as any).artist_family_certification || false,
-      artist_family_certification_file: (data as any).artist_family_certification_file || '',
-      restoration_done: (data as any).restoration_done || false,
-      restoration_done_file: (data as any).restoration_done_file || '',
-      restoration_by: (data as any).restoration_by || '',
-      brand_id: (data as any).brand_id?.toString() || '',
-      return_date: data.return_date || '',
-      return_location: data.return_location || '',
-      return_reason: data.return_reason || '',
-      returned_by_user_id: data.returned_by_user_id || '',
-      returned_by_user_name: data.returned_by_user_name || '',
-      images: data.images || []
-    })
-  }
-
-  const populateAIData = (aiData: any) => {
-    // Calculate start price and reserve price (reserve = start price for AI data)
-    const startPrice = aiData.low_est ? generateStartPrice(aiData.low_est) : 0
-    const reservePrice = startPrice ? generateReservePriceForAI(startPrice).toString() : ''
-
-    setFormData({
-      title: aiData.title || '',
-      description: aiData.description || '',
-      low_est: aiData.low_est?.toString() || '',
-      high_est: aiData.high_est?.toString() || '',
-      start_price: startPrice.toString(), // Auto-calculated from low_est
-      condition: aiData.condition || '',
-      reserve: reservePrice, // Set reserve price equal to start price
-      vendor_id: '',
-      buyer_id: '',
-      consignment_id: '',
-      status: 'draft',
-      category: aiData.category || '',
-      subcategory: '',
-      height_inches: aiData.height_inches || '',
-      width_inches: aiData.width_inches || '',
-      height_cm: aiData.height_cm || '',
-      width_cm: aiData.width_cm || '',
-      height_with_frame_inches: aiData.height_with_frame_inches || '',
-      width_with_frame_inches: aiData.width_with_frame_inches || '',
-      height_with_frame_cm: aiData.height_with_frame_cm || '',
-      width_with_frame_cm: aiData.width_with_frame_cm || '',
-      weight: aiData.weight || '',
-      materials: aiData.materials || '',
-      artist_id: aiData.artist_id || '',
-      school_id: '',
-      period_age: aiData.period_age || '',
-      provenance: '',
-      artwork_subject: aiData.artwork_subject || '',
-      signature_placement: aiData.signature_placement || '',
-      medium: aiData.materials || '', // Use materials as medium initially
-      include_artist_description: aiData.include_artist_description !== undefined ? aiData.include_artist_description : true,
-      include_artist_key_description: aiData.include_artist_key_description !== undefined ? aiData.include_artist_key_description : true,
-      include_artist_biography: aiData.include_artist_biography || false,
-      include_artist_notable_works: aiData.include_artist_notable_works || false,
-      include_artist_major_exhibitions: aiData.include_artist_major_exhibitions || false,
-      include_artist_awards_honors: aiData.include_artist_awards_honors || false,
-      include_artist_market_value_range: aiData.include_artist_market_value_range || false,
-      include_artist_signature_style: aiData.include_artist_signature_style || false,
-      condition_report: aiData.condition_report || '',
-      gallery_certification: aiData.gallery_certification || false,
-      gallery_certification_file: aiData.gallery_certification_file || '',
-      gallery_id: aiData.gallery_id || '',
-      artist_certification: aiData.artist_certification || false,
-      artist_certification_file: aiData.artist_certification_file || '',
-      certified_artist_id: aiData.certified_artist_id || '',
-      artist_family_certification: aiData.artist_family_certification || false,
-      artist_family_certification_file: aiData.artist_family_certification_file || '',
-      restoration_done: aiData.restoration_done || false,
-      restoration_done_file: aiData.restoration_done_file || '',
-      restoration_by: aiData.restoration_by || '',
-      brand_id: aiData.brand_id || '',
-      images: [],
-      return_date: '',
-      return_location: '',
-      return_reason: '',
-      returned_by_user_id: '',
-      returned_by_user_name: ''
-    })
-
-    // Auto-calculate start price if low estimate is available
-    if (aiData.low_est) {
-      const startPrice = generateStartPrice(aiData.low_est)
-      setFormData(prev => ({ ...prev, start_price: startPrice.toString() }))
-    }
-  }
-
-  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
-    // Update the form data first
-    setFormData(prev => {
+  const handleInputChange = (field: keyof PublicItemInput, value: string | boolean) => {
+    // Update the item data first
+    setItem(prev => {
       const updatedData = { ...prev, [field]: value }
 
       // Auto-calculate with-frame dimensions when main dimensions change
@@ -854,7 +469,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       if (!isNaN(lowEst)) {
         const startPrice = generateStartPrice(lowEst)
         const reservePrice = startPrice // Reserve = start price
-        setFormData(prev => ({
+        setItem(prev => ({
           ...prev,
           start_price: startPrice.toString(),
           reserve: reservePrice.toString()
@@ -867,7 +482,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       const startPrice = parseFloat(value)
       if (!isNaN(startPrice)) {
         const reservePrice = startPrice // Reserve = start price
-        setFormData(prev => ({ ...prev, reserve: reservePrice.toString() }))
+        setItem(prev => ({ ...prev, reserve: reservePrice.toString() }))
       }
     }
 
@@ -875,7 +490,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     if (['artist_id', 'artwork_subject', 'medium', 'signature_placement', 'period_age'].includes(field)) {
       // Use setTimeout to ensure the state update is processed first
       setTimeout(() => {
-        setFormData(prev => {
+        setItem(prev => {
           // Create the updated data with the new value
           const updatedData = { ...prev, [field]: value }
 
@@ -898,7 +513,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
   const handleImageChange = (index: number, url: string, file?: File) => {
     console.log('handleImageChange', index, url, file)
-    setFormData(prev => {
+    setItem(prev => {
       const newImages = [...prev.images]
       // Ensure array has enough slots
       while (newImages.length <= index) {
@@ -931,7 +546,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     const getNextAvailableSlots = (): number[] => {
       const availableSlots: number[] = []
       for (let i = 0; i < 10; i++) { // Allow up to 10 images for now (can be increased)
-        if (!formData.images[i] || formData.images[i] === '') {
+        if (!item.images[i] || item.images[i] === '') {
           availableSlots.push(i)
         }
       }
@@ -968,7 +583,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       // Create blob URL for preview
       const blobUrl = URL.createObjectURL(file)
 
-      // Update form data and pending images
+      // Update item data and pending images
       handleImageChange(slotIndex, blobUrl, file)
     })
 
@@ -982,13 +597,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const handleCertificationFileUpload = (certificationType: 'gallery_certification_file' | 'artist_certification_file' | 'artist_family_certification_file' | 'restoration_done_file', file: File) => {
     // Create preview URL for the file
     const previewUrl = URL.createObjectURL(file)
-    
-    // Update form data with preview URL
-    setFormData(prev => ({
+
+    // Update item data with preview URL
+    setItem(prev => ({
       ...prev,
       [certificationType]: previewUrl
     }))
-    
+
     // Store pending file
     setPendingCertificationFiles(prev => ({
       ...prev,
@@ -998,210 +613,101 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
   // Get count of filled image slots
   const getFilledSlotsCount = (): number => {
-    return formData.images.filter(url => url && url.trim() !== '').length
+    return item.images.filter(url => url && url.trim() !== '').length
   }
 
-
-  const uploadPendingImages = async (tempItemId: string): Promise<Record<string, string>> => {
-    const uploadedImages: Record<string, string> = {}
-
-    if (Object.keys(pendingImages).length === 0) {
-      return uploadedImages
-    }
-
-    try {
-      const uploadFormData = new FormData()
-      uploadFormData.append('itemId', tempItemId)
-
-      // Add existing images that aren't files
-      const existingImages: string[] = []
-      formData.images.forEach((url, index) => {
-        if (url && !pendingImages[`image_${index}`] && !url.startsWith('blob:')) {
-          existingImages.push(url)
-        }
-      })
-      uploadFormData.append('existingImages', JSON.stringify(existingImages))
-
-      // Add pending image files
-      Object.entries(pendingImages).forEach(([fieldName, file]) => {
-        uploadFormData.append(fieldName, file)
-      })
-
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/images/process-item-images`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: uploadFormData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(`Failed to upload images: ${errorData.error || response.statusText}`)
-      }
-
-      const result = await response.json()
-      if (!result.success) {
-        throw new Error(`Upload failed: ${result.error || 'Unknown error'}`)
-      }
-      return result.images || {}
-    } catch (error: any) {
-      console.error('Image upload error:', error)
-      throw new Error(`Image upload failed: ${error.message || 'Unknown error'}`)
-    }
+  const validate = (): string[] => {
+    const errs: string[] = []
+    if (!item.title.trim()) errs.push('Title is required')
+    if (!item.description.trim()) errs.push('Description is required')
+    const low = Number(item.low_est)
+    const high = Number(item.high_est)
+    if (!Number.isFinite(low) || low <= 0) errs.push('Low estimate must be > 0')
+    if (!Number.isFinite(high) || high <= 0) errs.push('High estimate must be > 0')
+    if (Number.isFinite(low) && Number.isFinite(high) && low >= high) errs.push('High estimate must be greater than low estimate')
+    return errs
   }
 
-  const uploadPendingCertificationFiles = async (tempItemId: string): Promise<Record<string, string>> => {
-    const uploadedFiles: Record<string, string> = {}
-
-    if (Object.keys(pendingCertificationFiles).length === 0) {
-      return uploadedFiles
-    }
-
+  const onSubmit = async () => {
+    setError(null)
+    setMessage(null)
+    const errs = validate()
+    if (errs.length > 0) { setError(errs[0]); return }
+    setSubmitting(true)
     try {
-      for (const [fieldKey, file] of Object.entries(pendingCertificationFiles)) {
-        console.log(`Uploading certification file for ${fieldKey}...`)
-        
-        // Create a unique filename
-        const fileExtension = file.name.split('.').pop() || 'pdf'
-        const fileName = `certification_${tempItemId}_${fieldKey}_${Date.now()}.${fileExtension}`
-        
-        // Upload to Supabase Storage
-        const supabase = createClient()
-        const { data, error } = await supabase.storage
-          .from('items')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          })
-
-        if (error) {
-          console.error(`Error uploading ${fieldKey}:`, error)
-          throw new Error(`Failed to upload ${fieldKey}: ${error.message}`)
-        }
-
-        // Get the public URL
-        const { data: publicUrlData } = supabase.storage
-          .from('items')
-          .getPublicUrl(fileName)
-
-        uploadedFiles[fieldKey] = publicUrlData.publicUrl
-        console.log(`Successfully uploaded ${fieldKey}: ${publicUrlData.publicUrl}`)
+      // Convert images to data URLs (base64)
+      const serializeImages = async (files: Record<string, File>): Promise<string[]> => {
+        const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+          const r = new FileReader()
+          r.onload = () => resolve(String(r.result))
+          r.onerror = () => reject(new Error('read error'))
+          r.readAsDataURL(f)
+        })
+        const arr: string[] = []
+        for (const f of Object.values(files).slice(0, 10)) arr.push(await toDataUrl(f))
+        return arr
       }
 
-      // Clear the pending files
+      const payloadItem = {
+        title: item.title,
+        description: item.description,
+        low_est: Number(item.low_est),
+        high_est: Number(item.high_est),
+        start_price: item.start_price ? Number(item.start_price) : undefined,
+        condition: item.condition || undefined,
+        reserve: item.reserve ? Number(item.reserve) : undefined,
+        category: item.category || undefined,
+        subcategory: item.subcategory || undefined,
+        height_inches: item.height_inches || undefined,
+        width_inches: item.width_inches || undefined,
+        height_cm: item.height_cm || undefined,
+        width_cm: item.width_cm || undefined,
+        height_with_frame_inches: item.height_with_frame_inches || undefined,
+        width_with_frame_inches: item.width_with_frame_inches || undefined,
+        height_with_frame_cm: item.height_with_frame_cm || undefined,
+        width_with_frame_cm: item.width_with_frame_cm || undefined,
+        weight: item.weight || undefined,
+        materials: item.materials || undefined,
+        artist_id: item.artist_id ? Number(item.artist_id) : undefined,
+        school_id: item.school_id || undefined,
+        period_age: item.period_age || undefined,
+        provenance: item.provenance || undefined,
+        artwork_subject: item.artwork_subject || undefined,
+        signature_placement: item.signature_placement || undefined,
+        medium: item.medium || undefined,
+        include_artist_description: item.include_artist_description,
+        include_artist_key_description: item.include_artist_key_description,
+        include_artist_biography: item.include_artist_biography,
+        include_artist_notable_works: item.include_artist_notable_works,
+        include_artist_major_exhibitions: item.include_artist_major_exhibitions,
+        include_artist_awards_honors: item.include_artist_awards_honors,
+        include_artist_market_value_range: item.include_artist_market_value_range,
+        include_artist_signature_style: item.include_artist_signature_style,
+        condition_report: item.condition_report || undefined,
+        gallery_certification: item.gallery_certification,
+        gallery_id: item.gallery_id || undefined,
+        artist_certification: item.artist_certification,
+        certified_artist_id: item.certified_artist_id || undefined,
+        artist_family_certification: item.artist_family_certification,
+        restoration_done: item.restoration_done,
+        restoration_by: item.restoration_by || undefined,
+        images: Object.keys(pendingImages).length > 0 ? await serializeImages(pendingImages) : []
+      }
+
+      const payload = {
+        client_id: clientId || undefined,
+        client_info: clientId ? undefined : clientInfo,
+        items: [payloadItem],
+      }
+      const resp = await submitPublicInventory(payload)
+      setMessage(`Submitted successfully. Reference: ${resp.submission_token}`)
+      setItem(initialItemData)
+      setPendingImages({})
       setPendingCertificationFiles({})
-      
-      return uploadedFiles
-    } catch (error) {
-      console.error('Error uploading certification files:', error)
-      throw error
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Convert form data to Artwork format
-    const artworkData: Partial<Artwork> = {
-      title: formData.title,
-      description: formData.description,
-      low_est: parseFloat(formData.low_est),
-      high_est: parseFloat(formData.high_est),
-      start_price: formData.start_price ? parseFloat(formData.start_price) : undefined,
-      condition: formData.condition || undefined,
-      reserve: formData.reserve ? parseFloat(formData.reserve) : undefined,
-      vendor_id: formData.vendor_id ? parseInt(formData.vendor_id) : undefined,
-      buyer_id: formData.buyer_id ? parseInt(formData.buyer_id) : undefined,
-      status: formData.status,
-      category: formData.category || undefined,
-      subcategory: formData.subcategory || undefined,
-      height_inches: formData.height_inches || undefined,
-      width_inches: formData.width_inches || undefined,
-      height_cm: formData.height_cm || undefined,
-      width_cm: formData.width_cm || undefined,
-      height_with_frame_inches: formData.height_with_frame_inches || undefined,
-      width_with_frame_inches: formData.width_with_frame_inches || undefined,
-      height_with_frame_cm: formData.height_with_frame_cm || undefined,
-      width_with_frame_cm: formData.width_with_frame_cm || undefined,
-      weight: formData.weight || undefined,
-      materials: formData.materials || undefined,
-      artist_id: formData.artist_id ? parseInt(formData.artist_id) : undefined,
-      school_id: formData.school_id || undefined,
-      period_age: formData.period_age || undefined,
-      provenance: formData.provenance || undefined,
-      consignment_id: formData.consignment_id ? parseInt(formData.consignment_id) : undefined,
-      brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
-      images: formData.images.filter(url => url && url.trim() !== '') // Filter out empty strings
-    }
-
-    // Validate the data
-    const errors = validateArtworkData(artworkData)
-    if (errors.length > 0) {
-      setValidationErrors(errors)
-      return
-    }
-
-    try {
-      setSaving(true)
-      setError(null)
-
-      // Handle file uploads if there are pending files
-      if (Object.keys(pendingImages).length > 0 || Object.keys(pendingCertificationFiles).length > 0) {
-        const tempItemId = itemId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-        try {
-          const uploadedImageUrls = await uploadPendingImages(tempItemId)
-          const uploadedCertificationFileUrls = await uploadPendingCertificationFiles(tempItemId)
-
-          // Update artwork data with uploaded image URLs
-          Object.entries(uploadedImageUrls).forEach(([fieldName, url]) => {
-            if (fieldName.startsWith('image_file_')) {
-              (artworkData as any)[fieldName] = url
-            }
-          })
-
-          // Update artwork data with uploaded certification file URLs
-          Object.entries(uploadedCertificationFileUrls).forEach(([fieldName, url]) => {
-            (artworkData as any)[fieldName] = url
-          })
-
-          // Clear pending images
-          setPendingImages({})
-
-          // Clean up blob URLs
-          Object.entries(pendingImages).forEach(([key, file]) => {
-            const index = parseInt(key.replace('image_', ''))
-            if (!isNaN(index) && formData.images[index] && formData.images[index].startsWith('blob:')) {
-              URL.revokeObjectURL(formData.images[index])
-            }
-          })
-
-        } catch (uploadError: any) {
-          setError(`Image upload failed: ${uploadError.message}`)
-          return
-        }
-      }
-
-      let savedArtwork
-      if (mode === 'create') {
-        const result = await ArtworksAPI.createArtwork(artworkData as Omit<Artwork, 'id' | 'created_at' | 'updated_at'>, brand)
-        savedArtwork = result.data
-      } else if (itemId) {
-        const result = await ArtworksAPI.updateArtwork(itemId, artworkData, brand)
-        savedArtwork = result.data
-      }
-
-      if (onSave && savedArtwork) {
-        onSave(savedArtwork)
-      } else {
-        router.push('/items')
-      }
-    } catch (err: any) {
-      setError(err.message || `Failed to ${mode} item`)
+    } catch (e: any) {
+      setError(e.message || 'Submission failed')
     } finally {
-      setSaving(false)
+      setSubmitting(false)
     }
   }
 
@@ -1212,79 +718,69 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     { id: 'preview', label: 'Preview', icon: '👁️' }
   ]
 
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => router.push('/items')}
-            className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Inventory
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {mode === 'create' ? 'Add Inventory' : 'Edit Inventory'}
-            </h1>
+    <div className="min-h-screen bg-gray-50 py-10">
+      <div className="max-w-4xl mx-auto bg-white border rounded-lg">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Inventory Submission</h1>
+              <p className="text-gray-600">Submit artworks for review. We'll contact you after approval.</p>
+            </div>
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back
+            </button>
           </div>
+
+          {/* Client Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Existing Client ID (optional)</label>
+              <input value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="123 or MET-123" />
+            </div>
+          </div>
+
+          {!clientId && (
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold mb-2">Your Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input placeholder="First Name" className="border rounded px-3 py-2" value={clientInfo.first_name||''} onChange={e=>setClientInfo({...clientInfo, first_name:e.target.value})} />
+                <input placeholder="Last Name" className="border rounded px-3 py-2" value={clientInfo.last_name||''} onChange={e=>setClientInfo({...clientInfo, last_name:e.target.value})} />
+                <input placeholder="Email" className="border rounded px-3 py-2" value={clientInfo.email||''} onChange={e=>setClientInfo({...clientInfo, email:e.target.value})} />
+                <input placeholder="Phone" className="border rounded px-3 py-2" value={clientInfo.phone||''} onChange={e=>setClientInfo({...clientInfo, phone:e.target.value})} />
+                <input placeholder="Company (optional)" className="border rounded px-3 py-2 md:col-span-2" value={clientInfo.company_name||''} onChange={e=>setClientInfo({...clientInfo, company_name:e.target.value})} />
+              </div>
+            </div>
+          )}
+
+          {/* Error and Message Display */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800">{error}</div>
+          )}
+          {message && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-800">{message}</div>
+          )}
+
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
+              <h3 className="text-red-800 font-medium mb-2">Please fix the following errors:</h3>
+              <ul className="list-disc list-inside text-red-600 space-y-1">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            type="button"
-            onClick={() => onCancel ? onCancel() : router.push('/items')}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="item-form"
-            disabled={saving}
-            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Item'}
-          </button>
-        </div>
-      </div>
-
-      {/* Error Display */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">{error}</p>
-        </div>
-      )}
-
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h3 className="text-red-800 font-medium mb-2">Please fix the following errors:</h3>
-          <ul className="list-disc list-inside text-red-600 space-y-1">
-            {validationErrors.map((error, index) => (
-              <li key={index}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow">
+        {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Tabs">
+          <nav className="flex space-x-8 px-6" aria-label="Tabs">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -1301,103 +797,10 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           </nav>
         </div>
 
-        <form id="item-form" onSubmit={handleSubmit} className="p-6">
+        <form className="p-6">
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-6">
-              {/* Client & Consignment Selection Section */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-blue-900 mb-4">Client & Consignment Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Brand
-                    </label>
-                    <SearchableSelect
-                      value={formData.brand_id}
-                      options={brands.length > 0 ? createBrandOptions() : []}
-                      placeholder={loadingBrands ? "Loading brands..." : "Select brand..."}
-                      onChange={(value) => handleInputChange('brand_id', value?.toString() || '')}
-                      disabled={loadingBrands || brands.length === 0}
-                      inputPlaceholder="Search brands..."
-                    />
-                    {loadingBrands && (
-                      <p className="text-xs text-gray-500 mt-1">Loading brands...</p>
-                    )}
-                    {!loadingBrands && createBrandOptions().length === 0 && (
-                      <p className="text-xs text-orange-500 mt-1">No brands found. Please create brands first.</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Consignment (Optional)
-                    </label>
-                    <SearchableSelect
-                      value={formData.consignment_id}
-                      options={createConsignmentOptions()}
-                      placeholder={loadingConsignments ? "Loading consignments..." : "Select consignment..."}
-                      onChange={(value) => {
-                        const consignmentId = value?.toString() || ''
-                        handleInputChange('consignment_id', consignmentId)
-
-                        // Auto-fill consigner if consignment is selected
-                        if (consignmentId) {
-                          const selectedConsignment = consignments.find(c => c.id?.toString() === consignmentId)
-                          if (selectedConsignment?.client_id) {
-                            handleInputChange('vendor_id', selectedConsignment.client_id.toString())
-                          }
-                        }
-                      }}
-                      disabled={loadingConsignments}
-                      inputPlaceholder="Search consignments..."
-                    />
-                    {loadingConsignments && (
-                      <p className="text-xs text-gray-500 mt-1">Loading consignments...</p>
-                    )}
-                    {!loadingConsignments && createConsignmentOptions().length === 0 && (
-                      <p className="text-xs text-orange-500 mt-1">No consignments found. Create a consignment first.</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Vendor (Consignor) *
-                    </label>
-                    <SearchableSelect
-                      value={formData.vendor_id}
-                      options={clients.length > 0 ? createVendorOptions() : []}
-                      placeholder={loadingClients ? "Loading vendors..." : "Select vendor..."}
-                      onChange={(value) => handleInputChange('vendor_id', value?.toString() || '')}
-                      disabled={loadingClients}
-                      inputPlaceholder="Search vendors..."
-                    />
-                    {formData.consignment_id && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✓ Vendor auto-filled from selected consignment
-                      </p>
-                    )}
-                  </div>
-
-                  {formData.status === 'sold' && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Buyer *
-                        <span className="text-xs text-gray-500"> (required if sold)</span>
-                      </label>
-                      <SearchableSelect
-                        value={formData.buyer_id}
-                        options={clients.length > 0 ? createBuyerOptions() : []}
-                        placeholder={loadingClients ? "Loading buyers..." : "Select buyer..."}
-                        onChange={(value) => handleInputChange('buyer_id', value?.toString() || '')}
-                        disabled={loadingClients}
-                        inputPlaceholder="Search buyers..."
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Artist/School Selection */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-green-900 mb-4">Artist/School & Medium Information</h3>
@@ -1407,11 +810,11 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Artist
                     </label>
                     <SearchableSelect
-                      value={formData.artist_id}
+                      value={item.artist_id}
                       options={artists.length > 0 ? createArtistOptions() : []}
                       placeholder={loadingArtistsSchools ? "Loading artists..." : "Select artist..."}
                       onChange={(value) => {
-                        console.log('Artist selected:', value, 'Current value:', formData.artist_id)
+                        console.log('Artist selected:', value, 'Current value:', item.artist_id)
                         const artistId = value?.toString() || ''
                         console.log('Setting artist_id to:', artistId)
                         handleInputChange('artist_id', artistId)
@@ -1426,12 +829,11 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     {loadingArtistsSchools && (
                       <p className="text-xs text-gray-500 mt-1">Loading artists...</p>
                     )}
-                    {/* Debug display */}
-                    {formData.artist_id && (
+                    {item.artist_id && (
                       <p className="text-xs text-green-600 mt-1">
                         Selected: {(() => {
-                          const artist = artists.find(a => a.id?.toString() === formData.artist_id)
-                          return artist ? artist.name : `ID: ${formData.artist_id} (not found)`
+                          const artist = artists.find(a => a.id?.toString() === item.artist_id)
+                          return artist ? artist.name : `ID: ${item.artist_id} (not found)`
                         })()}
                       </p>
                     )}
@@ -1442,7 +844,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       School (if no specific artist)
                     </label>
                     <SearchableSelect
-                      value={formData.school_id}
+                      value={item.school_id}
                       options={schools.length > 0 ? createSchoolOptions() : []}
                       placeholder={loadingArtistsSchools ? "Loading schools..." : "Select school..."}
                       onChange={(value) => {
@@ -1466,7 +868,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Medium/Materials
                     </label>
                     <SearchableSelect
-                      value={formData.medium}
+                      value={item.medium}
                       options={[{ value: '', label: 'Select material...' }, ...materialOptions]}
                       placeholder="Select material..."
                       onChange={(value) => handleInputChange('medium', value?.toString() || '')}
@@ -1481,7 +883,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                     <input
                       type="text"
-                      value={formData.artwork_subject}
+                      value={item.artwork_subject}
                       onChange={(e) => handleInputChange('artwork_subject', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="e.g., Portrait, Landscape, Abstract composition"
@@ -1494,7 +896,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                     <input
                       type="text"
-                      value={formData.signature_placement}
+                      value={item.signature_placement}
                       onChange={(e) => handleInputChange('signature_placement', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="e.g., Lower right, Verso, Not visible"
@@ -1506,7 +908,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Period/Age
                     </label>
                     <SearchableSelect
-                      value={formData.period_age}
+                      value={item.period_age}
                       options={[{ value: '', label: 'Select period...' }, ...periodOptions]}
                       placeholder="Select period..."
                       onChange={(value) => handleInputChange('period_age', value?.toString() || '')}
@@ -1516,7 +918,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   </div>
                 </div>
 
-                {formData.artist_id && formData.school_id && (
+                {item.artist_id && item.school_id && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
                     <p className="text-yellow-800 text-sm">
                       ⚠️ Both artist and school are selected. Only one will be saved.
@@ -1525,105 +927,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-
-
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    {statuses.map((status) => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-
-              </div>
-
-              {/* Return Information - Only show when status is 'returned' */}
-              {formData.status === 'returned' && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-orange-900 mb-4">Return Information</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Return Date</label>
-                      <input
-                        type="date"
-                        value={formData.return_date}
-                        onChange={(e) => handleInputChange('return_date', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Returned By</label>
-                      <SearchableSelect
-                        value={formData.returned_by_user_id}
-                        onChange={(value) => {
-                          const selectedUser = users.find(u => u.id.toString() === String(value))
-                          handleInputChange('returned_by_user_id', String(value))
-                          handleInputChange('returned_by_user_name', selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : '')
-                        }}
-                        options={users.map((u) => ({ 
-                          value: u.id.toString(), 
-                          label: `${u.first_name} ${u.last_name} (${u.role})`, 
-                          description: u.email 
-                        }))}
-                        placeholder="Select staff member"
-                        onSearch={async (query) => {
-                          const filteredUsers = users.filter(user =>
-                            `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
-                            user.role.toLowerCase().includes(query.toLowerCase()) ||
-                            user.email.toLowerCase().includes(query.toLowerCase())
-                          );
-                          return filteredUsers.map((user) => ({
-                            value: user.id.toString(),
-                            label: `${user.first_name} ${user.last_name} (${user.role})`,
-                            description: user.email
-                          }));
-                        }}
-                        enableDynamicSearch={true}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Return Location</label>
-                      <input
-                        type="text"
-                        value={formData.return_location}
-                        onChange={(e) => handleInputChange('return_location', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., Storage Room A, Client Location, etc."
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Return Reason</label>
-                      <input
-                        type="text"
-                        value={formData.return_reason}
-                        onChange={(e) => handleInputChange('return_reason', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., Client request, Damage, Unsold, etc."
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Title * <span className="text-xs text-gray-500">(max 200 chars for LiveAuctioneers)</span>
@@ -1631,13 +934,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 <input
                   type="text"
                   maxLength={200}
-                  value={formData.title}
+                  value={item.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                   required
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {formData.title.length}/200 characters
+                  {item.title.length}/200 characters
                 </div>
               </div>
 
@@ -1651,7 +954,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   </label>
                   <textarea
                     rows={4}
-                    value={formData.description}
+                    value={item.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     required
@@ -1660,7 +963,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 </div>
 
                 {/* Artist Information Options for Export */}
-                {formData.artist_id && (
+                {item.artist_id && (
                   <div className="mt-6">
                     <h4 className="text-sm font-medium text-gray-700 mb-3">
                       Include Artist Information in Export Description:
@@ -1670,7 +973,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_description"
-                          checked={formData.include_artist_description}
+                          checked={item.include_artist_description}
                           onChange={(e) => handleInputChange('include_artist_description', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1683,7 +986,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_key_description"
-                          checked={formData.include_artist_key_description}
+                          checked={item.include_artist_key_description}
                           onChange={(e) => handleInputChange('include_artist_key_description', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1696,7 +999,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_biography"
-                          checked={formData.include_artist_biography}
+                          checked={item.include_artist_biography}
                           onChange={(e) => handleInputChange('include_artist_biography', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1709,7 +1012,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_notable_works"
-                          checked={formData.include_artist_notable_works}
+                          checked={item.include_artist_notable_works}
                           onChange={(e) => handleInputChange('include_artist_notable_works', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1722,7 +1025,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_major_exhibitions"
-                          checked={formData.include_artist_major_exhibitions}
+                          checked={item.include_artist_major_exhibitions}
                           onChange={(e) => handleInputChange('include_artist_major_exhibitions', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1735,7 +1038,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_awards_honors"
-                          checked={formData.include_artist_awards_honors}
+                          checked={item.include_artist_awards_honors}
                           onChange={(e) => handleInputChange('include_artist_awards_honors', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1748,7 +1051,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_market_value_range"
-                          checked={formData.include_artist_market_value_range}
+                          checked={item.include_artist_market_value_range}
                           onChange={(e) => handleInputChange('include_artist_market_value_range', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1761,7 +1064,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         <input
                           type="checkbox"
                           id="include_artist_signature_style"
-                          checked={formData.include_artist_signature_style}
+                          checked={item.include_artist_signature_style}
                           onChange={(e) => handleInputChange('include_artist_signature_style', e.target.checked)}
                           className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
@@ -1778,8 +1081,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 )}
               </div>
 
-
-
               {/* New Certification Fields */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1787,7 +1088,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 </label>
                 <textarea
                   rows={3}
-                  value={formData.condition_report}
+                  value={item.condition_report}
                   onChange={(e) => handleInputChange('condition_report', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Detailed condition report..."
@@ -1801,7 +1102,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <input
                       type="checkbox"
                       id="gallery_certification"
-                      checked={formData.gallery_certification}
+                      checked={item.gallery_certification}
                       onChange={(e) => handleInputChange('gallery_certification', e.target.checked)}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                     />
@@ -1809,21 +1110,16 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Gallery Certification
                     </label>
                   </div>
-                  {formData.gallery_certification && (
+                  {item.gallery_certification && (
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
-                        <SearchableSelect
-                          value={formData.gallery_id}
-                          onChange={(value) => handleInputChange('gallery_id', value?.toString() || '')}
-                          options={galleries.map(gallery => ({
-                            value: gallery.id || '',
-                            label: gallery.name,
-                            description: gallery.location ? `${gallery.location}${gallery.country ? `, ${gallery.country}` : ''}` : gallery.country || ''
-                          }))}
-                          placeholder={loadingGalleries ? "Loading galleries..." : "Search galleries..."}
-                          inputPlaceholder="Search by gallery name or location..."
-                          className="w-full"
+                        <input
+                          type="text"
+                          value={item.gallery_id}
+                          onChange={(e) => handleInputChange('gallery_id', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Gallery name"
                         />
                       </div>
                       <div>
@@ -1839,7 +1135,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           }}
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
-                        {formData.gallery_certification_file && (
+                        {item.gallery_certification_file && (
                           <div className="mt-2 text-xs text-green-600">
                             ✓ File uploaded
                           </div>
@@ -1855,7 +1151,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <input
                       type="checkbox"
                       id="artist_certification"
-                      checked={formData.artist_certification}
+                      checked={item.artist_certification}
                       onChange={(e) => handleInputChange('artist_certification', e.target.checked)}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                     />
@@ -1863,24 +1159,17 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Artist Certification
                     </label>
                   </div>
-                  {formData.artist_certification && (
+                  {item.artist_certification && (
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Which Artist?</label>
-                        <select
-                          value={formData.certified_artist_id}
+                        <input
+                          type="text"
+                          value={item.certified_artist_id}
                           onChange={(e) => handleInputChange('certified_artist_id', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          disabled={loadingArtistsSchools}
-                        >
-                          <option value="">Select artist...</option>
-                          {artists.map((artist) => (
-                            <option key={artist.id} value={artist.id}>
-                              {artist.name}
-                              {artist.birth_year && ` (${artist.birth_year}${artist.death_year ? `-${artist.death_year}` : '-'})`}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="Artist name for certification"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
@@ -1895,7 +1184,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           }}
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
-                        {formData.artist_certification_file && (
+                        {item.artist_certification_file && (
                           <div className="mt-2 text-xs text-green-600">
                             ✓ File uploaded
                           </div>
@@ -1911,7 +1200,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <input
                       type="checkbox"
                       id="artist_family_certification"
-                      checked={formData.artist_family_certification}
+                      checked={item.artist_family_certification}
                       onChange={(e) => handleInputChange('artist_family_certification', e.target.checked)}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                     />
@@ -1919,7 +1208,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Artist Family Certification
                     </label>
                   </div>
-                  {formData.artist_family_certification && (
+                  {item.artist_family_certification && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
                       <input
@@ -1933,7 +1222,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                         }}
                         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                       />
-                      {formData.artist_family_certification_file && (
+                      {item.artist_family_certification_file && (
                         <div className="mt-2 text-xs text-green-600">
                           ✓ File uploaded
                         </div>
@@ -1948,7 +1237,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     <input
                       type="checkbox"
                       id="restoration_done"
-                      checked={formData.restoration_done}
+                      checked={item.restoration_done}
                       onChange={(e) => handleInputChange('restoration_done', e.target.checked)}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                     />
@@ -1956,13 +1245,13 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Restoration Done
                     </label>
                   </div>
-                  {formData.restoration_done && (
+                  {item.restoration_done && (
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Done by (Person/Company)</label>
                         <input
                           type="text"
-                          value={formData.restoration_by}
+                          value={item.restoration_by}
                           onChange={(e) => handleInputChange('restoration_by', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="Name of person or company who did the restoration"
@@ -1981,7 +1270,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           }}
                           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
-                        {formData.restoration_done_file && (
+                        {item.restoration_done_file && (
                           <div className="mt-2 text-xs text-green-600">
                             ✓ File uploaded
                           </div>
@@ -1991,8 +1280,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   )}
                 </div>
               </div>
-
-
             </div>
           )}
 
@@ -2012,7 +1299,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.low_est}
+                      value={item.low_est}
                       onChange={(e) => handleInputChange('low_est', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       required
@@ -2027,7 +1314,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.high_est}
+                      value={item.high_est}
                       onChange={(e) => handleInputChange('high_est', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       required
@@ -2042,7 +1329,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.start_price}
+                      value={item.start_price}
                       onChange={(e) => handleInputChange('start_price', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
@@ -2056,7 +1343,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.reserve}
+                      value={item.reserve}
                       onChange={(e) => handleInputChange('reserve', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
@@ -2074,7 +1361,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Category
                     </label>
                     <SearchableSelect
-                      value={formData.category}
+                      value={item.category}
                       options={[{ value: '', label: 'Select category...' }, ...categoryOptions]}
                       placeholder="Select category..."
                       onChange={(value) => handleInputChange('category', value?.toString() || '')}
@@ -2089,7 +1376,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                     </label>
                     <input
                       type="text"
-                      value={formData.subcategory}
+                      value={item.subcategory}
                       onChange={(e) => handleInputChange('subcategory', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="e.g., Oil Paintings, Watercolors"
@@ -2101,7 +1388,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       Condition
                     </label>
                     <SearchableSelect
-                      value={formData.condition}
+                      value={item.condition}
                       options={[{ value: '', label: 'Select condition...' }, ...conditionOptions]}
                       placeholder="Select condition..."
                       onChange={(value) => handleInputChange('condition', value?.toString() || '')}
@@ -2111,7 +1398,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   </div>
                 </div>
               </div>
-
 
               {/* New Dimensions with inch/cm conversion */}
               <div className="space-y-4">
@@ -2124,7 +1410,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.height_inches}
+                        value={item.height_inches}
                         onChange={(e) => {
                           handleInputChange('height_inches', e.target.value)
                           // Auto-convert to cm
@@ -2143,7 +1429,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.height_cm}
+                        value={item.height_cm}
                         onChange={(e) => {
                           handleInputChange('height_cm', e.target.value)
                           // Auto-convert to inches
@@ -2170,7 +1456,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.width_inches}
+                        value={item.width_inches}
                         onChange={(e) => {
                           handleInputChange('width_inches', e.target.value)
                           // Auto-convert to cm
@@ -2189,7 +1475,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.width_cm}
+                        value={item.width_cm}
                         onChange={(e) => {
                           handleInputChange('width_cm', e.target.value)
                           // Auto-convert to inches
@@ -2216,7 +1502,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.height_with_frame_inches}
+                        value={item.height_with_frame_inches}
                         onChange={(e) => {
                           handleInputChange('height_with_frame_inches', e.target.value)
                           // Auto-convert to cm
@@ -2235,7 +1521,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.height_with_frame_cm}
+                        value={item.height_with_frame_cm}
                         onChange={(e) => {
                           handleInputChange('height_with_frame_cm', e.target.value)
                           // Auto-convert to inches
@@ -2262,7 +1548,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Inches</label>
                       <input
                         type="text"
-                        value={formData.width_with_frame_inches}
+                        value={item.width_with_frame_inches}
                         onChange={(e) => {
                           handleInputChange('width_with_frame_inches', e.target.value)
                           // Auto-convert to cm
@@ -2281,7 +1567,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                       <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
                       <input
                         type="text"
-                        value={formData.width_with_frame_cm}
+                        value={item.width_with_frame_cm}
                         onChange={(e) => {
                           handleInputChange('width_with_frame_cm', e.target.value)
                           // Auto-convert to inches
@@ -2307,7 +1593,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   </label>
                   <input
                     type="text"
-                    value={formData.weight}
+                    value={item.weight}
                     onChange={(e) => handleInputChange('weight', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     placeholder="e.g., 2.5kg"
@@ -2321,14 +1607,12 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 </label>
                 <textarea
                   rows={3}
-                  value={formData.provenance}
+                  value={item.provenance}
                   onChange={(e) => handleInputChange('provenance', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="History and ownership details"
                 />
               </div>
-
-
             </div>
           )}
 
@@ -2400,9 +1684,9 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   <ImageUploadField
                     key={i}
                     label={`Image ${i + 1}`}
-                    value={formData.images[i] || ''}
+                    value={item.images[i] || ''}
                     onChange={(url, file) => handleImageChange(i, url, file)}
-                    itemId={itemId}
+                    itemId={item.id || ''}
                     imageIndex={i + 1}
                     required={i === 0} // First image is required
                   />
@@ -2422,8 +1706,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             </div>
           )}
 
-
-
           {/* Preview Tab */}
           {activeTab === 'preview' && (
             <div className="space-y-6">
@@ -2433,14 +1715,12 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   This is how your artwork information will appear when exported to auction platforms.
                 </p>
 
-
-
                 {/* Description Preview */}
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Description Preview:</h4>
                   <div
                     className="bg-white border border-gray-200 rounded-md p-4"
-                    key={`${formData.include_artist_description}-${formData.include_artist_key_description}-${formData.include_artist_biography}-${formData.include_artist_notable_works}-${formData.include_artist_major_exhibitions}-${formData.include_artist_awards_honors}-${formData.include_artist_market_value_range}-${formData.include_artist_signature_style}`}
+                    key={`${item.include_artist_description}-${item.include_artist_key_description}-${item.include_artist_biography}-${item.include_artist_notable_works}-${item.include_artist_major_exhibitions}-${item.include_artist_awards_honors}-${item.include_artist_market_value_range}-${item.include_artist_signature_style}`}
                   >
                     <div
                       className="text-gray-900 leading-relaxed"
@@ -2457,16 +1737,10 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• Description includes selected artist information</li>
                     <li>• Dimensions will be formatted appropriately for each platform</li>
-                    {formData.vendor_id && (
+                    {item.vendor_id && (
                       <li>• Vendor: {(() => {
-                        const client = clients.find(c => c.id?.toString() === formData.vendor_id)
-                        return client ? getClientDisplayName(client) : `ID: ${formData.vendor_id}`
-                      })()}</li>
-                    )}
-                    {formData.buyer_id && formData.status === 'sold' && (
-                      <li>• Buyer: {(() => {
-                        const client = clients.find(c => c.id?.toString() === formData.buyer_id)
-                        return client ? getClientDisplayName(client) : `ID: ${formData.buyer_id}`
+                        const artist = artists.find(a => a.id?.toString() === item.artist_id)
+                        return artist ? artist.name : `ID: ${item.artist_id}`
                       })()}</li>
                     )}
                   </ul>
@@ -2480,7 +1754,20 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             </div>
           )}
         </form>
+
+        {/* Submit Button */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="flex items-center px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {submitting ? 'Submitting...' : 'Submit for Review'}
+          </button>
+        </div>
       </div>
     </div>
   )
-} 
+}

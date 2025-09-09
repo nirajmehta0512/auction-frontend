@@ -155,8 +155,8 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
           condition: result.condition || '',
           category: result.category || '',
           status: 'draft' as const,
-          // Add the uploaded image from AI analysis
-          image_file_1: uploadedImageUrl || undefined
+          // Add the uploaded image from AI analysis as images array
+          images: uploadedImageUrl ? [uploadedImageUrl] : []
         }
 
         console.log('Artwork data to create:', artworkData) // Debug log
@@ -219,17 +219,8 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
         category: formData.category,
         subcategory: formData.subcategory,
         status: formData.status,
-        // Add uploaded images
-        image_file_1: uploadedImages[0] || undefined,
-        image_file_2: uploadedImages[1] || undefined,
-        image_file_3: uploadedImages[2] || undefined,
-        image_file_4: uploadedImages[3] || undefined,
-        image_file_5: uploadedImages[4] || undefined,
-        image_file_6: uploadedImages[5] || undefined,
-        image_file_7: uploadedImages[6] || undefined,
-        image_file_8: uploadedImages[7] || undefined,
-        image_file_9: uploadedImages[8] || undefined,
-        image_file_10: uploadedImages[9] || undefined
+        // Add uploaded images as images array
+        images: uploadedImages.filter(url => url && url.trim())
       }
 
       const result = await ArtworksAPI.createArtwork(artworkData)
@@ -350,17 +341,15 @@ export default function ArtworkCreationDialog({ artists, onSave, onCancel }: Art
                   </button>
                 </div>
               ))}
-              {uploadedImages.length < 10 && (
-                <ImageUploadField
-                  label=""
-                  value=""
-                  onChange={handleImageUpload}
-                  imageIndex={uploadedImages.length + 1}
-                />
-              )}
+              <ImageUploadField
+                label=""
+                value=""
+                onChange={handleImageUpload}
+                imageIndex={uploadedImages.length + 1}
+              />
             </div>
             <p className="text-sm text-gray-600">
-              Upload up to 10 images. First image will be used as the primary image.
+              Upload unlimited images. First image will be used as the primary image.
             </p>
           </div>
 

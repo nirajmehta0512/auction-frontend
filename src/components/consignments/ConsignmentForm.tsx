@@ -12,6 +12,7 @@ import type { Artist } from '@/lib/artists-api'
 import { X, UserPlus, ImageIcon } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 import ReceiptItemRow, { type ReceiptItem as ReceiptItemRowType } from '@/components/consignments/ReceiptItemRow'
 import { LoadScript, StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api'
 import ArtistForm from '@/components/artists/ArtistForm'
@@ -206,7 +207,6 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
     warehouse_with_whom: consignment?.warehouse_with_whom || '',
     warehouse_country: consignment?.warehouse_country || '',
     warehouse_city: consignment?.warehouse_city || '',
-    released_by_staff: (consignment as any)?.released_by_staff || ''
   })
 
   // Receipt items state - start with empty array to allow proper numbering
@@ -660,34 +660,6 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
             />
           </div>
 
-          <div>
-            <Label htmlFor="released_by_staff" className="block text-sm font-medium text-gray-700 mb-2">
-              By Staff
-            </Label>
-            <SearchableSelect
-              value={formData.released_by_staff || ''}
-              onChange={(value) => handleInputChange('released_by_staff', value || '')}
-              options={users.map((user) => ({
-                value: `${user.first_name} ${user.last_name}`,
-                label: `${user.first_name} ${user.last_name} (${user.role})`
-              }))}
-              placeholder="Type to search staff"
-              onSearch={async (query) => {
-                // Filter users based on search query
-                const filteredUsers = users.filter(user =>
-                  `${user.first_name} ${user.last_name}`.toLowerCase().includes(query.toLowerCase()) ||
-                  user.role.toLowerCase().includes(query.toLowerCase()) ||
-                  user.email.toLowerCase().includes(query.toLowerCase())
-                );
-                return filteredUsers.map((user) => ({
-                  value: `${user.first_name} ${user.last_name}`,
-                  label: `${user.first_name} ${user.last_name} (${user.role})`,
-                  description: user.email
-                }));
-              }}
-              enableDynamicSearch={true}
-            />
-          </div>
 
           <div>
             <Label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1194,25 +1166,13 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
 
                           {/* Artwork Image */}
                           <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                            {artwork.image_file_1 ? (
-                              <img
-                                src={artwork.image_file_1}
-                                alt={artwork.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const parent = target.parentElement;
-                                  if (parent) {
-                                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 7v10h16V7H4zm8 2l3 4H9l-2 3-2-3H6l3-4z"/></svg></div>';
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                <ImageIcon className="w-6 h-6" />
-                              </div>
-                            )}
+                            <MediaRenderer
+                              src={artwork.images?.[0] || ''}
+                              alt={artwork.title}
+                              aspectRatio="auto"
+                              showControls={false}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
 
                           <div className="flex-1 min-w-0">

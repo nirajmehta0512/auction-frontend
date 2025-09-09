@@ -19,16 +19,17 @@ import {
   type Artwork 
 } from '@/lib/items-api'
 import PDFGenerator from '@/components/consignments/PDFGenerator'
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Calendar, 
-  DollarSign, 
-  Package, 
-  FileText, 
+import MediaRenderer from '@/components/ui/MediaRenderer'
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Building2,
+  Calendar,
+  DollarSign,
+  Package,
+  FileText,
   Truck,
   Tag,
   Clock,
@@ -354,8 +355,15 @@ export default function ConsignmentViewPage() {
                           </button>
                         </PDFGenerator>
                         
+                        <Link href={`/consignments/presale/${consignmentId}`}>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <div className="font-medium">Pre-Sale Invoice</div>
+                            <div className="text-xs text-gray-500">Artworks going to auction</div>
+                          </button>
+                        </Link>
+
                         <PDFGenerator
-                          type="presale"
+                          type="public"
                           consignment={{
                             id: consignmentId,
                             consignment_number: consignment.id?.toString() || '',
@@ -371,16 +379,10 @@ export default function ConsignmentViewPage() {
                             id: client.id || 0
                           }}
                           items={items as any}
-                          saleDetails={{
-                            sale_name: 'Upcoming Auction',
-                            sale_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                            sale_location: 'Main Auction Room',
-                            viewing_dates: ['Two days prior to sale', 'Morning of sale']
-                          }}
                         >
-                          <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            <div className="font-medium">Pre-Sale Invoice</div>
-                            <div className="text-xs text-gray-500">Artworks going to auction</div>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-purple-700 hover:bg-purple-50">
+                            <div className="font-medium">Public Consignment PDF View</div>
+                            <div className="text-xs text-purple-600">Accessible to all users</div>
                           </button>
                         </PDFGenerator>
                       </>
@@ -679,49 +681,14 @@ export default function ConsignmentViewPage() {
                         <div className="flex justify-between items-start mb-3">
                           {/* Image section */}
                           <div className="flex-shrink-0 mr-4">
-                            {(() => {
-                              // Helper function to get proper image URL
-                              const getImageUrl = (imageFile: string | undefined) => {
-                                if (!imageFile) return null
-
-                                // If it's already a full URL, return as is
-                                if (imageFile.startsWith('http')) return imageFile
-
-                                // If it's a relative path, construct the full URL
-                                const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_API_URL || ''
-                                if (!baseUrl) return null // Don't construct URLs if no base URL is available
-
-                                if (imageFile.startsWith('/')) {
-                                  return `${baseUrl}${imageFile}`
-                                }
-
-                                // If it's just a filename, assume it's in the storage bucket
-                                return `${baseUrl}/storage/v1/object/public/artwork-images/${imageFile}`
-                              }
-                              
-                              const image1 = getImageUrl(item.image_file_1)
-                              
-                              if (image1) {
-                                return (
-                                  <img
-                                    src={image1}
-                                    alt={item.title}
-                                    className="w-24 h-24 object-cover rounded border"
-                                    onError={(e) => {
-                                      // Fallback for broken images
-                                      const target = e.target as HTMLImageElement
-                                      target.style.display = 'none'
-                                    }}
-                                  />
-                                )
-                              } else {
-                                return (
-                                  <div className="w-24 h-24 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                                    No Image
-                                  </div>
-                                )
-                              }
-                            })()}
+                            <MediaRenderer
+                              src={item.images?.[0] || ''}
+                              alt={item.title}
+                              className="w-24 h-24 object-cover rounded border cursor-pointer"
+                              aspectRatio="auto"
+                              showControls={false}
+                              onClick={() => router.push(`/preview/${item.id}`)}
+                            />
                           </div>
                           
                           <div className="flex-1">

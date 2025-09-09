@@ -2,7 +2,6 @@
 "use client"
 
 import React, { useState } from 'react'
-import ConsignmentPDFButtons from './ConsignmentPDFButtons'
 import { getBrandDetails, BrandCode } from '@/lib/brand-context'
 
 interface ConsignmentData {
@@ -54,7 +53,7 @@ interface ItemData {
 }
 
 interface PDFGeneratorProps {
-  type: 'consignment' | 'collection' | 'presale'
+  type: 'consignment' | 'collection' | 'presale' | 'public'
   consignment: ConsignmentData
   client: ClientData
   items: ItemData[]
@@ -69,77 +68,6 @@ interface PDFGeneratorProps {
   fileName?: string
 }
 
-// Utility function to filter items based on PDF type
-const filterItemsByType = (items: ItemData[], type: 'consignment' | 'collection' | 'presale'): ItemData[] => {
-  switch (type) {
-    case 'consignment':
-      // All items in the consignment
-      return items
-    case 'collection':
-      // Only returned items
-      return items
-      // return items.filter(item => item.status === 'returned')
-    case 'presale':
-      // Items going to auction (not sold, not returned, not withdrawn)
-      return items.filter(item => !['sold', 'returned', 'withdrawn'].includes(item.status))
-    default:
-      return items
-  }
-}
-
-// Transform items for different PDF types
-const transformItemsForConsignmentReceipt = (items: ItemData[]) => {
-  return items.map(item => ({
-    id: item.id,
-    lot_number: item.lot_number,
-    title: item.title,
-    description: item.description,
-    artist_name: item.artist_name,
-    school_name: item.school_name,
-    dimensions: item.dimensions,
-    condition: item.condition,
-    low_est: item.low_est,
-    high_est: item.high_est,
-    reserve: item.reserve,
-    vendor_commission: item.vendor_commission,
-    goods_received: true
-  }))
-}
-
-const transformItemsForCollectionReceipt = (items: ItemData[]) => {
-  return items.map(item => ({
-    id: item.id,
-    lot_number: item.lot_number,
-    title: item.title,
-    description: item.description,
-    artist_name: item.artist_name,
-    school_name: item.school_name,
-    dimensions: item.dimensions,
-    condition: item.condition,
-    return_reason: item.return_reason,
-    return_date: item.return_date || new Date().toISOString(),
-    location: item.location || 'A Store Shelf L3'
-  }))
-}
-
-const transformItemsForPreSaleInvoice = (items: ItemData[]) => {
-  return items.map(item => ({
-    id: item.id,
-    lot_number: item.lot_number || '',
-    title: item.title,
-    description: item.description,
-    artist_name: item.artist_name,
-    school_name: item.school_name,
-    dimensions: item.dimensions,
-    condition: item.condition,
-    low_est: item.low_est,
-    high_est: item.high_est,
-    reserve: item.reserve,
-    vendor_commission: item.vendor_commission,
-    auction_date: '',
-    sale_name: ''
-  }))
-}
 
 const PDFGenerator: React.FC<PDFGeneratorProps> = ({
   type,
@@ -155,17 +83,17 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault()
-    
+
     if (isGenerating) return
 
     setIsGenerating(true)
-    
+
     try {
       // Import the API functions dynamically
-      const { 
-        generateConsignmentReceiptPDF, 
-        generatePreSaleInvoicePDF, 
-        generateCollectionReceiptPDF 
+      const {
+        generateConsignmentReceiptPDF,
+        generatePreSaleInvoicePDF,
+        generateCollectionReceiptPDF
       } = await import('@/lib/consignment-pdf-api')
 
       switch (type) {
@@ -212,6 +140,11 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({
               collectionDate: new Date().toLocaleDateString('en-GB')
             }
           )
+          break
+
+        case 'public':
+          // For public view, redirect to the public page instead of downloading
+          window.open(`/public/consignment/${consignment.id}`, '_blank')
           break
 
         default:

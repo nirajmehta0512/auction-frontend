@@ -40,8 +40,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
       'height_with_frame_inches', 'width_with_frame_inches', 'height_with_frame_cm', 'width_with_frame_cm',
       'weight', 'materials', 'artist_maker', 'period_age', 'provenance',
       'artist_id', 'school_id', 'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
-      'restoration_done', 'restoration_by', 'image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5',
-      'image_file_6', 'image_file_7', 'image_file_8', 'image_file_9', 'image_file_10',
+      'restoration_done', 'restoration_by', 'images', // Unlimited images array
       'include_artist_description', 'include_artist_key_description', 'include_artist_biography', 'include_artist_notable_works',
       'include_artist_major_exhibitions', 'include_artist_awards_honors', 'include_artist_market_value_range', 'include_artist_signature_style',
       'created_at', 'updated_at'
