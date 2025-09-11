@@ -19,7 +19,6 @@ export default function PendingItemsTab() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [driveFolderUrl, setDriveFolderUrl] = useState('')
 
   const load = async () => {
     try {
@@ -46,7 +45,7 @@ export default function PendingItemsTab() {
       const res = await fetch(`${API_BASE_URL}/api/pending-items/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-        body: JSON.stringify({ drive_parent_folder_id_or_url: driveFolderUrl || undefined })
+        body: JSON.stringify({})
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Approve failed')
@@ -79,13 +78,11 @@ export default function PendingItemsTab() {
 
   return (
     <div className="h-full overflow-auto p-6">
-      <div className="flex items-end gap-3 mb-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Google Drive Parent Folder (optional)</label>
-          <input value={driveFolderUrl} onChange={(e)=>setDriveFolderUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/..." className="border rounded px-3 py-2 w-full" />
-          <p className="text-xs text-gray-500 mt-1">Approved items will be uploaded into a subfolder.</p>
-        </div>
-        <button onClick={load} className="px-3 py-2 border rounded">Refresh</button>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Pending Artwork Submissions</h2>
+        <button onClick={load} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Refresh
+        </button>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">{error}</div>}

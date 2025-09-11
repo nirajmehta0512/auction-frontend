@@ -3,19 +3,76 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
-import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
+import { generateStartPrice, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
 import ImageUploadField from '@/components/items/ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
 import { getApiBaseUrl } from '@/lib/google-sheets-api'
+import ClientInfoSection from '@/components/items/common/ClientInfoSection'
+import ArtistSchoolSelection from '@/components/items/common/ArtistSchoolSelection'
+import ArtworkDescriptionSection from '@/components/items/common/ArtworkDescriptionSection'
+import DimensionsSection from '@/components/items/common/DimensionsSection'
+import CertificationSection from '@/components/items/common/CertificationSection'
 
 interface ClientInfo {
+  client_id?: string // For existing client ID option
   first_name?: string
   last_name?: string
   email?: string
   phone?: string
   company_name?: string
+}
+
+interface ArtworkFormData {
+  id: string // temporary ID for form management
+  title: string
+  description: string
+  low_est: string
+  high_est: string
+  start_price: string
+  condition: string
+  reserve: string
+  category: string
+  subcategory: string
+  weight: string
+  materials: string
+  artist_id: string
+  school_id: string
+  period_age: string
+  provenance: string
+  artwork_subject: string
+  signature_placement: string
+  medium: string
+  include_artist_description: boolean
+  include_artist_key_description: boolean
+  include_artist_biography: boolean
+  include_artist_notable_works: boolean
+  include_artist_major_exhibitions: boolean
+  include_artist_awards_honors: boolean
+  include_artist_market_value_range: boolean
+  include_artist_signature_style: boolean
+  height_inches: string
+  width_inches: string
+  height_cm: string
+  width_cm: string
+  height_with_frame_inches: string
+  width_with_frame_inches: string
+  height_with_frame_cm: string
+  width_with_frame_cm: string
+  condition_report: string
+  gallery_certification: boolean
+  gallery_certification_file: string
+  gallery_id: string
+  artist_certification: boolean
+  artist_certification_file: string
+  certified_artist_id: string
+  artist_family_certification: boolean
+  artist_family_certification_file: string
+  restoration_done: boolean
+  restoration_done_file: string
+  restoration_by: string
+  images: string[]
 }
 
 interface PublicItemInput {
@@ -86,7 +143,7 @@ interface PublicItemInput {
   images: string[]
 }
 
-const initialItemData: PublicItemInput = {
+const createInitialArtworkData = (): ArtworkFormData => ({
   title: '',
   description: '',
   low_est: '',
@@ -94,7 +151,7 @@ const initialItemData: PublicItemInput = {
   start_price: '',
   condition: '',
   reserve: '',
-  consignment_id: '',
+  id: Math.random().toString(36).substr(2, 9),
   category: '',
   subcategory: '',
   height_inches: '',
@@ -135,28 +192,8 @@ const initialItemData: PublicItemInput = {
   restoration_done_file: '',
   restoration_by: '',
   images: []
-}
+})
 
-// Utility functions for dimension conversion
-const convertInchesToCm = (inchStr: string): string => {
-  // Parse dimensions like "24 x 36" or "24" x 36"" and convert to cm
-  const converted = inchStr.replace(/(\d+(?:\.\d+)?)\s*[\"']?\s*/g, (match, number) => {
-    const inches = parseFloat(number)
-    const cm = Math.round(inches * 2.54 * 10) / 10 // Round to 1 decimal place
-    return cm.toString()
-  })
-  return converted.replace(/x/g, 'x').replace(/"/g, '').replace(/'/g, '') + ' cm'
-}
-
-const convertCmToInches = (cmStr: string): string => {
-  // Parse dimensions like "61 x 91 cm" and convert to inches
-  const converted = cmStr.replace(/(\d+(?:\.\d+)?)\s*/g, (match, number) => {
-    const cm = parseFloat(number)
-    const inches = Math.round(cm / 2.54 * 10) / 10 // Round to 1 decimal place
-    return inches.toString()
-  })
-  return converted.replace(/cm/g, '').replace(/x/g, 'x').trim() + '"'
-}
 
 // Convert categories to SearchableOption format
 const categoryOptions = ITEM_CATEGORIES.map(category => ({
@@ -182,9 +219,9 @@ const materialOptions = ITEM_MATERIALS.map(material => ({
   label: material
 }))
 
-async function submitPublicInventory(payload: any) {
+async function submitPendingItems(payload: any) {
   const apiUrl = getApiBaseUrl()
-  const res = await fetch(`${apiUrl}/public/inventory/submit`, {
+  const res = await fetch(`${apiUrl}/public/pending-items/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -197,17 +234,21 @@ async function submitPublicInventory(payload: any) {
 export default function InventoryFormPage() {
   const [clientId, setClientId] = useState('')
   const [clientInfo, setClientInfo] = useState<ClientInfo>({})
-  const [item, setItem] = useState<PublicItemInput>(initialItemData)
+  const [artworks, setArtworks] = useState<ArtworkFormData[]>([createInitialArtworkData()])
+  const [activeArtworkIndex, setActiveArtworkIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('basic')
+  const [activeTab, setActiveTab] = useState('client')
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [artists, setArtists] = useState<Artist[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [loadingArtistsSchools, setLoadingArtistsSchools] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
   const [pendingCertificationFiles, setPendingCertificationFiles] = useState<Record<string, File>>({})
+
+  // Get current artwork being edited
+  const currentArtwork = artworks[activeArtworkIndex] || createInitialArtworkData()
 
   // Load artists and schools data
   useEffect(() => {
@@ -235,9 +276,32 @@ export default function InventoryFormPage() {
     loadArtistsSchools()
   }, [])
 
+  // Add new artwork
+  const addArtwork = () => {
+    const newArtwork = createInitialArtworkData()
+    setArtworks(prev => [...prev, newArtwork])
+    setActiveArtworkIndex(artworks.length)
+  }
+
+  // Remove artwork
+  const removeArtwork = (index: number) => {
+    if (artworks.length <= 1) return // Keep at least one artwork
+    setArtworks(prev => prev.filter((_, i) => i !== index))
+    if (activeArtworkIndex >= artworks.length - 1) {
+      setActiveArtworkIndex(Math.max(0, artworks.length - 2))
+    }
+  }
+
+  // Update current artwork
+  const updateCurrentArtwork = (field: keyof ArtworkFormData, value: string | boolean) => {
+    setArtworks(prev => prev.map((artwork, index) =>
+      index === activeArtworkIndex ? { ...artwork, [field]: value } : artwork
+    ))
+  }
+
   // Helper function to generate auto title format
-  const generateAutoTitle = (data?: PublicItemInput): string => {
-    const currentData = data || item
+  const generateAutoTitle = (data?: ArtworkFormData): string => {
+    const currentData = data || currentArtwork
     const parts: string[] = []
 
     // 1. Artist name with birth-death years in parentheses
@@ -291,49 +355,49 @@ export default function InventoryFormPage() {
     const parts: string[] = []
 
     // Title (always first)
-    const currentTitle = item.title || generateAutoTitle() || 'Untitled Artwork'
+    const currentTitle = currentArtwork.title || generateAutoTitle() || 'Untitled Artwork'
     parts.push(currentTitle)
 
     // Artwork description (double line break after title)
-    if (item.description?.trim()) {
-      parts.push(item.description.trim())
+    if (currentArtwork.description?.trim()) {
+      parts.push(currentArtwork.description.trim())
     }
 
     // Artist info (if checkboxes are selected)
-    if (item.artist_id) {
-      const artist = artists.find(a => a.id?.toString() === item.artist_id)
+    if (currentArtwork.artist_id) {
+      const artist = artists.find(a => a.id?.toString() === currentArtwork.artist_id)
       if (artist) {
         const artistParts: string[] = []
 
-        if (item.include_artist_description && artist.description) {
+        if (currentArtwork.include_artist_description && artist.description) {
           artistParts.push(artist.description)
         }
 
-        if (item.include_artist_key_description && artist.key_description) {
+        if (currentArtwork.include_artist_key_description && artist.key_description) {
           artistParts.push(artist.key_description)
         }
 
-        if (item.include_artist_biography && artist.biography) {
+        if (currentArtwork.include_artist_biography && artist.biography) {
           artistParts.push(artist.biography)
         }
 
-        if (item.include_artist_notable_works && artist.notable_works) {
+        if (currentArtwork.include_artist_notable_works && artist.notable_works) {
           artistParts.push(`Notable Works: ${artist.notable_works}`)
         }
 
-        if (item.include_artist_major_exhibitions && artist.exhibitions) {
+        if (currentArtwork.include_artist_major_exhibitions && artist.exhibitions) {
           artistParts.push(`Major Exhibitions: ${artist.exhibitions}`)
         }
 
-        if (item.include_artist_awards_honors && artist.awards) {
+        if (currentArtwork.include_artist_awards_honors && artist.awards) {
           artistParts.push(`Awards and Honors: ${artist.awards}`)
         }
 
-        if (item.include_artist_market_value_range && artist.market_value_range) {
+        if (currentArtwork.include_artist_market_value_range && artist.market_value_range) {
           artistParts.push(`Market Value Range: ${artist.market_value_range}`)
         }
 
-        if (item.include_artist_signature_style && artist.signature_style) {
+        if (currentArtwork.include_artist_signature_style && artist.signature_style) {
           artistParts.push(`Signature Style: ${artist.signature_style}`)
         }
 
@@ -345,15 +409,15 @@ export default function InventoryFormPage() {
     }
 
     // Dimensions (single line break before dimensions)
-    if (item.height_inches || item.width_inches || item.height_cm || item.width_cm) {
+    if (currentArtwork.height_inches || currentArtwork.width_inches || currentArtwork.height_cm || currentArtwork.width_cm) {
       let dimensionText = 'Dimensions: '
-      if (item.height_inches && item.width_inches) {
-        dimensionText += `${item.height_inches} × ${item.width_inches} inches`
-        if (item.height_cm && item.width_cm) {
-          dimensionText += ` (${item.height_cm} × ${item.width_cm} cm)`
+      if (currentArtwork.height_inches && currentArtwork.width_inches) {
+        dimensionText += `${currentArtwork.height_inches} × ${currentArtwork.width_inches} inches`
+        if (currentArtwork.height_cm && currentArtwork.width_cm) {
+          dimensionText += ` (${currentArtwork.height_cm} × ${currentArtwork.width_cm} cm)`
         }
-      } else if (item.height_cm && item.width_cm) {
-        dimensionText += `${item.height_cm} × ${item.width_cm} cm`
+      } else if (currentArtwork.height_cm && currentArtwork.width_cm) {
+        dimensionText += `${currentArtwork.height_cm} × ${currentArtwork.width_cm} cm`
       }
       parts.push(dimensionText)
     }
@@ -380,86 +444,69 @@ export default function InventoryFormPage() {
       return parts[0] || 'Untitled Artwork'
     }
   }, [
-    item.title,
-    item.description,
-    item.artist_id,
-    item.include_artist_description,
-    item.include_artist_key_description,
-    item.include_artist_biography,
-    item.include_artist_notable_works,
-    item.include_artist_major_exhibitions,
-    item.include_artist_awards_honors,
-    item.include_artist_market_value_range,
-    item.include_artist_signature_style,
-    item.height_inches,
-    item.width_inches,
-    item.height_cm,
-    item.width_cm,
-    artists
+    currentArtwork.title,
+    currentArtwork.description,
+    currentArtwork.artist_id,
+    currentArtwork.include_artist_description,
+    currentArtwork.include_artist_key_description,
+    currentArtwork.include_artist_biography,
+    currentArtwork.include_artist_notable_works,
+    currentArtwork.include_artist_major_exhibitions,
+    currentArtwork.include_artist_awards_honors,
+    currentArtwork.include_artist_market_value_range,
+    currentArtwork.include_artist_signature_style,
+    currentArtwork.height_inches,
+    currentArtwork.width_inches,
+    currentArtwork.height_cm,
+    currentArtwork.width_cm,
+    artists,
+    activeArtworkIndex
   ])
 
-  // Helper function to create artist options for SearchableSelect
-  const createArtistOptions = (): SearchableOption[] => {
-    return artists
-      .filter(artist => artist.id) // Ensure id exists
-      .map(artist => ({
-        value: artist.id!.toString(), // Ensure consistent string type
-        label: artist.name,
-        description: artist.birth_year && artist.death_year
-          ? `${artist.birth_year} - ${artist.death_year}`
-          : artist.birth_year
-            ? `Born ${artist.birth_year}`
-            : artist.nationality || ''
-      }))
-  }
 
-  // Helper function to create school options for SearchableSelect
-  const createSchoolOptions = (): SearchableOption[] => {
-    return schools
-      .filter(school => school.id) // Ensure id exists
-      .map(school => ({
-        value: school.id!.toString(), // Ensure consistent string type
-        label: school.name,
-        description: school.location || ''
-      }))
-  }
+  const handleInputChange = (field: string, value: string | boolean) => {
+    // Update the current artwork data first
+    const updatedArtwork = { ...currentArtwork, [field as keyof ArtworkFormData]: value }
+    setArtworks(prev => prev.map((artwork, index) =>
+      index === activeArtworkIndex ? updatedArtwork : artwork
+    ))
 
-  const handleInputChange = (field: keyof PublicItemInput, value: string | boolean) => {
-    // Update the item data first
-    setItem(prev => {
-      const updatedData = { ...prev, [field]: value }
+    // Auto-calculations for the updated artwork
+    const performAutoCalculations = (data: ArtworkFormData) => {
 
       // Auto-calculate with-frame dimensions when main dimensions change
       if (field === 'height_inches' || field === 'width_inches') {
-        const height = parseFloat(updatedData.height_inches)
-        const width = parseFloat(updatedData.width_inches)
+        const height = parseFloat(data.height_inches)
+        const width = parseFloat(data.width_inches)
 
         if (!isNaN(height) && !isNaN(width)) {
-          updatedData.height_with_frame_inches = (height + 2).toFixed(1)
-          updatedData.width_with_frame_inches = (width + 2).toFixed(1)
-          updatedData.height_with_frame_cm = (parseFloat(updatedData.height_with_frame_inches) * 2.54).toFixed(1)
-          updatedData.width_with_frame_cm = (parseFloat(updatedData.width_with_frame_inches) * 2.54).toFixed(1)
+          (data as any).height_with_frame_inches = (height + 2).toFixed(1);
+          (data as any).width_with_frame_inches = (width + 2).toFixed(1);
+          (data as any).height_with_frame_cm = (parseFloat((data as any).height_with_frame_inches) * 2.54).toFixed(1);
+          (data as any).width_with_frame_cm = (parseFloat((data as any).width_with_frame_inches) * 2.54).toFixed(1)
         }
       }
 
       // Auto-calculate with-frame dimensions when cm dimensions change
       if (field === 'height_cm' || field === 'width_cm') {
-        const heightCm = parseFloat(updatedData.height_cm)
-        const widthCm = parseFloat(updatedData.width_cm)
+        const heightCm = parseFloat(data.height_cm)
+        const widthCm = parseFloat(data.width_cm)
 
         if (!isNaN(heightCm) && !isNaN(widthCm)) {
           // Convert to inches, add 2 inches, convert back to cm
           const heightInInches = heightCm / 2.54
-          const widthInInches = widthCm / 2.54
-          updatedData.height_with_frame_inches = (heightInInches + 2).toFixed(1)
-          updatedData.width_with_frame_inches = (widthInInches + 2).toFixed(1)
-          updatedData.height_with_frame_cm = ((heightInInches + 2) * 2.54).toFixed(1)
-          updatedData.width_with_frame_cm = ((widthInInches + 2) * 2.54).toFixed(1)
+          const widthInInches = widthCm / 2.54;
+          (data as any).height_with_frame_inches = (heightInInches + 2).toFixed(1);
+          (data as any).width_with_frame_inches = (widthInInches + 2).toFixed(1);
+          (data as any).height_with_frame_cm = ((heightInInches + 2) * 2.54).toFixed(1);
+          (data as any).width_with_frame_cm = ((widthInInches + 2) * 2.54).toFixed(1)
         }
       }
 
-      return updatedData
-    })
+      return data
+    }
+
+    let finalArtwork = performAutoCalculations({ ...updatedArtwork })
 
     // Auto-calculate start price when low_est changes
     if (field === 'low_est' && typeof value === 'string' && value) {
@@ -467,11 +514,11 @@ export default function InventoryFormPage() {
       if (!isNaN(lowEst)) {
         const startPrice = generateStartPrice(lowEst)
         const reservePrice = startPrice // Reserve = start price
-        setItem(prev => ({
-          ...prev,
+        finalArtwork = {
+          ...finalArtwork,
           start_price: startPrice.toString(),
           reserve: reservePrice.toString()
-        }))
+        }
       }
     }
 
@@ -480,30 +527,25 @@ export default function InventoryFormPage() {
       const startPrice = parseFloat(value)
       if (!isNaN(startPrice)) {
         const reservePrice = startPrice // Reserve = start price
-        setItem(prev => ({ ...prev, reserve: reservePrice.toString() }))
+        finalArtwork = { ...finalArtwork, reserve: reservePrice.toString() }
       }
     }
 
     // Auto-generate title when related fields change
     if (['artist_id', 'artwork_subject', 'medium', 'signature_placement', 'period_age'].includes(field)) {
-      // Use setTimeout to ensure the state update is processed first
-      setTimeout(() => {
-        setItem(prev => {
-          // Create the updated data with the new value
-          const updatedData = { ...prev, [field]: value }
-
           // Use the centralized title generation function
-          const autoTitle = generateAutoTitle(updatedData)
+      const autoTitle = generateAutoTitle(finalArtwork)
 
           // Update title if we have meaningful content
           if (autoTitle && autoTitle !== 'Untitled') {
-            return { ...updatedData, title: autoTitle }
+        finalArtwork = { ...finalArtwork, [field as keyof ArtworkFormData]: value, title: autoTitle }
           }
-
-          return updatedData
-        })
-      }, 50) // Reduced delay for faster UI updates
     }
+
+    // Update the artworks array with the final calculated data
+    setArtworks(prev => prev.map((artwork, index) =>
+      index === activeArtworkIndex ? finalArtwork : artwork
+    ))
 
     // Clear validation errors when user starts typing
     setValidationErrors([])
@@ -511,23 +553,25 @@ export default function InventoryFormPage() {
 
   const handleImageChange = (index: number, url: string, file?: File) => {
     console.log('handleImageChange', index, url, file)
-    setItem(prev => {
-      const newImages = [...prev.images]
+    setArtworks(prev => prev.map((artwork, artworkIndex) => {
+      if (artworkIndex !== activeArtworkIndex) return artwork
+
+      const newImages = [...artwork.images]
       // Ensure array has enough slots
       while (newImages.length <= index) {
         newImages.push('')
       }
       newImages[index] = url
-      return { ...prev, images: newImages }
-    })
+      return { ...artwork, images: newImages }
+    }))
 
     if (file) {
-      setPendingImages(prev => ({ ...prev, [`image_${index}`]: file }))
+      setPendingImages(prev => ({ ...prev, [`artwork_${activeArtworkIndex}_image_${index}`]: file }))
     } else {
       // Remove from pending if it's just a URL
       setPendingImages(prev => {
         const updated = { ...prev }
-        delete updated[`image_${index}`]
+        delete updated[`artwork_${activeArtworkIndex}_image_${index}`]
         return updated
       })
     }
@@ -544,7 +588,7 @@ export default function InventoryFormPage() {
     const getNextAvailableSlots = (): number[] => {
       const availableSlots: number[] = []
       for (let i = 0; i < 10; i++) { // Allow up to 10 images for now (can be increased)
-        if (!item.images[i] || item.images[i] === '') {
+        if (!currentArtwork.images[i] || currentArtwork.images[i] === '') {
           availableSlots.push(i)
         }
       }
@@ -596,11 +640,12 @@ export default function InventoryFormPage() {
     // Create preview URL for the file
     const previewUrl = URL.createObjectURL(file)
 
-    // Update item data with preview URL
-    setItem(prev => ({
-      ...prev,
-      [certificationType]: previewUrl
-    }))
+    // Update current artwork data with preview URL
+    setArtworks(prev => prev.map((artwork, index) =>
+      index === activeArtworkIndex
+        ? { ...artwork, [certificationType]: previewUrl }
+        : artwork
+    ))
 
     // Store pending file
     setPendingCertificationFiles(prev => ({
@@ -609,99 +654,150 @@ export default function InventoryFormPage() {
     }))
   }
 
-  // Get count of filled image slots
+  // Get count of filled image slots for current artwork
   const getFilledSlotsCount = (): number => {
-    return item.images.filter(url => url && url.trim() !== '').length
+    return currentArtwork.images.filter(url => url && url.trim() !== '').length
   }
 
-  const validate = (): string[] => {
+  const validateAllArtworks = (): string[] => {
     const errs: string[] = []
-    if (!item.title.trim()) errs.push('Title is required')
-    if (!item.description.trim()) errs.push('Description is required')
-    const low = Number(item.low_est)
-    const high = Number(item.high_est)
-    if (!Number.isFinite(low) || low <= 0) errs.push('Low estimate must be > 0')
-    if (!Number.isFinite(high) || high <= 0) errs.push('High estimate must be > 0')
-    if (Number.isFinite(low) && Number.isFinite(high) && low >= high) errs.push('High estimate must be greater than low estimate')
+
+    // Validate client info - either client_id OR new client info is required
+    const hasClientId = clientId?.trim()
+    const hasClientInfo = clientInfo.first_name?.trim() && clientInfo.last_name?.trim() && clientInfo.email?.trim()
+
+    if (!hasClientId && !hasClientInfo) {
+      errs.push('Either provide an existing Client ID or fill out new client information')
+    }
+
+    if (!hasClientId) {
+      // Validate new client info if no client ID provided
+      if (!clientInfo.first_name?.trim()) errs.push('First name is required')
+      if (!clientInfo.last_name?.trim()) errs.push('Last name is required')
+      if (!clientInfo.email?.trim()) errs.push('Email is required')
+    }
+
+    // Validate each artwork
+    artworks.forEach((artwork, index) => {
+      const artworkLabel = `Inventory Item ${index + 1}`
+      if (!artwork.title.trim()) errs.push(`${artworkLabel}: Title is required`)
+      if (!artwork.description.trim()) errs.push(`${artworkLabel}: Description is required`)
+      const low = Number(artwork.low_est)
+      const high = Number(artwork.high_est)
+      if (!Number.isFinite(low) || low <= 0) errs.push(`${artworkLabel}: Low estimate must be > 0`)
+      if (!Number.isFinite(high) || high <= 0) errs.push(`${artworkLabel}: High estimate must be > 0`)
+      if (Number.isFinite(low) && Number.isFinite(high) && low >= high) {
+        errs.push(`${artworkLabel}: High estimate must be greater than low estimate`)
+      }
+    })
+
     return errs
   }
 
   const onSubmit = async () => {
     setError(null)
     setMessage(null)
-    const errs = validate()
-    if (errs.length > 0) { setError(errs[0]); return }
+    const errs = validateAllArtworks()
+    if (errs.length > 0) {
+      setValidationErrors(errs)
+      setError('Please fix the validation errors below')
+      return
+    }
     setSubmitting(true)
     try {
-      // Convert images to data URLs (base64)
-      const serializeImages = async (files: Record<string, File>): Promise<string[]> => {
+      // Convert images to data URLs (base64) for each artwork
+      const serializeArtworkImages = async (artworkIndex: number): Promise<string[]> => {
         const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
           const r = new FileReader()
           r.onload = () => resolve(String(r.result))
           r.onerror = () => reject(new Error('read error'))
           r.readAsDataURL(f)
         })
-        const arr: string[] = []
-        for (const f of Object.values(files).slice(0, 10)) arr.push(await toDataUrl(f))
-        return arr
+
+        const artworkImages: string[] = []
+        const artwork = artworks[artworkIndex]
+
+        for (let j = 0; j < Math.min(artwork.images.length, 10); j++) {
+          const imageKey = `artwork_${artworkIndex}_image_${j}`
+          if (pendingImages[imageKey]) {
+            artworkImages.push(await toDataUrl(pendingImages[imageKey]))
+          } else if (artwork.images[j]) {
+            artworkImages.push(artwork.images[j])
+          }
+        }
+
+        return artworkImages
       }
 
-      const payloadItem = {
-        title: item.title,
-        description: item.description,
-        low_est: Number(item.low_est),
-        high_est: Number(item.high_est),
-        start_price: item.start_price ? Number(item.start_price) : undefined,
-        condition: item.condition || undefined,
-        reserve: item.reserve ? Number(item.reserve) : undefined,
-        category: item.category || undefined,
-        subcategory: item.subcategory || undefined,
-        height_inches: item.height_inches || undefined,
-        width_inches: item.width_inches || undefined,
-        height_cm: item.height_cm || undefined,
-        width_cm: item.width_cm || undefined,
-        height_with_frame_inches: item.height_with_frame_inches || undefined,
-        width_with_frame_inches: item.width_with_frame_inches || undefined,
-        height_with_frame_cm: item.height_with_frame_cm || undefined,
-        width_with_frame_cm: item.width_with_frame_cm || undefined,
-        weight: item.weight || undefined,
-        materials: item.materials || undefined,
-        artist_id: item.artist_id ? Number(item.artist_id) : undefined,
-        school_id: item.school_id || undefined,
-        period_age: item.period_age || undefined,
-        provenance: item.provenance || undefined,
-        artwork_subject: item.artwork_subject || undefined,
-        signature_placement: item.signature_placement || undefined,
-        medium: item.medium || undefined,
-        include_artist_description: item.include_artist_description,
-        include_artist_key_description: item.include_artist_key_description,
-        include_artist_biography: item.include_artist_biography,
-        include_artist_notable_works: item.include_artist_notable_works,
-        include_artist_major_exhibitions: item.include_artist_major_exhibitions,
-        include_artist_awards_honors: item.include_artist_awards_honors,
-        include_artist_market_value_range: item.include_artist_market_value_range,
-        include_artist_signature_style: item.include_artist_signature_style,
-        condition_report: item.condition_report || undefined,
-        gallery_certification: item.gallery_certification,
-        gallery_id: item.gallery_id || undefined,
-        artist_certification: item.artist_certification,
-        certified_artist_id: item.certified_artist_id || undefined,
-        artist_family_certification: item.artist_family_certification,
-        restoration_done: item.restoration_done,
-        restoration_by: item.restoration_by || undefined,
-        images: Object.keys(pendingImages).length > 0 ? await serializeImages(pendingImages) : []
-      }
+      // Process all artworks
+      const payloadItems = await Promise.all(
+        artworks.map(async (artwork, index) => {
+          const images = await serializeArtworkImages(index)
+
+          return {
+            title: artwork.title,
+            description: artwork.description,
+            low_est: Number(artwork.low_est),
+            high_est: Number(artwork.high_est),
+            start_price: artwork.start_price ? Number(artwork.start_price) : undefined,
+            condition: artwork.condition || undefined,
+            reserve: artwork.reserve ? Number(artwork.reserve) : undefined,
+            category: artwork.category || undefined,
+            subcategory: artwork.subcategory || undefined,
+            height_inches: artwork.height_inches || undefined,
+            width_inches: artwork.width_inches || undefined,
+            height_cm: artwork.height_cm || undefined,
+            width_cm: artwork.width_cm || undefined,
+            height_with_frame_inches: artwork.height_with_frame_inches || undefined,
+            width_with_frame_inches: artwork.width_with_frame_inches || undefined,
+            height_with_frame_cm: artwork.height_with_frame_cm || undefined,
+            width_with_frame_cm: artwork.width_with_frame_cm || undefined,
+            weight: artwork.weight || undefined,
+            materials: artwork.materials || undefined,
+            artist_id: artwork.artist_id ? Number(artwork.artist_id) : undefined,
+            school_id: artwork.school_id || undefined,
+            period_age: artwork.period_age || undefined,
+            provenance: artwork.provenance || undefined,
+            artwork_subject: artwork.artwork_subject || undefined,
+            signature_placement: artwork.signature_placement || undefined,
+            medium: artwork.medium || undefined,
+            include_artist_description: artwork.include_artist_description,
+            include_artist_key_description: artwork.include_artist_key_description,
+            include_artist_biography: artwork.include_artist_biography,
+            include_artist_notable_works: artwork.include_artist_notable_works,
+            include_artist_major_exhibitions: artwork.include_artist_major_exhibitions,
+            include_artist_awards_honors: artwork.include_artist_awards_honors,
+            include_artist_market_value_range: artwork.include_artist_market_value_range,
+            include_artist_signature_style: artwork.include_artist_signature_style,
+            condition_report: artwork.condition_report || undefined,
+            gallery_certification: artwork.gallery_certification,
+            gallery_id: artwork.gallery_id || undefined,
+            artist_certification: artwork.artist_certification,
+            certified_artist_id: artwork.certified_artist_id || undefined,
+            artist_family_certification: artwork.artist_family_certification,
+            restoration_done: artwork.restoration_done,
+            restoration_by: artwork.restoration_by || undefined,
+            images
+          }
+        })
+      )
 
       const payload = {
-        client_id: clientId || undefined,
-        client_info: clientId ? undefined : clientInfo,
-        items: [payloadItem],
+        client_id: clientId?.trim() || undefined,
+        client_info: clientId?.trim() ? undefined : clientInfo,
+        items: payloadItems,
       }
-      const resp = await submitPublicInventory(payload)
+      const resp = await submitPendingItems(payload)
       setMessage(`Submitted successfully. Reference: ${resp.submission_token}`)
-      setItem(initialItemData)
+
+      // Reset form
+      setArtworks([createInitialArtworkData()])
+      setActiveArtworkIndex(0)
+      setClientId('')
+      setClientInfo({})
       setPendingImages({})
       setPendingCertificationFiles({})
+      setValidationErrors([])
     } catch (e: any) {
       setError(e.message || 'Submission failed')
     } finally {
@@ -710,6 +806,7 @@ export default function InventoryFormPage() {
   }
 
   const tabs = [
+    { id: 'client', label: 'Your Info', icon: '👤' },
     { id: 'basic', label: 'Basic Info', icon: '📝' },
     { id: 'details', label: 'Details', icon: '🔍' },
     { id: 'images', label: 'Images', icon: '🖼️' },
@@ -723,37 +820,48 @@ export default function InventoryFormPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Inventory Submission</h1>
-              <p className="text-gray-600">Submit artworks for review. We'll contact you after approval.</p>
+              <p className="text-gray-600">Submit multiple inventory items for review. We'll contact you after approval.</p>
             </div>
+          </div>
+
+          {/* Artwork Tabs */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Inventory Items ({artworks.length})</h3>
             <button
-              onClick={() => window.history.back()}
-              className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900"
+                onClick={addArtwork}
+                className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 active:bg-teal-800 active:scale-95 hover:shadow-lg hover:shadow-teal-500/25 transition-all duration-200 shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back
+                <Plus className="h-4 w-4 mr-1 transition-transform duration-200 active:scale-110" />
+                Add Inventory
             </button>
           </div>
-
-          {/* Client Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Existing Client ID (optional)</label>
-            <input value={clientId} onChange={e => setClientId(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="123 or MET-123" />
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+              {artworks.map((artwork, index) => (
+                <div key={artwork.id} className="flex items-center">
+                  <button
+                    onClick={() => setActiveArtworkIndex(index)}
+                    className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${activeArtworkIndex === index
+                        ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 active:scale-95 shadow-md hover:shadow-lg hover:shadow-teal-500/25 focus:ring-teal-500'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 active:scale-95 hover:shadow-md focus:ring-gray-500'
+                      }`}
+                  >
+                    Inventory {index + 1}
+                    {artwork.title && `: ${artwork.title.substring(0, 20)}${artwork.title.length > 20 ? '...' : ''}`}
+                  </button>
+                  {artworks.length > 1 && (
+                    <button
+                      onClick={() => removeArtwork(index)}
+                      className="ml-1 p-2 text-red-600 hover:bg-red-50 active:bg-red-100 active:scale-90 hover:text-red-700 rounded-md transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      title="Remove this inventory item"
+                    >
+                      <X className="h-4 w-4 transition-transform duration-200 active:rotate-90" />
+                    </button>
+                  )}
           </div>
+              ))}
         </div>
-
-        {!clientId && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Your Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input placeholder="First Name" className="border rounded px-3 py-2" value={clientInfo.first_name||''} onChange={e=>setClientInfo({...clientInfo, first_name:e.target.value})} />
-              <input placeholder="Last Name" className="border rounded px-3 py-2" value={clientInfo.last_name||''} onChange={e=>setClientInfo({...clientInfo, last_name:e.target.value})} />
-              <input placeholder="Email" className="border rounded px-3 py-2" value={clientInfo.email||''} onChange={e=>setClientInfo({...clientInfo, email:e.target.value})} />
-              <input placeholder="Phone" className="border rounded px-3 py-2" value={clientInfo.phone||''} onChange={e=>setClientInfo({...clientInfo, phone:e.target.value})} />
-              <input placeholder="Company (optional)" className="border rounded px-3 py-2 md:col-span-2" value={clientInfo.company_name||''} onChange={e=>setClientInfo({...clientInfo, company_name:e.target.value})} />
             </div>
-          </div>
-        )}
 
           {/* Error and Message Display */}
           {error && (
@@ -783,9 +891,9 @@ export default function InventoryFormPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
-                  ? 'border-teal-500 text-teal-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-200 active:scale-95 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${activeTab === tab.id
+                  ? 'border-teal-500 text-teal-600 focus:ring-teal-500'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:ring-gray-500'
                   }`}
               >
                 <span className="mr-2">{tab.icon}</span>
@@ -796,490 +904,78 @@ export default function InventoryFormPage() {
         </div>
 
         <form className="p-6">
+          {/* Client Info Tab */}
+          {activeTab === 'client' && (
+        <div className="space-y-6">
+              <ClientInfoSection
+                clientId={clientId}
+                clientInfo={clientInfo}
+                onClientIdChange={setClientId}
+                onClientInfoChange={setClientInfo}
+                isPublicForm={true}
+              />
+              </div>
+          )}
+
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
-        <div className="space-y-6">
+            <div className="space-y-6">
               {/* Artist/School Selection */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-green-900 mb-4">Artist/School & Medium Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Artist
-                    </label>
-                    <SearchableSelect
-                      value={item.artist_id}
-                      options={artists.length > 0 ? createArtistOptions() : []}
-                      placeholder={loadingArtistsSchools ? "Loading artists..." : "Select artist..."}
-                      onChange={(value) => {
-                        console.log('Artist selected:', value, 'Current value:', item.artist_id)
-                        const artistId = value?.toString() || ''
-                        console.log('Setting artist_id to:', artistId)
-                        handleInputChange('artist_id', artistId)
-                        // Clear school selection when artist is selected
-                        if (artistId) {
-                          handleInputChange('school_id', '')
-                        }
-                      }}
-                      disabled={loadingArtistsSchools || artists.length === 0}
-                      inputPlaceholder="Search artists..."
-                    />
-                    {loadingArtistsSchools && (
-                      <p className="text-xs text-gray-500 mt-1">Loading artists...</p>
-                    )}
-                    {item.artist_id && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Selected: {(() => {
-                          const artist = artists.find(a => a.id?.toString() === item.artist_id)
-                          return artist ? artist.name : `ID: ${item.artist_id} (not found)`
-                        })()}
-                      </p>
-                )}
-              </div>
+              <ArtistSchoolSelection
+                artistId={currentArtwork.artist_id}
+                schoolId={currentArtwork.school_id}
+                artworkSubject={currentArtwork.artwork_subject}
+                signaturePlacement={currentArtwork.signature_placement}
+                medium={currentArtwork.medium}
+                periodAge={currentArtwork.period_age}
+                artists={artists}
+                schools={schools}
+                loadingArtistsSchools={loadingArtistsSchools}
+                materialOptions={materialOptions}
+                periodOptions={periodOptions}
+                onFieldChange={handleInputChange}
+                uniqueIdPrefix={`artwork_${activeArtworkIndex}_`}
+              />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      School (if no specific artist)
-                    </label>
-                    <SearchableSelect
-                      value={item.school_id}
-                      options={schools.length > 0 ? createSchoolOptions() : []}
-                      placeholder={loadingArtistsSchools ? "Loading schools..." : "Select school..."}
-                      onChange={(value) => {
-                        const schoolId = value?.toString() || ''
-                        handleInputChange('school_id', schoolId)
-                        // Clear artist selection when school is selected
-                        if (schoolId) {
-                          handleInputChange('artist_id', '')
-                        }
-                      }}
-                      disabled={loadingArtistsSchools || schools.length === 0}
-                      inputPlaceholder="Search schools..."
-                    />
-                    {loadingArtistsSchools && (
-                      <p className="text-xs text-gray-500 mt-1">Loading schools...</p>
-                    )}
-                  </div>
+              {/* Title and Description */}
+              <ArtworkDescriptionSection
+                title={currentArtwork.title}
+                description={currentArtwork.description}
+                artistId={currentArtwork.artist_id}
+                artists={artists}
+                includeArtistDescription={currentArtwork.include_artist_description}
+                includeArtistKeyDescription={currentArtwork.include_artist_key_description}
+                includeArtistBiography={currentArtwork.include_artist_biography}
+                includeArtistNotableWorks={currentArtwork.include_artist_notable_works}
+                includeArtistMajorExhibitions={currentArtwork.include_artist_major_exhibitions}
+                includeArtistAwardsHonors={currentArtwork.include_artist_awards_honors}
+                includeArtistMarketValueRange={currentArtwork.include_artist_market_value_range}
+                includeArtistSignatureStyle={currentArtwork.include_artist_signature_style}
+                conditionReport={currentArtwork.condition_report}
+                onFieldChange={handleInputChange}
+                uniqueIdPrefix={`artwork_${activeArtworkIndex}_`}
+              />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Medium/Materials
-                    </label>
-                    <SearchableSelect
-                      value={item.medium}
-                      options={[{ value: '', label: 'Select material...' }, ...materialOptions]}
-                      placeholder="Select material..."
-                      onChange={(value) => handleInputChange('medium', value?.toString() || '')}
-                      className="w-full"
-                      inputPlaceholder="Type to search materials..."
+              {/* Certification Section */}
+              <CertificationSection
+                galleryCertification={currentArtwork.gallery_certification}
+                galleryCertificationFile={currentArtwork.gallery_certification_file}
+                galleryId={currentArtwork.gallery_id}
+                artistCertification={currentArtwork.artist_certification}
+                artistCertificationFile={currentArtwork.artist_certification_file}
+                certifiedArtistId={currentArtwork.certified_artist_id}
+                artistFamilyCertification={currentArtwork.artist_family_certification}
+                artistFamilyCertificationFile={currentArtwork.artist_family_certification_file}
+                restorationDone={currentArtwork.restoration_done}
+                restorationDoneFile={currentArtwork.restoration_done_file}
+                restorationBy={currentArtwork.restoration_by}
+                onFieldChange={handleInputChange}
+                onCertificationFileUpload={handleCertificationFileUpload}
+                uniqueIdPrefix={`artwork_${activeArtworkIndex}_`}
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Artwork Subject
-                    </label>
-                    <input
-                      type="text"
-                      value={item.artwork_subject}
-                      onChange={(e) => handleInputChange('artwork_subject', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., Portrait, Landscape, Abstract composition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Signature Placement
-                    </label>
-                    <input
-                      type="text"
-                      value={item.signature_placement}
-                      onChange={(e) => handleInputChange('signature_placement', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., Lower right, Verso, Not visible"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Period/Age
-                    </label>
-                    <SearchableSelect
-                      value={item.period_age}
-                      options={[{ value: '', label: 'Select period...' }, ...periodOptions]}
-                      placeholder="Select period..."
-                      onChange={(value) => handleInputChange('period_age', value?.toString() || '')}
-                      className="w-full"
-                      inputPlaceholder="Type to search periods..."
-                    />
-                  </div>
-                </div>
-
-                {item.artist_id && item.school_id && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
-                    <p className="text-yellow-800 text-sm">
-                      ⚠️ Both artist and school are selected. Only one will be saved.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title * <span className="text-xs text-gray-500">(max 200 chars for LiveAuctioneers)</span>
-                </label>
-                <input
-                  type="text"
-                  maxLength={200}
-                  value={item.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  required
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  {item.title.length}/200 characters
-                </div>
-              </div>
-
-              {/* Description Section with AI and Artist Info Options */}
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-purple-900 mb-4">Artwork Description & Export Options</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Artwork Description *
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={item.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                    placeholder="Enter detailed description of the artwork..."
-                  />
-                </div>
-
-                {/* Artist Information Options for Export */}
-                {item.artist_id && (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">
-                      Include Artist Information in Export Description:
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_description"
-                          checked={item.include_artist_description}
-                          onChange={(e) => handleInputChange('include_artist_description', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_description" className="text-sm text-gray-700">
-                          Include Artist Description <span className="text-xs text-green-600">(default on)</span>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_key_description"
-                          checked={item.include_artist_key_description}
-                          onChange={(e) => handleInputChange('include_artist_key_description', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_key_description" className="text-sm text-gray-700">
-                          Include Artist Key Description <span className="text-xs text-green-600">(default on)</span>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_biography"
-                          checked={item.include_artist_biography}
-                          onChange={(e) => handleInputChange('include_artist_biography', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_biography" className="text-sm text-gray-700">
-                          Include Biography
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_notable_works"
-                          checked={item.include_artist_notable_works}
-                          onChange={(e) => handleInputChange('include_artist_notable_works', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_notable_works" className="text-sm text-gray-700">
-                          Include Notable Works
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_major_exhibitions"
-                          checked={item.include_artist_major_exhibitions}
-                          onChange={(e) => handleInputChange('include_artist_major_exhibitions', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_major_exhibitions" className="text-sm text-gray-700">
-                          Include Major Exhibitions
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_awards_honors"
-                          checked={item.include_artist_awards_honors}
-                          onChange={(e) => handleInputChange('include_artist_awards_honors', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_awards_honors" className="text-sm text-gray-700">
-                          Include Awards and Honors
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_market_value_range"
-                          checked={item.include_artist_market_value_range}
-                          onChange={(e) => handleInputChange('include_artist_market_value_range', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_market_value_range" className="text-sm text-gray-700">
-                          Include Market Value Range
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_signature_style"
-                          checked={item.include_artist_signature_style}
-                          onChange={(e) => handleInputChange('include_artist_signature_style', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_signature_style" className="text-sm text-gray-700">
-                          Include Signature Style
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-purple-600">
-                      ℹ️ These options control what artist information appears in the exported description for auction platforms and CSV exports.
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* New Certification Fields */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Condition Report
-                </label>
-                <textarea
-                  rows={3}
-                  value={item.condition_report}
-                  onChange={(e) => handleInputChange('condition_report', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Detailed condition report..."
-                />
-              </div>
-
-              <div className="space-y-4">
-                {/* Gallery Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="gallery_certification"
-                      checked={item.gallery_certification}
-                      onChange={(e) => handleInputChange('gallery_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="gallery_certification" className="text-sm font-medium text-gray-700">
-                      Gallery Certification
-                    </label>
-                  </div>
-                  {item.gallery_certification && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
-                        <input
-                          type="text"
-                          value={item.gallery_id}
-                          onChange={(e) => handleInputChange('gallery_id', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Gallery name"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('gallery_certification_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {item.gallery_certification_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Artist Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="artist_certification"
-                      checked={item.artist_certification}
-                      onChange={(e) => handleInputChange('artist_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="artist_certification" className="text-sm font-medium text-gray-700">
-                      Artist Certification
-                    </label>
-                  </div>
-                  {item.artist_certification && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Which Artist?</label>
-                        <input
-                          type="text"
-                          value={item.certified_artist_id}
-                          onChange={(e) => handleInputChange('certified_artist_id', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Artist name for certification"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('artist_certification_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {item.artist_certification_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Artist Family Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="artist_family_certification"
-                      checked={item.artist_family_certification}
-                      onChange={(e) => handleInputChange('artist_family_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="artist_family_certification" className="text-sm font-medium text-gray-700">
-                      Artist Family Certification
-                    </label>
-                  </div>
-                  {item.artist_family_certification && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleCertificationFileUpload('artist_family_certification_file', file)
-                          }
-                        }}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {item.artist_family_certification_file && (
-                        <div className="mt-2 text-xs text-green-600">
-                          ✓ File uploaded
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Restoration */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="restoration_done"
-                      checked={item.restoration_done}
-                      onChange={(e) => handleInputChange('restoration_done', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="restoration_done" className="text-sm font-medium text-gray-700">
-                      Restoration Done
-                    </label>
-                  </div>
-                  {item.restoration_done && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Done by (Person/Company)</label>
-                        <input
-                          type="text"
-                          value={item.restoration_by}
-                          onChange={(e) => handleInputChange('restoration_by', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Name of person or company who did the restoration"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Restoration Documentation (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('restoration_done_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {item.restoration_done_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           )}
+
 
           {/* Details Tab */}
           {activeTab === 'details' && (
@@ -1297,7 +993,7 @@ export default function InventoryFormPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.low_est}
+                      value={currentArtwork.low_est}
                       onChange={(e) => handleInputChange('low_est', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       required
@@ -1312,7 +1008,7 @@ export default function InventoryFormPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.high_est}
+                      value={currentArtwork.high_est}
                       onChange={(e) => handleInputChange('high_est', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       required
@@ -1327,7 +1023,7 @@ export default function InventoryFormPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.start_price}
+                      value={currentArtwork.start_price}
                       onChange={(e) => handleInputChange('start_price', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
@@ -1341,7 +1037,7 @@ export default function InventoryFormPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.reserve}
+                      value={currentArtwork.reserve}
                       onChange={(e) => handleInputChange('reserve', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
@@ -1359,7 +1055,7 @@ export default function InventoryFormPage() {
                       Category
                     </label>
                     <SearchableSelect
-                      value={item.category}
+                      value={currentArtwork.category}
                       options={[{ value: '', label: 'Select category...' }, ...categoryOptions]}
                       placeholder="Select category..."
                       onChange={(value) => handleInputChange('category', value?.toString() || '')}
@@ -1374,7 +1070,7 @@ export default function InventoryFormPage() {
                     </label>
                     <input
                       type="text"
-                      value={item.subcategory}
+                      value={currentArtwork.subcategory}
                       onChange={(e) => handleInputChange('subcategory', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="e.g., Oil Paintings, Watercolors"
@@ -1386,7 +1082,7 @@ export default function InventoryFormPage() {
                       Condition
                     </label>
                     <SearchableSelect
-                      value={item.condition}
+                      value={currentArtwork.condition}
                       options={[{ value: '', label: 'Select condition...' }, ...conditionOptions]}
                       placeholder="Select condition..."
                       onChange={(value) => handleInputChange('condition', value?.toString() || '')}
@@ -1397,207 +1093,19 @@ export default function InventoryFormPage() {
                 </div>
               </div>
 
-              {/* New Dimensions with inch/cm conversion */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dimensions
-                  </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={item.height_inches}
-                        onChange={(e) => {
-                          handleInputChange('height_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('height_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 24"'
-                      />
-                </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={item.height_cm}
-                        onChange={(e) => {
-                          handleInputChange('height_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('height_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 61 x 91 cm"
-                      />
-                        </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Width
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={item.width_inches}
-                        onChange={(e) => {
-                          handleInputChange('width_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('width_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 36"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={item.width_cm}
-                        onChange={(e) => {
-                          handleInputChange('width_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('width_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 91 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dimensions with Frame
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={item.height_with_frame_inches}
-                        onChange={(e) => {
-                          handleInputChange('height_with_frame_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('height_with_frame_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 26" x 38"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={item.height_with_frame_cm}
-                        onChange={(e) => {
-                          handleInputChange('height_with_frame_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('height_with_frame_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 66 x 97 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Width with Frame
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={item.width_with_frame_inches}
-                        onChange={(e) => {
-                          handleInputChange('width_with_frame_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('width_with_frame_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 38"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={item.width_with_frame_cm}
-                        onChange={(e) => {
-                          handleInputChange('width_with_frame_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('width_with_frame_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 97 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Weight
-                  </label>
-                  <input
-                    type="text"
-                    value={item.weight}
-                    onChange={(e) => handleInputChange('weight', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="e.g., 2.5kg"
-                  />
-                </div>
-              </div>
+              {/* Dimensions Section */}
+              <DimensionsSection
+                heightInches={currentArtwork.height_inches}
+                widthInches={currentArtwork.width_inches}
+                heightCm={currentArtwork.height_cm}
+                widthCm={currentArtwork.width_cm}
+                heightWithFrameInches={currentArtwork.height_with_frame_inches}
+                widthWithFrameInches={currentArtwork.width_with_frame_inches}
+                heightWithFrameCm={currentArtwork.height_with_frame_cm}
+                widthWithFrameCm={currentArtwork.width_with_frame_cm}
+                weight={currentArtwork.weight}
+                onFieldChange={handleInputChange}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1605,7 +1113,7 @@ export default function InventoryFormPage() {
                 </label>
                 <textarea
                   rows={3}
-                  value={item.provenance}
+                  value={currentArtwork.provenance}
                   onChange={(e) => handleInputChange('provenance', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="History and ownership details"
@@ -1655,7 +1163,7 @@ export default function InventoryFormPage() {
                           const input = document.getElementById('bulk-upload-additional') as HTMLInputElement
                           if (input) input.click()
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors border border-blue-300"
+                        className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 border border-blue-300 hover:border-blue-400 hover:shadow-sm"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add More Images ({10 - getFilledSlotsCount()} slots available)
@@ -1680,9 +1188,9 @@ export default function InventoryFormPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Array.from({ length: 10 }, (_, i) => (
                   <ImageUploadField
-                    key={i}
+                    key={`${activeArtworkIndex}_${i}`}
                     label={`Image ${i + 1}`}
-                    value={item.images[i] || ''}
+                    value={currentArtwork.images[i] || ''}
                     onChange={(url, file) => handleImageChange(i, url, file)}
                     itemId={undefined}
                     imageIndex={i + 1}
@@ -1718,7 +1226,7 @@ export default function InventoryFormPage() {
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Description Preview:</h4>
                   <div
                     className="bg-white border border-gray-200 rounded-md p-4"
-                    key={`${item.include_artist_description}-${item.include_artist_key_description}-${item.include_artist_biography}-${item.include_artist_notable_works}-${item.include_artist_major_exhibitions}-${item.include_artist_awards_honors}-${item.include_artist_market_value_range}-${item.include_artist_signature_style}`}
+                    key={`${currentArtwork.include_artist_description}-${currentArtwork.include_artist_key_description}-${currentArtwork.include_artist_biography}-${currentArtwork.include_artist_notable_works}-${currentArtwork.include_artist_major_exhibitions}-${currentArtwork.include_artist_awards_honors}-${currentArtwork.include_artist_market_value_range}-${currentArtwork.include_artist_signature_style}`}
                   >
                     <div
                       className="text-gray-900 leading-relaxed"
@@ -1735,10 +1243,10 @@ export default function InventoryFormPage() {
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• Description includes selected artist information</li>
                     <li>• Dimensions will be formatted appropriately for each platform</li>
-                    {item.artist_id && (
+                    {currentArtwork.artist_id && (
                       <li>• Artist: {(() => {
-                        const artist = artists.find(a => a.id?.toString() === item.artist_id)
-                        return artist ? artist.name : `ID: ${item.artist_id}`
+                        const artist = artists.find(a => a.id?.toString() === currentArtwork.artist_id)
+                        return artist ? artist.name : `ID: ${currentArtwork.artist_id}`
                       })()}</li>
                     )}
                   </ul>
@@ -1759,9 +1267,9 @@ export default function InventoryFormPage() {
             type="button"
             onClick={onSubmit}
             disabled={submitting}
-            className="flex items-center px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
+            className={`flex items-center px-8 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-teal-600 disabled:hover:shadow-sm disabled:hover:-translate-y-0 transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-teal-500/25 active:bg-teal-800 active:scale-95 hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${submitting ? 'animate-pulse' : ''}`}
           >
-            <Save className="h-4 w-4 mr-2" />
+            <Save className={`h-5 w-5 mr-2 transition-transform duration-200 ${submitting ? 'animate-spin' : 'active:scale-110'}`} />
             {submitting ? 'Submitting...' : 'Submit for Review'}
           </button>
         </div>
@@ -1769,3 +1277,4 @@ export default function InventoryFormPage() {
     </div>
   )
 }
+

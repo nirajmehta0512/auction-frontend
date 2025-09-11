@@ -80,10 +80,12 @@ export interface Artwork {
   // Audit fields
   created_at?: string;
   updated_at?: string;
+  date_sold?: string;
 
-  // Brand field (for multi-tenant support)
+  // Brand fields (for multi-tenant support)
   brand_id?: number;
   brand_name?: string;
+  brand_code?: string;
 
   // Brand relation (when included from API)
   brands?: {
@@ -303,12 +305,14 @@ export class ArtworksAPI {
   }
 
   // Export items to CSV by platform
-  static async exportCSV(params: { 
-    auction_id?: string; 
-    status?: string; 
+  static async exportCSV(params: {
+    auction_id?: string;
+    status?: string;
     category?: string;
     platform?: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom';
     item_ids?: string[];
+    brand_code?: string;
+    include_all_fields?: boolean;
   } = {}): Promise<void> {
     const queryParams = new URLSearchParams();
     
@@ -434,7 +438,8 @@ export class ArtworksAPI {
   static async uploadCSV(
     csvData: string,
     platform: 'database' | 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' = 'database',
-    driveFolderUrl?: string
+    driveFolderUrl?: string,
+    options?: { brand_code?: string; include_all_fields?: boolean }
   ): Promise<{
     success: boolean;
     message?: string;
@@ -457,7 +462,9 @@ export class ArtworksAPI {
         csvData,
         validateOnly: false,
         platform,
-        drive_folder_url: driveFolderUrl
+        drive_folder_url: driveFolderUrl,
+        ...(options?.brand_code && { brand_code: options.brand_code }),
+        ...(options?.include_all_fields && { include_all_fields: options.include_all_fields })
       }),
     });
 

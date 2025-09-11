@@ -17,6 +17,10 @@ import UsersAPI, { User } from '@/lib/users-api'
 import ImageUploadField from './ImageUploadField'
 import SearchableSelect, { SearchableOption } from '@/components/ui/SearchableSelect'
 import { createClient } from '@/lib/supabase/client'
+import ArtistSchoolSelection from '@/components/items/common/ArtistSchoolSelection'
+import ArtworkDescriptionSection from '@/components/items/common/ArtworkDescriptionSection'
+import DimensionsSection from '@/components/items/common/DimensionsSection'
+import CertificationSection from '@/components/items/common/CertificationSection'
 
 interface ItemFormProps {
   itemId?: string
@@ -811,10 +815,10 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }
   }
 
-  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     // Update the form data first
     setFormData(prev => {
-      const updatedData = { ...prev, [field]: value }
+      const updatedData = { ...prev, [field as keyof FormData]: value }
 
       // Auto-calculate with-frame dimensions when main dimensions change
       if (field === 'height_inches' || field === 'width_inches') {
@@ -877,7 +881,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       setTimeout(() => {
         setFormData(prev => {
           // Create the updated data with the new value
-          const updatedData = { ...prev, [field]: value }
+          const updatedData = { ...prev, [field as keyof FormData]: value }
 
           // Use the centralized title generation function
           const autoTitle = generateAutoTitle(updatedData)
@@ -1229,7 +1233,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         <div className="flex items-center space-x-4">
           <button
             onClick={() => router.push('/items')}
-            className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Back to Inventory
@@ -1245,7 +1249,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           <button
             type="button"
             onClick={() => onCancel ? onCancel() : router.push('/items')}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200"
           >
             <X className="h-4 w-4 mr-2" />
             Cancel
@@ -1254,7 +1258,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             type="submit"
             form="item-form"
             disabled={saving}
-            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm hover:shadow-md"
           >
             <Save className="h-4 w-4 mr-2" />
             {saving ? 'Saving...' : 'Save Item'}
@@ -1289,7 +1293,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors duration-200 ${activeTab === tab.id
                   ? 'border-teal-500 text-teal-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -1399,131 +1403,21 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               </div>
 
               {/* Artist/School Selection */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-green-900 mb-4">Artist/School & Medium Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Artist
-                    </label>
-                    <SearchableSelect
-                      value={formData.artist_id}
-                      options={artists.length > 0 ? createArtistOptions() : []}
-                      placeholder={loadingArtistsSchools ? "Loading artists..." : "Select artist..."}
-                      onChange={(value) => {
-                        console.log('Artist selected:', value, 'Current value:', formData.artist_id)
-                        const artistId = value?.toString() || ''
-                        console.log('Setting artist_id to:', artistId)
-                        handleInputChange('artist_id', artistId)
-                        // Clear school selection when artist is selected
-                        if (artistId) {
-                          handleInputChange('school_id', '')
-                        }
-                      }}
-                      disabled={loadingArtistsSchools || artists.length === 0}
-                      inputPlaceholder="Search artists..."
-                    />
-                    {loadingArtistsSchools && (
-                      <p className="text-xs text-gray-500 mt-1">Loading artists...</p>
-                    )}
-                    {/* Debug display */}
-                    {formData.artist_id && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Selected: {(() => {
-                          const artist = artists.find(a => a.id?.toString() === formData.artist_id)
-                          return artist ? artist.name : `ID: ${formData.artist_id} (not found)`
-                        })()}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      School (if no specific artist)
-                    </label>
-                    <SearchableSelect
-                      value={formData.school_id}
-                      options={schools.length > 0 ? createSchoolOptions() : []}
-                      placeholder={loadingArtistsSchools ? "Loading schools..." : "Select school..."}
-                      onChange={(value) => {
-                        const schoolId = value?.toString() || ''
-                        handleInputChange('school_id', schoolId)
-                        // Clear artist selection when school is selected
-                        if (schoolId) {
-                          handleInputChange('artist_id', '')
-                        }
-                      }}
-                      disabled={loadingArtistsSchools || schools.length === 0}
-                      inputPlaceholder="Search schools..."
-                    />
-                    {loadingArtistsSchools && (
-                      <p className="text-xs text-gray-500 mt-1">Loading schools...</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Medium/Materials
-                    </label>
-                    <SearchableSelect
-                      value={formData.medium}
-                      options={[{ value: '', label: 'Select material...' }, ...materialOptions]}
-                      placeholder="Select material..."
-                      onChange={(value) => handleInputChange('medium', value?.toString() || '')}
-                      className="w-full"
-                      inputPlaceholder="Type to search materials..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Artwork Subject
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.artwork_subject}
-                      onChange={(e) => handleInputChange('artwork_subject', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., Portrait, Landscape, Abstract composition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Signature Placement
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.signature_placement}
-                      onChange={(e) => handleInputChange('signature_placement', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder="e.g., Lower right, Verso, Not visible"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Period/Age
-                    </label>
-                    <SearchableSelect
-                      value={formData.period_age}
-                      options={[{ value: '', label: 'Select period...' }, ...periodOptions]}
-                      placeholder="Select period..."
-                      onChange={(value) => handleInputChange('period_age', value?.toString() || '')}
-                      className="w-full"
-                      inputPlaceholder="Type to search periods..."
-                    />
-                  </div>
-                </div>
-
-                {formData.artist_id && formData.school_id && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
-                    <p className="text-yellow-800 text-sm">
-                      ⚠️ Both artist and school are selected. Only one will be saved.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <ArtistSchoolSelection
+                artistId={formData.artist_id}
+                schoolId={formData.school_id}
+                artworkSubject={formData.artwork_subject}
+                signaturePlacement={formData.signature_placement}
+                medium={formData.medium}
+                periodAge={formData.period_age}
+                artists={artists}
+                schools={schools}
+                loadingArtistsSchools={loadingArtistsSchools}
+                materialOptions={materialOptions}
+                periodOptions={periodOptions}
+                onFieldChange={handleInputChange}
+                uniqueIdPrefix="itemform_"
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -1641,356 +1535,45 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 </div>
               </div>
 
-              {/* Description Section with AI and Artist Info Options */}
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-purple-900 mb-4">Artwork Description & Export Options</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Artwork Description *
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                    placeholder="Enter detailed description of the artwork..."
-                  />
-                </div>
-
-                {/* Artist Information Options for Export */}
-                {formData.artist_id && (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">
-                      Include Artist Information in Export Description:
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_description"
-                          checked={formData.include_artist_description}
-                          onChange={(e) => handleInputChange('include_artist_description', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_description" className="text-sm text-gray-700">
-                          Include Artist Description <span className="text-xs text-green-600">(default on)</span>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_key_description"
-                          checked={formData.include_artist_key_description}
-                          onChange={(e) => handleInputChange('include_artist_key_description', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_key_description" className="text-sm text-gray-700">
-                          Include Artist Key Description <span className="text-xs text-green-600">(default on)</span>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_biography"
-                          checked={formData.include_artist_biography}
-                          onChange={(e) => handleInputChange('include_artist_biography', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_biography" className="text-sm text-gray-700">
-                          Include Biography
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_notable_works"
-                          checked={formData.include_artist_notable_works}
-                          onChange={(e) => handleInputChange('include_artist_notable_works', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_notable_works" className="text-sm text-gray-700">
-                          Include Notable Works
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_major_exhibitions"
-                          checked={formData.include_artist_major_exhibitions}
-                          onChange={(e) => handleInputChange('include_artist_major_exhibitions', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_major_exhibitions" className="text-sm text-gray-700">
-                          Include Major Exhibitions
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_awards_honors"
-                          checked={formData.include_artist_awards_honors}
-                          onChange={(e) => handleInputChange('include_artist_awards_honors', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_awards_honors" className="text-sm text-gray-700">
-                          Include Awards and Honors
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_market_value_range"
-                          checked={formData.include_artist_market_value_range}
-                          onChange={(e) => handleInputChange('include_artist_market_value_range', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_market_value_range" className="text-sm text-gray-700">
-                          Include Market Value Range
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          id="include_artist_signature_style"
-                          checked={formData.include_artist_signature_style}
-                          onChange={(e) => handleInputChange('include_artist_signature_style', e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="include_artist_signature_style" className="text-sm text-gray-700">
-                          Include Signature Style
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-purple-600">
-                      ℹ️ These options control what artist information appears in the exported description for auction platforms and CSV exports.
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Artwork Description Section */}
+              <ArtworkDescriptionSection
+                title={formData.title}
+                description={formData.description}
+                artistId={formData.artist_id}
+                artists={artists}
+                includeArtistDescription={formData.include_artist_description}
+                includeArtistKeyDescription={formData.include_artist_key_description}
+                includeArtistBiography={formData.include_artist_biography}
+                includeArtistNotableWorks={formData.include_artist_notable_works}
+                includeArtistMajorExhibitions={formData.include_artist_major_exhibitions}
+                includeArtistAwardsHonors={formData.include_artist_awards_honors}
+                includeArtistMarketValueRange={formData.include_artist_market_value_range}
+                includeArtistSignatureStyle={formData.include_artist_signature_style}
+                conditionReport={formData.condition_report}
+                onFieldChange={handleInputChange}
+                uniqueIdPrefix="itemform_"
+              />
 
 
 
-              {/* New Certification Fields */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Condition Report
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.condition_report}
-                  onChange={(e) => handleInputChange('condition_report', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Detailed condition report..."
-                />
-              </div>
+              {/* Certification Fields */}
 
-              <div className="space-y-4">
-                {/* Gallery Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="gallery_certification"
-                      checked={formData.gallery_certification}
-                      onChange={(e) => handleInputChange('gallery_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="gallery_certification" className="text-sm font-medium text-gray-700">
-                      Gallery Certification
-                    </label>
-                  </div>
-                  {formData.gallery_certification && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Which Gallery?</label>
-                        <SearchableSelect
-                          value={formData.gallery_id}
-                          onChange={(value) => handleInputChange('gallery_id', value?.toString() || '')}
-                          options={galleries.map(gallery => ({
-                            value: gallery.id || '',
-                            label: gallery.name,
-                            description: gallery.location ? `${gallery.location}${gallery.country ? `, ${gallery.country}` : ''}` : gallery.country || ''
-                          }))}
-                          placeholder={loadingGalleries ? "Loading galleries..." : "Search galleries..."}
-                          inputPlaceholder="Search by gallery name or location..."
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('gallery_certification_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {formData.gallery_certification_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Artist Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="artist_certification"
-                      checked={formData.artist_certification}
-                      onChange={(e) => handleInputChange('artist_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="artist_certification" className="text-sm font-medium text-gray-700">
-                      Artist Certification
-                    </label>
-                  </div>
-                  {formData.artist_certification && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Which Artist?</label>
-                        <select
-                          value={formData.certified_artist_id}
-                          onChange={(e) => handleInputChange('certified_artist_id', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          disabled={loadingArtistsSchools}
-                        >
-                          <option value="">Select artist...</option>
-                          {artists.map((artist) => (
-                            <option key={artist.id} value={artist.id}>
-                              {artist.name}
-                              {artist.birth_year && ` (${artist.birth_year}${artist.death_year ? `-${artist.death_year}` : '-'})`}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('artist_certification_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {formData.artist_certification_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Artist Family Certification */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="artist_family_certification"
-                      checked={formData.artist_family_certification}
-                      onChange={(e) => handleInputChange('artist_family_certification', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="artist_family_certification" className="text-sm font-medium text-gray-700">
-                      Artist Family Certification
-                    </label>
-                  </div>
-                  {formData.artist_family_certification && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Certification Document (optional)</label>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleCertificationFileUpload('artist_family_certification_file', file)
-                          }
-                        }}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {formData.artist_family_certification_file && (
-                        <div className="mt-2 text-xs text-green-600">
-                          ✓ File uploaded
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Restoration */}
-                <div>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <input
-                      type="checkbox"
-                      id="restoration_done"
-                      checked={formData.restoration_done}
-                      onChange={(e) => handleInputChange('restoration_done', e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="restoration_done" className="text-sm font-medium text-gray-700">
-                      Restoration Done
-                    </label>
-                  </div>
-                  {formData.restoration_done && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Done by (Person/Company)</label>
-                        <input
-                          type="text"
-                          value={formData.restoration_by}
-                          onChange={(e) => handleInputChange('restoration_by', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          placeholder="Name of person or company who did the restoration"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Restoration Documentation (optional)</label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleCertificationFileUpload('restoration_done_file', file)
-                            }
-                          }}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                        {formData.restoration_done_file && (
-                          <div className="mt-2 text-xs text-green-600">
-                            ✓ File uploaded
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CertificationSection
+                galleryCertification={formData.gallery_certification}
+                galleryCertificationFile={formData.gallery_certification_file}
+                galleryId={formData.gallery_id}
+                artistCertification={formData.artist_certification}
+                artistCertificationFile={formData.artist_certification_file}
+                certifiedArtistId={formData.certified_artist_id}
+                artistFamilyCertification={formData.artist_family_certification}
+                artistFamilyCertificationFile={formData.artist_family_certification_file}
+                restorationDone={formData.restoration_done}
+                restorationDoneFile={formData.restoration_done_file}
+                restorationBy={formData.restoration_by}
+                onFieldChange={handleInputChange}
+                onCertificationFileUpload={handleCertificationFileUpload}
+                uniqueIdPrefix="itemform_"
+              />
 
 
             </div>
@@ -2113,207 +1696,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               </div>
 
 
-              {/* New Dimensions with inch/cm conversion */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dimensions
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={formData.height_inches}
-                        onChange={(e) => {
-                          handleInputChange('height_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('height_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 24"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={formData.height_cm}
-                        onChange={(e) => {
-                          handleInputChange('height_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('height_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 61 x 91 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Width
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={formData.width_inches}
-                        onChange={(e) => {
-                          handleInputChange('width_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('width_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 36"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={formData.width_cm}
-                        onChange={(e) => {
-                          handleInputChange('width_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('width_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 91 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dimensions with Frame
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={formData.height_with_frame_inches}
-                        onChange={(e) => {
-                          handleInputChange('height_with_frame_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('height_with_frame_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 26" x 38"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={formData.height_with_frame_cm}
-                        onChange={(e) => {
-                          handleInputChange('height_with_frame_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('height_with_frame_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 66 x 97 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Width with Frame
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Inches</label>
-                      <input
-                        type="text"
-                        value={formData.width_with_frame_inches}
-                        onChange={(e) => {
-                          handleInputChange('width_with_frame_inches', e.target.value)
-                          // Auto-convert to cm
-                          if (e.target.value) {
-                            const cmValue = convertInchesToCm(e.target.value)
-                            if (cmValue) {
-                              handleInputChange('width_with_frame_cm', cmValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder='e.g., 38"'
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Centimeters</label>
-                      <input
-                        type="text"
-                        value={formData.width_with_frame_cm}
-                        onChange={(e) => {
-                          handleInputChange('width_with_frame_cm', e.target.value)
-                          // Auto-convert to inches
-                          if (e.target.value) {
-                            const inchValue = convertCmToInches(e.target.value)
-                            if (inchValue) {
-                              handleInputChange('width_with_frame_inches', inchValue)
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        placeholder="e.g., 97 cm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Weight
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.weight}
-                    onChange={(e) => handleInputChange('weight', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="e.g., 2.5kg"
-                  />
-                </div>
-              </div>
+              {/* Dimensions Section */}
+              <DimensionsSection
+                heightInches={formData.height_inches}
+                widthInches={formData.width_inches}
+                heightCm={formData.height_cm}
+                widthCm={formData.width_cm}
+                heightWithFrameInches={formData.height_with_frame_inches}
+                widthWithFrameInches={formData.width_with_frame_inches}
+                heightWithFrameCm={formData.height_with_frame_cm}
+                widthWithFrameCm={formData.width_with_frame_cm}
+                weight={formData.weight}
+                onFieldChange={handleInputChange}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2373,7 +1768,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                           const input = document.getElementById('bulk-upload-additional') as HTMLInputElement
                           if (input) input.click()
                         }}
-                        className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors border border-blue-300"
+                        className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 border border-blue-300 hover:border-blue-400 hover:shadow-sm"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add More Images ({10 - getFilledSlotsCount()} slots available)

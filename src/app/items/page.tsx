@@ -909,15 +909,27 @@ export default function ItemsPage() {
 
       {/* Add to Auction Modal */}
       {showGenerateAuctionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <GenerateAuctionModal
-            onClose={() => setShowGenerateAuctionModal(false)}
-            selectedArtworks={selectedItems}
-            onComplete={(auctionId) => {
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
               setShowGenerateAuctionModal(false)
-              setSelectedItems([]) // Clear selection after adding to auction
-            }}
-          />
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GenerateAuctionModal
+              onClose={() => setShowGenerateAuctionModal(false)}
+              selectedArtworks={selectedItems}
+              onComplete={(auctionId) => {
+                setShowGenerateAuctionModal(false)
+                setSelectedItems([]) // Clear selection after adding to auction
+              }}
+            />
+          </div>
         </div>
       )}
 

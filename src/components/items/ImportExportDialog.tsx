@@ -28,24 +28,28 @@ interface PlatformConfig {
   csvHeaders: string[]
   requiredFields: string[]
   sampleData?: string[]
+  supportsAllFields?: boolean
 }
 
 const platformConfigs: Record<Platform, PlatformConfig> = {
   database: {
     label: 'Our Database',
-    description: 'Full format with all available fields',
+    description: 'Full format with all available fields including brand and return information',
     csvHeaders: [
       'id', 'title', 'description', 'low_est', 'high_est', 'start_price', 'reserve', 'condition', 'consignment_id',
       'status', 'category', 'subcategory', 'height_inches', 'width_inches', 'height_cm', 'width_cm',
       'height_with_frame_inches', 'width_with_frame_inches', 'height_with_frame_cm', 'width_with_frame_cm',
       'weight', 'materials', 'artist_maker', 'period_age', 'provenance',
-      'artist_id', 'school_id', 'condition_report', 'gallery_certification', 'gallery_id', 'artist_certification', 'certified_artist_id', 'artist_family_certification',
-      'restoration_done', 'restoration_by', 'images', // Unlimited images array
+      'artist_id', 'school_id', 'condition_report', 'gallery_certification', 'gallery_certification_file', 'gallery_id', 'artist_certification', 'artist_certification_file', 'certified_artist_id', 'artist_family_certification', 'artist_family_certification_file',
+      'restoration_done', 'restoration_done_file', 'restoration_by', 'images',
       'include_artist_description', 'include_artist_key_description', 'include_artist_biography', 'include_artist_notable_works',
       'include_artist_major_exhibitions', 'include_artist_awards_honors', 'include_artist_market_value_range', 'include_artist_signature_style',
-      'created_at', 'updated_at'
+      'brand_id',
+      'return_date', 'return_location', 'return_reason', 'returned_by_user_id', 'returned_by_user_name',
+      'date_sold', 'created_at', 'updated_at'
     ],
-    requiredFields: ['id', 'title', 'description', 'low_est', 'high_est']
+    requiredFields: ['title', 'description'],
+    supportsAllFields: true
   },
   liveauctioneers: {
     label: 'LiveAuctioneers',
@@ -243,7 +247,7 @@ export default function ImportExportDialog({
         if (!validation) return
         
         setProgress('Importing data...')
-        result = await ArtworksAPI.uploadCSV(csvData, platform as any, driveFolderUrl || undefined)
+        result = await ArtworksAPI.uploadCSV(csvData, platform as any, driveFolderUrl || undefined, { brand_code: brand })
         
       } else if (format === 'spreadsheet') {
         if (!googleSheetUrl) {
@@ -294,7 +298,9 @@ export default function ImportExportDialog({
       if (format === 'csv') {
         await ArtworksAPI.exportCSV({
           platform: platform as any,
-          ...(selectedItems.length > 0 && { item_ids: selectedItems })
+          ...(selectedItems.length > 0 && { item_ids: selectedItems }),
+          brand_code: brand,
+          include_all_fields: platform === 'database'
         })
         setSuccess('Export complete! File downloaded.')
         
