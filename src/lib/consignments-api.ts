@@ -55,12 +55,20 @@ export interface ConsignmentFilters {
 }
 
 export interface ConsignmentResponse {
-  consignments: Consignment[];
+  success: boolean;
+  data: Consignment[];
   pagination: {
     page: number;
     limit: number;
     total: number;
     pages: number;
+  };
+  counts: {
+    active: number;
+    pending: number;
+    completed: number;
+    cancelled: number;
+    archived: number;
   };
 }
 
@@ -111,7 +119,7 @@ export interface PresaleOptionsResponse {
 }
 
 // Get all consignments
-export async function getConsignments(filters: ConsignmentFilters = {}): Promise<any> {
+export async function getConsignments(filters: ConsignmentFilters = {}): Promise<ConsignmentResponse> {
   const token = getAuthToken();
   
   if (!token) {
@@ -143,6 +151,7 @@ export async function getConsignments(filters: ConsignmentFilters = {}): Promise
   
   const result = await response.json();
   console.log('Consignments API result:', result); // Debug log
+  console.log('Consignments API result type of data:', typeof result.data, Array.isArray(result.data) ? `Array with ${result.data.length} items` : 'Not an array'); // Debug log
   return result;
 }
 

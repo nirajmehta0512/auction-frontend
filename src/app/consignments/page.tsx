@@ -89,7 +89,7 @@ export default function ConsignmentsPage() {
     try {
       setLoadingSuggestions(true)
       const response = await getConsignments({ limit: 200 }) // Get enough for good suggestions
-      const consignmentsData = response.data || response.consignments || []
+      const consignmentsData = response.data || (response as any).consignments || []
 
       // Create search suggestions from actual consignments
       const suggestions = [
@@ -156,7 +156,7 @@ export default function ConsignmentsPage() {
         console.log('Consignments response:', response) // Debug log
 
         // Handle both possible response structures
-        const consignmentsData = response.data || response.consignments || []
+        const consignmentsData = response.data || (response as any).consignments || []
         const formattedConsignments = consignmentsData.map(convertConsignmentFormat)
         setConsignments(formattedConsignments)
       } catch (error) {
@@ -177,7 +177,7 @@ export default function ConsignmentsPage() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter
       if (searchQuery && searchQuery.trim() !== '') params.search = searchQuery.trim()
       const response = await getConsignments(params)
-      const consignmentsData = response.data || response.consignments || []
+      const consignmentsData = response.data || (response as any).consignments || []
       const formattedConsignments = consignmentsData.map(convertConsignmentFormat)
       setConsignments(formattedConsignments)
     } catch (error) {
@@ -229,7 +229,8 @@ export default function ConsignmentsPage() {
           try {
             setLoading(true)
             const response = await getConsignments()
-            const formattedConsignments = response.data?.map(convertConsignmentFormat) || []
+            const consignmentsData = response.data || (response as any).consignments || []
+            const formattedConsignments = consignmentsData.map(convertConsignmentFormat)
             setConsignments(formattedConsignments)
           } catch (error) {
             console.error('Error fetching consignments:', error)

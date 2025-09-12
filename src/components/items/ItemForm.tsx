@@ -292,6 +292,9 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           getConsignments({
             status: 'active',
             limit: 1000
+          }).catch(error => { 
+            console.error('Error fetching consignments in ItemForm:', error)
+            return { success: false, data: [], pagination: { page: 1, limit: 25, total: 0, pages: 0 }, counts: { active: 0, pending: 0, completed: 0, cancelled: 0, archived: 0 } }
           }),
           GalleriesAPI.getGalleries({
             status: 'active',
@@ -313,9 +316,11 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         if (clientsResponse.success) {
           setClients(clientsResponse.data)
         }
-        if (consignmentsResponse.success) {
-          setConsignments(consignmentsResponse.data)
-        }
+        // Handle both possible response structures (same as consignments page)
+        console.log('ItemForm - Consignments response:', consignmentsResponse) // Debug log
+        const consignmentsData = consignmentsResponse.data || (consignmentsResponse as any).consignments || []
+        console.log('ItemForm - Consignments data:', consignmentsData) // Debug log
+        setConsignments(consignmentsData)
         if (galleriesResponse.success) {
           setGalleries(galleriesResponse.data)
         }
@@ -1335,7 +1340,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Consignment (Optional)
+                      Consignment Number (Optional)
                     </label>
                     <SearchableSelect
                       value={formData.consignment_id}
