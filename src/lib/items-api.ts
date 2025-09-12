@@ -530,10 +530,12 @@ export class ArtworksAPI {
     duplicates?: {
       group_id: string;
       similarity_score: number;
+      type?: 'exact_image' | 'exact_title' | 'similar';
+      match_value?: string;
       items: {
         id: string;
         title: string;
-        lot_num: string;
+        lot_num?: string;
         image_url: string;
         status: string;
         created_at: string;
@@ -541,6 +543,8 @@ export class ArtworksAPI {
     }[];
     total_groups?: number;
     total_items_checked?: number;
+    exact_groups?: number;
+    similar_groups?: number;
     error?: string;
   }> {
     const response = await fetch(`${API_BASE_URL}/items/detect-duplicates`, {

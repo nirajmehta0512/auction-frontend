@@ -29,6 +29,7 @@ interface AuctionArtwork {
   dimensions?: string
   status?: 'draft' | 'active' | 'sold' | 'withdrawn' | 'passed' | 'returned'
   hammer_price?: number
+  sale_price?: number // Sale price from EOA import
 }
 
 export default function AuctionViewPage() {
@@ -161,9 +162,9 @@ export default function AuctionViewPage() {
 
   const getArtworkStatusBadge = (artwork: AuctionArtwork, auction: Auction) => {
     // If artwork is sold
-    if (artwork.status === 'sold' && artwork.hammer_price) {
+    if (artwork.status === 'sold' && artwork.sale_price) {
       return {
-        text: `Sold at ${formatCurrency(artwork.hammer_price)}`,
+        text: `Sold at ${formatCurrency(artwork.sale_price)}`,
         color: 'bg-green-100 text-green-800 border-green-200'
       }
     }

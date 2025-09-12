@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { X, Search, Eye, AlertTriangle, Check, Clock, RefreshCw, Trash2, Shield, Users, ChevronDown, ChevronUp, Filter } from 'lucide-react'
 import { ArtworksAPI, ITEM_CATEGORIES, ITEM_CONDITIONS, ITEM_PERIODS, ITEM_MATERIALS } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
+import MediaRenderer from '@/components/ui/MediaRenderer'
 
 interface DuplicateDetectionModalProps {
   onClose: () => void
@@ -13,10 +14,12 @@ interface DuplicateDetectionModalProps {
 interface DuplicateGroup {
   group_id: string
   similarity_score: number
+  type?: 'exact_image' | 'exact_title' | 'similar'
+  match_value?: string
   items: {
     id: string
     title: string
-    lot_num: string
+    lot_num?: string
     image_url: string
     status: string
     created_at: string
@@ -29,7 +32,10 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([])
   const [scanComplete, setScanComplete] = useState(false)
   const [totalItemsChecked, setTotalItemsChecked] = useState(0)
+  const [exactGroups, setExactGroups] = useState(0)
+  const [similarGroups, setSimilarGroups] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   
   // Scan settings
   const [similarityThreshold, setSimilarityThreshold] = useState(80)
@@ -102,11 +108,22 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
       }
       
       const result = await ArtworksAPI.detectDuplicateImages(params)
-      
+
       if (result.success) {
         setDuplicates(result.duplicates || [])
         setTotalItemsChecked(result.total_items_checked || 0)
+        setExactGroups(result.exact_groups || 0)
+        setSimilarGroups(result.similar_groups || 0)
         setScanComplete(true)
+
+        // For exact duplicates, pre-select the first item in each group to keep
+        const initialSelected = new Set<string>()
+        result.duplicates?.forEach(group => {
+          if (group.type?.startsWith('exact_') && group.items.length > 0) {
+            initialSelected.add(group.items[0].id)
+          }
+        })
+        setSelectedItems(initialSelected)
       } else {
         setError(result.error || 'Failed to detect duplicates')
       }
@@ -130,6 +147,56 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
   const handleViewItem = (itemId: string) => {
     window.open(`/preview/${itemId}`, '_blank')
+  }
+
+  const handleItemSelection = (groupId: string, itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      // For exact duplicates, only allow selecting one item per group
+      const group = duplicates.find(g => g.group_id === groupId)
+      if (group?.type?.startsWith('exact_')) {
+        // Clear other selections in this group
+        group.items.forEach(item => {
+          if (item.id !== itemId) {
+            newSet.delete(item.id)
+          }
+        })
+      }
+
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
+  }
+
+  const handleBulkAction = async (action: 'keep_selected' | 'delete_unselected' | 'delete_all') => {
+    try {
+      let itemsToDelete: string[] = []
+
+      if (action === 'keep_selected') {
+        // Delete all items that are not selected
+        const allItemIds = duplicates.flatMap(group => group.items.map(item => item.id))
+        itemsToDelete = allItemIds.filter(id => !selectedItems.has(id))
+      } else if (action === 'delete_unselected') {
+        // Same as keep_selected
+        const allItemIds = duplicates.flatMap(group => group.items.map(item => item.id))
+        itemsToDelete = allItemIds.filter(id => !selectedItems.has(id))
+      } else if (action === 'delete_all') {
+        // Delete all items in duplicate groups
+        itemsToDelete = duplicates.flatMap(group => group.items.map(item => item.id))
+      }
+
+      if (itemsToDelete.length > 0) {
+        await ArtworksAPI.bulkAction('delete', itemsToDelete)
+        setDuplicates([])
+        console.log(`${action}: ${itemsToDelete.length} items deleted`)
+      }
+    } catch (error: any) {
+      setError(`Failed to process bulk action: ${error.message}`)
+    }
   }
 
   const handleDuplicateAction = async (groupId: string, action: 'keep_first' | 'keep_newest' | 'keep_all' | 'manual', selectedItemId?: string) => {
@@ -535,8 +602,35 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                   </div>
                   <div className="text-sm text-gray-600">
                     {totalItemsChecked} items checked • {duplicates.length} duplicate groups found
+                    {exactGroups > 0 && <span className="ml-2 text-red-600">({exactGroups} exact)</span>}
+                    {similarGroups > 0 && <span className="ml-2 text-orange-600">({similarGroups} similar)</span>}
                   </div>
                 </div>
+
+                {/* Bulk Actions */}
+                {duplicates.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleBulkAction('keep_selected')}
+                        className="flex items-center px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Keep Selected ({selectedItems.size})
+                      </button>
+                      <button
+                        onClick={() => handleBulkAction('delete_all')}
+                        className="flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete All Duplicates
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Select items you want to keep, then click "Keep Selected" to delete the rest.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Duplicate Groups */}
@@ -549,42 +643,87 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
               ) : (
                 <div className="space-y-6">
                   {duplicates.map((group, index) => (
-                    <div key={group.group_id} className="border border-gray-200 rounded-lg p-4">
+                    <div key={group.group_id} className={`border rounded-lg p-4 ${
+                      group.type === 'exact_image' ? 'border-red-300 bg-red-50' :
+                      group.type === 'exact_title' ? 'border-orange-300 bg-orange-50' :
+                      'border-gray-200'
+                    }`}>
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium text-gray-900">
-                          Duplicate Group #{index + 1} ({group.items.length} items)
-                        </h3>
-                        <span className="text-sm text-gray-600">
-                          {Math.round(group.similarity_score * 100)}% similarity
+                        <div className="flex items-center">
+                          <h3 className="font-medium text-gray-900">
+                            {group.type === 'exact_image' && '🖼️ Exact Image Match'}
+                            {group.type === 'exact_title' && '📝 Exact Title Match'}
+                            {group.type === 'similar' && '🔍 Similar Items'}
+                            {!group.type && 'Duplicate Group'} #{index + 1} ({group.items.length} items)
+                          </h3>
+                          {group.match_value && (
+                            <span className="ml-2 text-xs text-gray-500 truncate max-w-xs">
+                              "{group.match_value}"
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-sm px-2 py-1 rounded ${
+                          group.type?.startsWith('exact_') ? 'bg-red-100 text-red-800' : 'text-gray-600'
+                        }`}>
+                          {group.type?.startsWith('exact_') ? '100%' : Math.round(group.similarity_score * 100) + '%'} similarity
                         </span>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        {group.items.map((item) => (
-                          <div key={item.id} className="border border-gray-200 rounded-lg p-3">
+                        {group.items.map((item, itemIndex) => (
+                          <div key={item.id} className={`border rounded-lg p-3 ${
+                            selectedItems.has(item.id) ? 'border-teal-300 bg-teal-50' : 'border-gray-200'
+                          }`}>
+                            {/* Checkbox for selection */}
+                            <div className="flex items-center justify-between mb-3">
+                              <label className="flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedItems.has(item.id)}
+                                  onChange={() => handleItemSelection(group.group_id, item.id)}
+                                  className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 mr-2"
+                                />
+                                <span className="text-sm font-medium">
+                                  {group.type?.startsWith('exact_') ? `Keep Item #${itemIndex + 1}` : 'Keep this item'}
+                                </span>
+                              </label>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                                {item.status}
+                              </span>
+                            </div>
+
                             <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-gray-100">
                               {item.image_url ? (
-                                <img
+                                <MediaRenderer
                                   src={item.image_url}
                                   alt={item.title}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full"
+                                  aspectRatio="square"
+                                  placeholder={
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
+                                      <div className="text-center">
+                                        <div className="text-sm font-medium">No Image</div>
+                                        <div className="text-xs">ID: {item.id}</div>
+                                      </div>
+                                    </div>
+                                  }
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  No Image
+                                  <div className="text-center">
+                                    <div className="text-sm font-medium">No Image</div>
+                                    <div className="text-xs">ID: {item.id}</div>
+                                  </div>
                                 </div>
                               )}
                             </div>
-                            
+
                             <div className="space-y-2">
                               <h4 className="font-medium text-sm text-gray-900 truncate" title={item.title}>
                                 {item.title}
                               </h4>
                               <p className="text-xs text-gray-600">ID: {item.id}</p>
                               <div className="flex items-center justify-between">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
-                                  {item.status}
-                                </span>
                                 <button
                                   onClick={() => handleViewItem(item.id)}
                                   className="flex items-center text-xs text-teal-600 hover:text-teal-700"
@@ -596,64 +735,68 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                               <p className="text-xs text-gray-500">
                                 {new Date(item.created_at).toLocaleDateString()}
                               </p>
-                              <button
-                                onClick={() => handleDuplicateAction(group.group_id, 'manual', item.id)}
-                                className="w-full mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition-colors"
-                              >
-                                <Shield className="h-3 w-3 inline mr-1" />
-                                Keep This One
-                              </button>
                             </div>
                           </div>
                         ))}
                       </div>
                       
-                      {/* Action Buttons */}
-                      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
-                        <button
-                          onClick={() => handleDuplicateAction(group.group_id, 'keep_first')}
-                          className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors"
-                        >
-                          <Shield className="h-4 w-4 mr-2" />
-                          Keep First
-                        </button>
-                        
-                        <button
-                          onClick={() => handleDuplicateAction(group.group_id, 'keep_newest')}
-                          className="flex items-center px-3 py-2 bg-purple-100 text-purple-700 text-sm rounded-lg hover:bg-purple-200 transition-colors"
-                        >
-                          <Clock className="h-4 w-4 mr-2" />
-                          Keep Newest
-                        </button>
-                        
-                        <button
-                          onClick={() => handleDuplicateAction(group.group_id, 'keep_all')}
-                          className="flex items-center px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors"
-                        >
-                          <Users className="h-4 w-4 mr-2" />
-                          Keep All
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete all ${group.items.length} items in this group?`)) {
-                              const allItemIds = group.items.map((item: any) => item.id)
-                              ArtworksAPI.bulkAction('delete', allItemIds).then(() => {
-                                setDuplicates(prev => prev.filter(g => g.group_id !== group.group_id))
-                              }).catch(err => setError(`Failed to delete items: ${err.message}`))
-                            }
-                          }}
-                          className="flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </button>
-                      </div>
-                      
+                      {/* Action Buttons for Similar Groups */}
+                      {group.type !== 'exact_image' && group.type !== 'exact_title' && (
+                        <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
+                          <button
+                            onClick={() => handleDuplicateAction(group.group_id, 'keep_first')}
+                            className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors"
+                          >
+                            <Shield className="h-4 w-4 mr-2" />
+                            Keep First
+                          </button>
+
+                          <button
+                            onClick={() => handleDuplicateAction(group.group_id, 'keep_newest')}
+                            className="flex items-center px-3 py-2 bg-purple-100 text-purple-700 text-sm rounded-lg hover:bg-purple-200 transition-colors"
+                          >
+                            <Clock className="h-4 w-4 mr-2" />
+                            Keep Newest
+                          </button>
+
+                          <button
+                            onClick={() => handleDuplicateAction(group.group_id, 'keep_all')}
+                            className="flex items-center px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors"
+                          >
+                            <Users className="h-4 w-4 mr-2" />
+                            Keep All
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete all ${group.items.length} items in this group?`)) {
+                                const allItemIds = group.items.map((item: any) => item.id)
+                                ArtworksAPI.bulkAction('delete', allItemIds).then(() => {
+                                  setDuplicates(prev => prev.filter(g => g.group_id !== group.group_id))
+                                }).catch(err => setError(`Failed to delete items: ${err.message}`))
+                              }
+                            }}
+                            className="flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete All
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Help Text */}
                       <div className="mt-2 text-xs text-gray-500">
-                        <strong>Keep First:</strong> Keeps the first item in the list, deletes others • 
-                        <strong> Keep Newest:</strong> Keeps the most recently created item • 
-                        <strong> Keep All:</strong> Marks as resolved without deleting any items
+                        {group.type?.startsWith('exact_') ? (
+                          <span>
+                            <strong>Exact duplicates:</strong> Select which item(s) to keep, then use the bulk actions above.
+                          </span>
+                        ) : (
+                          <span>
+                            <strong>Keep First:</strong> Keeps the first item in the list, deletes others •
+                            <strong> Keep Newest:</strong> Keeps the most recently created item •
+                            <strong> Keep All:</strong> Marks as resolved without deleting any items
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
