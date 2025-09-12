@@ -5,7 +5,7 @@ import { ChevronUp, ChevronDown, Edit, Trash2, Eye, FileText, Upload, MoreVertic
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { AUCTION_SUBTYPES } from '@/lib/constants'
-import { generatePassedAuction } from '@/lib/auctions-api'
+import { generatePassedAuction, getBrandAuctionCounts, type Brand } from '@/lib/auctions-api'
 
 interface Auction {
   id: number
@@ -36,6 +36,7 @@ interface AuctionsTableProps {
   onImportEOA?: (auctionId: number) => void
   onGenerateInvoice?: (auctionId: number) => void
   onGeneratePassedAuction?: (auctionId: number, subtype: string) => void
+  brands?: Brand[]
 }
 
 type SortField = keyof Auction
@@ -73,7 +74,8 @@ export default function AuctionsTable({
   onGeneratePassedAuction,
   onSort,
   currentSortField = 'id',
-  currentSortDirection = 'asc'
+  currentSortDirection = 'asc',
+  brands = []
 }: AuctionsTablePropsExtended) {
   const router = useRouter()
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
@@ -81,6 +83,28 @@ export default function AuctionsTable({
   const [selectedAuctionForPassed, setSelectedAuctionForPassed] = useState<Auction | null>(null)
   const [generatingPassedAuction, setGeneratingPassedAuction] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [passedAuctionShortName, setPassedAuctionShortName] = useState('')
+  const [passedAuctionLongName, setPassedAuctionLongName] = useState('')
+  const [brandAuctionCounts, setBrandAuctionCounts] = useState<{ [brandId: number]: number }>({})
+
+  // Load brand auction counts when brands change
+  React.useEffect(() => {
+    const loadBrandAuctionCounts = async () => {
+      if (brands.length > 0) {
+        try {
+          const countsResponse = await getBrandAuctionCounts(brands)
+          setBrandAuctionCounts(countsResponse || {})
+        } catch (error) {
+          console.error('Error loading brand auction counts:', error)
+          setBrandAuctionCounts({})
+        }
+      } else {
+        setBrandAuctionCounts({})
+      }
+    }
+
+    loadBrandAuctionCounts()
+  }, [brands])
 
   const handleView = (auctionId: number) => {
     if (onView) {
@@ -133,6 +157,22 @@ export default function AuctionsTable({
     const auction = auctions.find(a => a.id === auctionId)
     if (auction) {
       setSelectedAuctionForPassed(auction)
+
+      // Auto-fill short name based on brand (similar to AuctionForm.tsx)
+      let suggestedShortName = `${auction.short_name} - Passed`
+      if (auction.brand?.id && brands.length > 0) {
+        const selectedBrand = brands.find(b => b.id === auction.brand!.id)
+        if (selectedBrand) {
+          const auctionCount = brandAuctionCounts[selectedBrand.id] || 0
+          const nextAuctionNumber = auctionCount + 1
+          suggestedShortName = `${selectedBrand.code} ${nextAuctionNumber}`
+        }
+      }
+      setPassedAuctionShortName(suggestedShortName)
+
+      // Pre-fill long name with " - Passed"
+      setPassedAuctionLongName(`${auction.long_name} - Passed`)
+
       setPassedAuctionDialogOpen(auctionId)
     }
   }
@@ -144,16 +184,22 @@ export default function AuctionsTable({
     setGenerateError(null)
 
     try {
-      const newAuction = await generatePassedAuction(selectedAuctionForPassed.id.toString(), subtype as any)
+      const newAuction = await generatePassedAuction(selectedAuctionForPassed.id.toString(), subtype as any, {
+        short_name: passedAuctionShortName,
+        long_name: passedAuctionLongName
+      })
 
       // Call the parent handler if provided
       if (onGeneratePassedAuction) {
         onGeneratePassedAuction(selectedAuctionForPassed.id, subtype)
       }
 
-      // Close the dialog
+      // Close the dialog and reset state
       setPassedAuctionDialogOpen(null)
       setSelectedAuctionForPassed(null)
+      setPassedAuctionShortName('')
+      setPassedAuctionLongName('')
+      setGenerateError(null)
 
       // Show success message (you might want to add a toast notification here)
       console.log('Successfully created passed auction:', newAuction)
@@ -451,6 +497,9 @@ export default function AuctionsTable({
                 onClick={() => {
                   setPassedAuctionDialogOpen(null)
                   setSelectedAuctionForPassed(null)
+                  setPassedAuctionShortName('')
+                  setPassedAuctionLongName('')
+                  setGenerateError(null)
                 }}
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
@@ -461,7 +510,6 @@ export default function AuctionsTable({
             <div className="p-6">
               <p className="text-sm text-gray-600 mb-4">
                 Create a new auction with unsold items from "{selectedAuctionForPassed.long_name}".
-                The new auction will be named "{selectedAuctionForPassed.long_name} - Passed".
               </p>
 
               {generateError && (
@@ -469,6 +517,43 @@ export default function AuctionsTable({
                   <p className="text-sm text-red-700">{generateError}</p>
                 </div>
               )}
+
+              {/* Auction Name Fields */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Short Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={passedAuctionShortName}
+                    onChange={(e) => setPassedAuctionShortName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., AURUM 5"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-filled based on brand auction count
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Long Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={passedAuctionLongName}
+                    onChange={(e) => setPassedAuctionLongName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Winter Contemporary Art Sale 2024 - Passed"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pre-filled with " - Passed" suffix
+                  </p>
+                </div>
+              </div>
 
               <p className="text-sm font-medium text-gray-700 mb-4">Select Auction Subtype:</p>
 

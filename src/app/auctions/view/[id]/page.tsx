@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, Clock, MapPin, Trophy, Download, Upload,
   FileText, Package, Edit, ExternalLink, ChevronDown, Eye, Share2
 } from 'lucide-react'
-import { getAuction } from '@/lib/auctions-api'
+import { getAuction, isAuctionPast } from '@/lib/auctions-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import AuctionExportDialog from '@/components/auctions/AuctionExportDialog'
 import EOAImportDialog from '@/components/auctions/EOAImportDialog'
@@ -158,11 +158,6 @@ export default function AuctionViewPage() {
     }
   }
 
-  const isAuctionPast = (auction: Auction) => {
-    const today = new Date()
-    const settlementDate = new Date(auction.settlement_date)
-    return today > settlementDate
-  }
 
   const getArtworkStatusBadge = (artwork: AuctionArtwork, auction: Auction) => {
     // If artwork is sold

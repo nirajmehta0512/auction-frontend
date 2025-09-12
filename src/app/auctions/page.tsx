@@ -6,7 +6,7 @@ import AuctionsTable from '@/components/auctions/AuctionsTable'
 import CSVUpload from '@/components/auctions/CSVUpload'
 import { Plus, Download, Upload, RefreshCw } from 'lucide-react'
 
-import { getAuctions, exportAuctionsCSV, deleteAuction, getAuctionStatusCounts } from '@/lib/auctions-api'
+import { getAuctions, exportAuctionsCSV, deleteAuction, getAuctionStatusCounts, isAuctionPast } from '@/lib/auctions-api'
 import { getBrands, type Brand } from '@/lib/brands-api'
 import { useBrand } from '@/lib/brand-context'
 import type { Auction } from '@/lib/auctions-api'
@@ -126,7 +126,7 @@ export default function AuctionsPage() {
             const settlementDate = new Date(auction.settlement_date)
 
             let auctionStatus = 'future'
-            if (today > settlementDate) {
+            if (isAuctionPast(auction)) {
               auctionStatus = 'past'
             } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
               auctionStatus = 'present'
@@ -254,7 +254,7 @@ export default function AuctionsPage() {
       const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
       const settlementDate = new Date(auction.settlement_date)
 
-      if (today > settlementDate) {
+      if (isAuctionPast(auction)) {
         counts.past++
       } else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) {
         counts.present++
@@ -440,7 +440,7 @@ export default function AuctionsPage() {
             <span className="ml-2 text-gray-600">Loading auctions...</span>
           </div>
         ) : (
-          <AuctionsTable 
+          <AuctionsTable
             auctions={auctions}
             selectedAuctions={selectedAuctions}
             onSelectionChange={setSelectedAuctions}
@@ -452,6 +452,7 @@ export default function AuctionsPage() {
             onSort={handleSort}
             currentSortField={sortField}
             currentSortDirection={sortDirection}
+            brands={brands}
           />
         )}
       </div>

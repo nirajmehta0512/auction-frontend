@@ -290,7 +290,6 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
             brand_code: brand || 'MSABER'
           }),
           getConsignments({
-            status: 'active',
             limit: 1000
           }).catch(error => { 
             console.error('Error fetching consignments in ItemForm:', error)
@@ -610,11 +609,34 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const createConsignmentOptions = (): SearchableOption[] => {
     return consignments
       .filter(consignment => consignment.id) // Ensure id exists
-      .map(consignment => ({
-        value: consignment.id!.toString(),
-        label: `Consignment ${consignment.id}`,
-        description: `Client: ${consignment.client_name || 'Unknown'} - ${consignment.status || 'No status'} - ${consignment.items_count || 0} items`
-      }))
+      .map(consignment => {
+        // Extract client name from nested clients object (same logic as consignments page)
+        let clientName = 'Unknown Client'
+        if ((consignment as any).clients) {
+          const client = (consignment as any).clients
+          const firstName = client.first_name || ''
+          const lastName = client.last_name || ''
+          const companyName = client.company_name || ''
+
+          if (companyName) {
+            clientName = companyName
+          } else if (firstName || lastName) {
+            clientName = [firstName, lastName].filter(Boolean).join(' ')
+          }
+        } else {
+          // Fallback to flattened properties from backend response
+          clientName = (consignment as any).client_name
+            || [(consignment as any).client_first_name, (consignment as any).client_last_name].filter(Boolean).join(' ')
+            || (consignment as any).client_company
+            || 'Unknown Client'
+        }
+
+        return {
+          value: consignment.id!.toString(),
+          label: `Consignment ${consignment.id}`,
+          description: `Client: ${clientName} - ${consignment.status || 'No status'} - ${consignment.items_count || 0} items`
+        }
+      })
   }
 
   // Helper function to create brand options for SearchableSelect

@@ -472,7 +472,11 @@ export async function generateInvoicePdf(
 // Generate passed auction with unsold items
 export async function generatePassedAuction(
   originalAuctionId: string,
-  subtype: 'actual' | 'post_sale_platform' | 'post_sale_private' | 'free_timed'
+  subtype: 'actual' | 'post_sale_platform' | 'post_sale_private' | 'free_timed',
+  options?: {
+    short_name?: string;
+    long_name?: string;
+  }
 ): Promise<Auction> {
   const token = getAuthToken();
 
@@ -482,7 +486,7 @@ export async function generatePassedAuction(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ subtype })
+    body: JSON.stringify({ subtype, ...options })
   });
 
   if (!response.ok) {
@@ -606,6 +610,13 @@ export interface Brand {
   id: number;
   code: string;
   name: string;
+}
+
+// Utility function to check if an auction is past its settlement date
+export function isAuctionPast(auction: Auction): boolean {
+  const today = new Date()
+  const settlementDate = new Date(auction.settlement_date)
+  return today > settlementDate
 }
 
 // Get auction counts for multiple brands

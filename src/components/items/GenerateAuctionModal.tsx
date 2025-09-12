@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Trophy, Calendar, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { getAuctions, isAuctionPast } from '@/lib/auctions-api'
 
 interface GenerateAuctionModalProps {
   onClose: () => void
@@ -149,7 +150,9 @@ export default function GenerateAuctionModal({
 
       const data = await response.json()
       if (data.auctions) {
-        setExistingAuctions(data.auctions)
+        // Filter out past auctions (where today > settlementDate)
+        const futureAuctions = data.auctions.filter((auction: any) => !isAuctionPast(auction))
+        setExistingAuctions(futureAuctions)
       }
     } catch (err) {
       console.error('Error loading auctions:', err)
