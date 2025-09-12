@@ -10,9 +10,10 @@ export const extractDriveFileId = (url: string): string | null => {
 
   // Handle different Google Drive URL formats
   const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]+)/,  // /file/d/FILE_ID
-    /\/open\?id=([a-zA-Z0-9_-]+)/,  // /open?id=FILE_ID
-    /id=([a-zA-Z0-9_-]+)/,          // id=FILE_ID (fallback)
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,      // /file/d/FILE_ID
+    /\/open\?id=([a-zA-Z0-9_-]+)/,      // /open?id=FILE_ID
+    /\/uc\?export=view&id=([a-zA-Z0-9_-]+)/,  // /uc?export=view&id=FILE_ID
+    /id=([a-zA-Z0-9_-]+)/,              // id=FILE_ID (fallback)
   ]
 
   for (const pattern of patterns) {
@@ -79,6 +80,7 @@ export default function MediaRenderer({
   // Function to render Google Drive image using img tag with new format
   const renderDriveImage = (url: string, altText: string) => {
     const fileId = extractDriveFileId(url)
+
     if (!fileId || mediaError) {
       return renderPlaceholder()
     }

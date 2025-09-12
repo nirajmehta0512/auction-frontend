@@ -693,29 +693,20 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                             </div>
 
                             <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-gray-100">
-                              {item.image_url ? (
-                                <MediaRenderer
-                                  src={item.image_url}
-                                  alt={item.title}
-                                  className="w-full h-full"
-                                  aspectRatio="square"
-                                  placeholder={
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
-                                      <div className="text-center">
-                                        <div className="text-sm font-medium">No Image</div>
-                                        <div className="text-xs">ID: {item.id}</div>
-                                      </div>
+                              <MediaRenderer
+                                src={item.image_url || ''}
+                                alt={item.title}
+                                className="object-cover"
+                                aspectRatio="square"
+                                placeholder={
+                                  <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
+                                    <div className="text-center">
+                                      <div className="text-sm font-medium">No Image</div>
+                                      <div className="text-xs">ID: {item.id}</div>
                                     </div>
-                                  }
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  <div className="text-center">
-                                    <div className="text-sm font-medium">No Image</div>
-                                    <div className="text-xs">ID: {item.id}</div>
                                   </div>
-                                </div>
-                              )}
+                                }
+                              />
                             </div>
 
                             <div className="space-y-2">
