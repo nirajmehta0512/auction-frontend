@@ -559,6 +559,41 @@ export async function exportAuctionImagesToPlatform(
   document.body.removeChild(a);
 }
 
+// Get auctions for a single item
+export async function getAuctionsForItem(itemId: string | number): Promise<{ success: boolean; auctions: Pick<Auction, 'id' | 'short_name' | 'long_name' | 'settlement_date' | 'upload_status' | 'status'>[] }> {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/items/${itemId}/auctions`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error fetching auctions for item: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// Get auctions mapping for multiple items
+export async function getAuctionsByItems(itemIds: Array<string | number>): Promise<Record<string, { id: number; short_name: string; long_name: string; status: string | null; settlement_date: string | null }[]>> {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/auctions/by-items`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ item_ids: itemIds })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(errorData.error || `Error fetching auctions by items: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return (data?.mapping as Record<string, any[]>) || {};
+}
+
 // Platform export information
 export interface PlatformInfo {
   id: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' | 'database';

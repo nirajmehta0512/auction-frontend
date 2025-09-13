@@ -1,12 +1,13 @@
 // frontend/src/components/items/ItemsTableNew.tsx
 "use client"
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronUp, ChevronDown, Edit, Trash2, MoreVertical, Eye } from 'lucide-react'
 import { Artwork } from '@/lib/items-api'
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/lib/items-api'
 import MediaRenderer from '@/components/ui/MediaRenderer'
+import { getAuctionsByItems } from '@/lib/auctions-api'
 
 interface ItemsTableProps {
   items: Artwork[]
@@ -33,6 +34,30 @@ export default function ItemsTable({
 }: ItemsTableProps) {
   const router = useRouter()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [auctionsByItem, setAuctionsByItem] = useState<Record<string, { id: number; short_name: string; long_name: string; status: string | null; settlement_date: string | null }[]>>({})
+  const [loadingAuctions, setLoadingAuctions] = useState(false)
+
+  // Fetch auctions mapping for current items
+  useEffect(() => {
+    const fetchAuctions = async () => {
+      try {
+        setLoadingAuctions(true)
+        const ids = items.map(i => i.id!).filter(Boolean)
+        if (ids.length === 0) {
+          setAuctionsByItem({})
+          return
+        }
+        const mapping = await getAuctionsByItems(ids)
+        setAuctionsByItem(mapping)
+      } catch (e) {
+        // non-blocking
+        console.error('Failed to load auctions for items', e)
+      } finally {
+        setLoadingAuctions(false)
+      }
+    }
+    fetchAuctions()
+  }, [items])
 
   // Helper function to get first two images from an item
   const getItemImages = (item: Artwork): string[] => {
@@ -80,7 +105,7 @@ export default function ItemsTable({
   }
 
   const handlePreview = (itemId: string) => {
-    router.push(`/preview/${itemId}`)
+    router.push(`/items/${itemId}`)
     setOpenMenuId(null)
   }
 
@@ -229,6 +254,24 @@ export default function ItemsTable({
                       </div>
                       <div className="text-gray-500 text-xs truncate">
                         {item.brands?.name || item.brand_name || 'not assigned yet'}
+                      </div>
+                      {/* Auctions list under brand name */}
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        {(() => {
+                          const auctions = auctionsByItem[String(item.id)] || []
+                          if (loadingAuctions && auctions.length === 0) {
+                            return <span className="text-gray-400">Loading auctions…</span>
+                          }
+                          if (auctions.length === 0) {
+                            return <span className="text-gray-400">No auctions</span>
+                          }
+                          const names = auctions.map(a => a.short_name || a.long_name).filter(Boolean)
+                          return (
+                            <span title={names.join(', ')}>
+                              Auctions: {names.slice(0, 3).join(', ')}{names.length > 3 ? ` +${names.length - 3}` : ''}
+                            </span>
+                          )
+                        })()}
                       </div>
                       {(item.artist_id || item.school_id) && (
                         <div className="text-gray-500 text-xs truncate">

@@ -2,10 +2,11 @@
 "use client"
 
 import React, { useState } from 'react'
-import { X, Search, Eye, AlertTriangle, Check, Clock, RefreshCw, Trash2, Shield, Users, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import { X, Search, Eye, AlertTriangle, Check, Clock, RefreshCw, Trash2, Shield, Users, ChevronDown, ChevronUp, Filter, Zap, Server } from 'lucide-react'
 import { ArtworksAPI, ITEM_CATEGORIES, ITEM_CONDITIONS, ITEM_PERIODS, ITEM_MATERIALS } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
 import MediaRenderer from '@/components/ui/MediaRenderer'
+import { compareImages, batchCompareImages, normalizeImageUrl, validateImageUrl, ImageComparisonResult } from '@/utils/image-comparison'
 
 interface DuplicateDetectionModalProps {
   onClose: () => void
@@ -41,6 +42,11 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   const [similarityThreshold, setSimilarityThreshold] = useState(80)
   const [statusFilter, setStatusFilter] = useState<string[]>(['draft', 'active'])
 
+  // Comparison mode settings
+  const [comparisonMode, setComparisonMode] = useState<'backend' | 'frontend'>('frontend')
+  const [pixelThreshold, setPixelThreshold] = useState(0.1)
+  const [maxImageDimension, setMaxImageDimension] = useState(512)
+
   // New advanced filters
   const [itemIdFilter, setItemIdFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -66,6 +72,21 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
     setDuplicates([])
     
     try {
+      if (comparisonMode === 'backend') {
+        // Use backend comparison (existing logic)
+        await performBackendScan()
+      } else {
+        // Use frontend comparison with Pixelmatch
+        await performFrontendScan()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to scan for duplicates')
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
+  const performBackendScan = async () => {
       const params: any = {
         brand_code: brand,
         similarity_threshold: similarityThreshold / 100, // Convert percentage to decimal
@@ -127,11 +148,233 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
       } else {
         setError(result.error || 'Failed to detect duplicates')
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to scan for duplicates')
-    } finally {
-      setIsScanning(false)
+  }
+
+  const performFrontendScan = async () => {
+    console.log('🔍 Starting frontend image comparison scan...')
+
+    // First, get items with images using the same filters
+    const params: any = {
+      brand_code: brand,
+      status: statusFilter.length === 1 ? statusFilter[0] : undefined,
+      limit: 1000 // Large limit to get all items
     }
+
+    // Apply filters
+    if (itemIdFilter.trim()) {
+      params.item_ids = itemIdFilter.trim()
+    }
+    if (categoryFilter) {
+      params.category = categoryFilter
+    }
+    if (conditionFilter) {
+      params.condition = conditionFilter
+    }
+    if (periodFilter) {
+      params.period_age = periodFilter
+    }
+    if (materialsFilter) {
+      params.materials = materialsFilter
+    }
+    if (artistIdFilter) {
+      params.artist_id = artistIdFilter
+    }
+    if (schoolIdFilter) {
+      params.school_id = schoolIdFilter
+    }
+    if (lowEstMin || lowEstMax) {
+      params.low_est_min = lowEstMin || undefined
+      params.low_est_max = lowEstMax || undefined
+    }
+    if (highEstMin || highEstMax) {
+      params.high_est_min = highEstMin || undefined
+      params.high_est_max = highEstMax || undefined
+    }
+    if (startPriceMin || startPriceMax) {
+      params.start_price_min = startPriceMin || undefined
+      params.start_price_max = startPriceMax || undefined
+    }
+
+    const result = await ArtworksAPI.getArtworks(params)
+
+    if (!result.success || !result.data) {
+      setError('Failed to fetch items for duplicate detection')
+      return
+    }
+
+    const items = result.data.filter(item => item.images && item.images.length > 0)
+    console.log(`📸 Found ${items.length} items with images`)
+
+    if (items.length === 0) {
+      setDuplicates([])
+      setTotalItemsChecked(0)
+      setExactGroups(0)
+      setSimilarGroups(0)
+      setScanComplete(true)
+      return
+    }
+
+    // Group items by normalized image URLs
+    const imageGroups = new Map<string, any[]>()
+    const itemImageMap = new Map<string, string>()
+
+    for (const item of items) {
+      if (item.images && item.images.length > 0 && item.images[0] && typeof item.images[0] === 'string') {
+        const primaryImage: string = normalizeImageUrl(item.images[0])
+        itemImageMap.set(item.id, primaryImage)
+
+        if (!imageGroups.has(primaryImage)) {
+          imageGroups.set(primaryImage, [])
+        }
+        imageGroups.get(primaryImage)!.push(item)
+      }
+    }
+
+    // Find potential duplicates (items sharing the same normalized URL)
+    const urlDuplicates: any[] = []
+    for (const [url, itemsWithUrl] of imageGroups.entries()) {
+      if (itemsWithUrl.length > 1) {
+        urlDuplicates.push({
+          group_id: `url_exact_${urlDuplicates.length + 1}`,
+          type: 'exact_image',
+          match_value: `URL: ${url}`,
+          similarity_score: 1.0,
+          items: itemsWithUrl.map(item => ({
+            id: item.id,
+            title: item.title,
+            lot_num: item.lot_num,
+            image_url: itemImageMap.get(item.id) || '',
+            status: item.status || 'draft',
+            created_at: item.created_at || new Date().toISOString()
+          }))
+        })
+      }
+    }
+
+    // For more detailed comparison, create pairs of items that don't share URLs
+    const comparisonPairs: Array<{ url1: string; url2: string; item1: any; item2: any; pairId: string }> = []
+    const processedUrls = new Set<string>()
+
+    for (let i = 0; i < items.length; i++) {
+      const item1 = items[i]
+        const url1: string = itemImageMap.get(item1.id) || ''
+
+      if (processedUrls.has(url1)) continue
+
+      for (let j = i + 1; j < items.length; j++) {
+        const item2 = items[j]
+        const url2: string = itemImageMap.get(item2.id) || ''
+
+        if (processedUrls.has(url2)) continue
+
+        // Only compare if URLs are different (URL duplicates already handled above)
+        if (url1 !== url2) {
+          comparisonPairs.push({
+            url1,
+            url2,
+            item1,
+            item2,
+            pairId: `${item1.id}_${item2.id}`
+          })
+        }
+      }
+
+      processedUrls.add(url1)
+    }
+
+    console.log(`🔄 Will compare ${comparisonPairs.length} image pairs...`)
+
+    // Perform batch image comparison
+    const pairIds = comparisonPairs.map(pair => ({ url1: pair.url1, url2: pair.url2, id: pair.pairId }))
+    const comparisonResults = await batchCompareImages(pairIds, {
+      threshold: pixelThreshold,
+      resizeToSameSize: true,
+      maxDimension: maxImageDimension,
+      concurrency: 2 // Lower concurrency for frontend to avoid browser limits
+    })
+
+    // Group similar items based on comparison results
+    const similarGroups: any[] = []
+    const processedItems = new Set<string>()
+
+    for (const [pairId, result] of comparisonResults.entries()) {
+      if (result.isDuplicate && !result.error) {
+        const pair = comparisonPairs.find(p => p.pairId === pairId)
+        if (!pair) continue
+
+        const { item1, item2 } = pair
+
+        // Skip if either item is already processed
+        if (processedItems.has(item1.id) || processedItems.has(item2.id)) continue
+
+        // Find other similar items
+        const similarItems = [item1, item2]
+
+        // Look for other items similar to these
+        for (const otherPair of comparisonPairs) {
+          if (otherPair.pairId === pairId) continue
+
+          const otherResult = comparisonResults.get(otherPair.pairId)
+          if (otherResult?.isDuplicate) {
+            if (!processedItems.has(otherPair.item1.id) &&
+                (otherPair.item1.id === item1.id || otherPair.item1.id === item2.id ||
+                 otherPair.item2.id === item1.id || otherPair.item2.id === item2.id)) {
+              if (!similarItems.find(item => item.id === otherPair.item1.id)) {
+                similarItems.push(otherPair.item1)
+              }
+              if (!similarItems.find(item => item.id === otherPair.item2.id)) {
+                similarItems.push(otherPair.item2)
+              }
+            }
+          }
+        }
+
+        // Remove duplicates from similarItems
+        const uniqueItems = similarItems.filter((item, index, self) =>
+          index === self.findIndex(i => i.id === item.id)
+        )
+
+        if (uniqueItems.length > 1) {
+          similarGroups.push({
+            group_id: `pixel_similar_${similarGroups.length + 1}`,
+            type: 'similar',
+            match_value: `Pixel similarity: ${result.similarity.toFixed(1)}%`,
+            similarity_score: result.similarity / 100,
+            items: uniqueItems.map(item => ({
+              id: item.id,
+              title: item.title,
+              lot_num: item.lot_num,
+              image_url: itemImageMap.get(item.id) || '',
+              status: item.status || 'draft',
+              created_at: item.created_at || new Date().toISOString()
+            }))
+          })
+
+          // Mark items as processed
+          uniqueItems.forEach(item => processedItems.add(item.id))
+        }
+      }
+    }
+
+    // Combine all duplicate groups
+    const allDuplicates = [...urlDuplicates, ...similarGroups]
+
+    console.log(`✅ Found ${urlDuplicates.length} URL-based exact duplicates and ${similarGroups.length} pixel-based similar groups`)
+
+    setDuplicates(allDuplicates)
+    setTotalItemsChecked(items.length)
+    setExactGroups(urlDuplicates.length)
+    setSimilarGroups(similarGroups.length)
+    setScanComplete(true)
+
+    // Pre-select items to keep for exact duplicates
+    const initialSelected = new Set<string>()
+    allDuplicates.forEach(group => {
+      if (group.type === 'exact_image' && group.items.length > 0) {
+        initialSelected.add(group.items[0].id)
+      }
+    })
+    setSelectedItems(initialSelected)
   }
 
   const getStatusColor = (status: string) => {
@@ -259,8 +502,15 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Duplicate Image Detection</h2>
-            <p className="text-gray-600 mt-1">Scan inventory for duplicate or similar images</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {comparisonMode === 'frontend' ? 'Advanced Image Comparison' : 'Duplicate Image Detection'}
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {comparisonMode === 'frontend'
+                ? 'Pixel-perfect image analysis using advanced computer vision'
+                : 'Fast duplicate detection using hash-based comparison'
+              }
+            </p>
           </div>
           <div className="flex items-center gap-3">
             {!scanComplete && (
@@ -272,12 +522,12 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                 {isScanning ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Scanning...
+                    {comparisonMode === 'frontend' ? 'Analyzing Images...' : 'Scanning...'}
                   </>
                 ) : (
                   <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Start Scan
+                    {comparisonMode === 'frontend' ? <Zap className="h-4 w-4 mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                    {comparisonMode === 'frontend' ? 'Start Analysis' : 'Start Scan'}
                   </>
                 )}
               </button>
@@ -295,8 +545,49 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
         {!scanComplete && (
           <div className="flex-1 overflow-auto p-6 border-b border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Similarity Threshold */}
+              {/* Comparison Mode */}
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comparison Mode
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="comparisonMode"
+                      value="backend"
+                      checked={comparisonMode === 'backend'}
+                      onChange={(e) => setComparisonMode(e.target.value as 'backend' | 'frontend')}
+                      className="mr-2"
+                    />
+                    <Server className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Backend (Hash-based)</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="comparisonMode"
+                      value="frontend"
+                      checked={comparisonMode === 'frontend'}
+                      onChange={(e) => setComparisonMode(e.target.value as 'backend' | 'frontend')}
+                      className="mr-2"
+                    />
+                    <Zap className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Frontend (Pixelmatch)</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {comparisonMode === 'backend'
+                    ? 'Fast server-side comparison using MD5 hashes'
+                    : 'Accurate client-side comparison using pixel-level analysis'
+                  }
+                </p>
+              </div>
+
+              {/* Similarity/Pixel Threshold */}
+              <div>
+                {comparisonMode === 'backend' ? (
+                  <>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Similarity Threshold: {similarityThreshold}%
                 </label>
@@ -312,7 +603,53 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                   <span>50% (More matches)</span>
                   <span>95% (Exact matches)</span>
                 </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pixel Threshold: {pixelThreshold}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="0.3"
+                      step="0.01"
+                      value={pixelThreshold}
+                      onChange={(e) => setPixelThreshold(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0.05 (Exact match)</span>
+                      <span>0.3 (Loose match)</span>
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Max Image Dimension (Frontend only) */}
+              {comparisonMode === 'frontend' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Image Dimension: {maxImageDimension}px
+                  </label>
+                  <input
+                    type="range"
+                    min="256"
+                    max="1024"
+                    step="64"
+                    value={maxImageDimension}
+                    onChange={(e) => setMaxImageDimension(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>256px (Faster)</span>
+                    <span>1024px (More accurate)</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Larger dimensions provide more accurate comparison but take longer to process
+                  </p>
+                </div>
+              )}
 
 
               {/* Status Filter */}
@@ -598,12 +935,23 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Check className="h-5 w-5 text-green-500 mr-2" />
-                    <span className="font-medium">Scan Complete</span>
+                    <span className="font-medium">
+                      {comparisonMode === 'frontend' ? 'Analysis Complete' : 'Scan Complete'}
+                    </span>
                   </div>
                   <div className="text-sm text-gray-600">
                     {totalItemsChecked} items checked • {duplicates.length} duplicate groups found
-                    {exactGroups > 0 && <span className="ml-2 text-red-600">({exactGroups} exact)</span>}
+                    {comparisonMode === 'frontend' ? (
+                      <>
+                        {exactGroups > 0 && <span className="ml-2 text-red-600">({exactGroups} URL exact)</span>}
+                        {similarGroups > 0 && <span className="ml-2 text-orange-600">({similarGroups} pixel similar)</span>}
+                      </>
+                    ) : (
+                      <>
+                        {exactGroups > 0 && <span className="ml-2 text-red-600">({exactGroups} hash exact)</span>}
                     {similarGroups > 0 && <span className="ml-2 text-orange-600">({similarGroups} similar)</span>}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -651,9 +999,9 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
                           <h3 className="font-medium text-gray-900">
-                            {group.type === 'exact_image' && '🖼️ Exact Image Match'}
+                            {group.type === 'exact_image' && (comparisonMode === 'frontend' ? '🔗 URL Exact Match' : '🖼️ Hash Exact Match')}
                             {group.type === 'exact_title' && '📝 Exact Title Match'}
-                            {group.type === 'similar' && '🔍 Similar Items'}
+                            {group.type === 'similar' && (comparisonMode === 'frontend' ? '🎨 Pixel Similar' : '🔍 Similar Items')}
                             {!group.type && 'Duplicate Group'} #{index + 1} ({group.items.length} items)
                           </h3>
                           {group.match_value && (
@@ -663,9 +1011,13 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                           )}
                         </div>
                         <span className={`text-sm px-2 py-1 rounded ${
-                          group.type?.startsWith('exact_') ? 'bg-red-100 text-red-800' : 'text-gray-600'
+                          group.type?.startsWith('exact_') ? 'bg-red-100 text-red-800' :
+                          group.type === 'similar' && comparisonMode === 'frontend' ? 'bg-blue-100 text-blue-800' :
+                          'text-gray-600'
                         }`}>
-                          {group.type?.startsWith('exact_') ? '100%' : Math.round(group.similarity_score * 100) + '%'} similarity
+                          {group.type?.startsWith('exact_') ? '100%' :
+                           comparisonMode === 'frontend' && group.type === 'similar' ? `${Math.round(group.similarity_score * 100)}% similar` :
+                           Math.round(group.similarity_score * 100) + '%'} similarity
                         </span>
                       </div>
                       
