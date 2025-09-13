@@ -242,7 +242,7 @@ export async function batchCompareImages(
   const { concurrency = 3 } = options;
   const results = new Map<string, ImageComparisonResult>();
 
-  console.log(`🔄 Comparing ${imagePairs.length} image pairs with concurrency ${concurrency}...`);
+  console.log(`🔄 Comparing ${imagePairs.length} first image pairs with concurrency ${concurrency}...`);
 
   // Process in batches to control concurrency
   for (let i = 0; i < imagePairs.length; i += concurrency) {
@@ -252,15 +252,15 @@ export async function batchCompareImages(
       const result = await compareImages(pair.url1, pair.url2, options);
       results.set(pair.id, result);
 
-      if (results.size % 5 === 0) {
-        console.log(`📊 Compared ${results.size}/${imagePairs.length} image pairs`);
+      if (results.size % 10 === 0) {
+        console.log(`📊 Compared ${results.size}/${imagePairs.length} first image pairs`);
       }
     });
 
     await Promise.all(batchPromises);
   }
 
-  console.log(`✅ Completed comparing ${results.size} image pairs`);
+  console.log(`✅ Completed comparing ${results.size} first image pairs`);
   return results;
 }
 

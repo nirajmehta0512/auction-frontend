@@ -151,7 +151,7 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   }
 
   const performFrontendScan = async () => {
-    console.log('🔍 Starting frontend image comparison scan...')
+    console.log('🔍 Starting efficient frontend duplicate detection scan...')
 
     // First, get items with images using the same filters
     const params: any = {
@@ -214,164 +214,208 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
       return
     }
 
-    // Group items by normalized image URLs
-    const imageGroups = new Map<string, any[]>()
+    // Step 1: Group items by title first (fast text matching)
+    console.log('📝 Step 1: Grouping items by title...')
+    const titleGroups = new Map<string, any[]>()
     const itemImageMap = new Map<string, string>()
 
     for (const item of items) {
       if (item.images && item.images.length > 0 && item.images[0] && typeof item.images[0] === 'string') {
+        const title = (item.title || '').trim().toLowerCase()
         const primaryImage: string = normalizeImageUrl(item.images[0] || '')
         itemImageMap.set(String(item.id), primaryImage)
 
-        if (!imageGroups.has(primaryImage)) {
-          imageGroups.set(primaryImage, [])
-        }
-        imageGroups.get(primaryImage)!.push(item)
-      }
-    }
-
-    // Find potential duplicates (items sharing the same normalized URL)
-    const urlDuplicates: any[] = []
-    for (const [url, itemsWithUrl] of imageGroups.entries()) {
-      if (itemsWithUrl.length > 1) {
-        urlDuplicates.push({
-          group_id: `url_exact_${urlDuplicates.length + 1}`,
-          type: 'exact_image',
-          match_value: `URL: ${url}`,
-          similarity_score: 1.0,
-          items: itemsWithUrl.map(item => ({
-            id: String(item.id), // Ensure ID is always a string
-            title: item.title || '',
-            lot_num: item.lot_num,
-            image_url: itemImageMap.get(item.id) || '',
-            status: item.status || 'draft',
-            created_at: item.created_at || new Date().toISOString()
-          }))
-        })
-      }
-    }
-
-    // For more detailed comparison, create pairs of items that don't share URLs
-    const comparisonPairs: Array<{ url1: string; url2: string; item1: any; item2: any; pairId: string }> = []
-    const processedUrls = new Set<string>()
-
-    for (let i = 0; i < items.length; i++) {
-      const item1 = items[i]
-        const url1: string = itemImageMap.get(String(item1.id)) || ''
-
-      if (processedUrls.has(url1)) continue
-
-      for (let j = i + 1; j < items.length; j++) {
-        const item2 = items[j]
-        const url2: string = itemImageMap.get(String(item2.id)) || ''
-
-        if (processedUrls.has(url2)) continue
-
-        // Only compare if URLs are different (URL duplicates already handled above)
-        if (url1 !== url2) {
-          comparisonPairs.push({
-            url1,
-            url2,
-            item1,
-            item2,
-            pairId: `${item1.id}_${item2.id}`
-          })
-        }
-      }
-
-      processedUrls.add(url1)
-    }
-
-    console.log(`🔄 Will compare ${comparisonPairs.length} image pairs...`)
-
-    // Perform batch image comparison
-    const pairIds = comparisonPairs.map(pair => ({ url1: pair.url1, url2: pair.url2, id: pair.pairId }))
-    const comparisonResults = await batchCompareImages(pairIds, {
-      threshold: pixelThreshold,
-      resizeToSameSize: true,
-      maxDimension: maxImageDimension,
-      concurrency: 2 // Lower concurrency for frontend to avoid browser limits
-    })
-
-    // Group similar items based on comparison results
-    const similarGroups: any[] = []
-    const processedItems = new Set<string>()
-
-    for (const [pairId, result] of comparisonResults.entries()) {
-      if (result.isDuplicate && !result.error) {
-        const pair = comparisonPairs.find(p => p.pairId === pairId)
-        if (!pair) continue
-
-        const { item1, item2 } = pair
-
-        // Skip if either item is already processed
-        if (processedItems.has(item1.id) || processedItems.has(item2.id)) continue
-
-        // Find other similar items
-        const similarItems = [item1, item2]
-
-        // Look for other items similar to these
-        for (const otherPair of comparisonPairs) {
-          if (otherPair.pairId === pairId) continue
-
-          const otherResult = comparisonResults.get(otherPair.pairId)
-          if (otherResult?.isDuplicate) {
-            if (!processedItems.has(otherPair.item1.id) &&
-                (otherPair.item1.id === item1.id || otherPair.item1.id === item2.id ||
-                 otherPair.item2.id === item1.id || otherPair.item2.id === item2.id)) {
-              if (!similarItems.find(item => item.id === otherPair.item1.id)) {
-                similarItems.push(otherPair.item1)
-              }
-              if (!similarItems.find(item => item.id === otherPair.item2.id)) {
-                similarItems.push(otherPair.item2)
-              }
-            }
+        if (title) {
+          if (!titleGroups.has(title)) {
+            titleGroups.set(title, [])
           }
+          titleGroups.get(title)!.push(item)
         }
+      }
+    }
 
-        // Remove duplicates from similarItems
-        const uniqueItems = similarItems.filter((item, index, self) =>
-          index === self.findIndex(i => i.id === item.id)
-        )
+    console.log(`📊 Found ${titleGroups.size} unique titles from ${items.length} items`)
 
-        if (uniqueItems.length > 1) {
-          similarGroups.push({
-            group_id: `pixel_similar_${similarGroups.length + 1}`,
-            type: 'similar',
-            match_value: `Pixel similarity: ${result.similarity.toFixed(1)}%`,
-            similarity_score: result.similarity / 100,
-            items: uniqueItems.map(item => ({
-              id: String(item.id), // Ensure ID is always a string
+    // Step 2: For each title group with multiple items, compare first images
+    const allDuplicateGroups: any[] = []
+    let totalImageComparisons = 0
+
+    for (const [title, titleItems] of titleGroups.entries()) {
+      if (titleItems.length < 2) continue // Skip titles with only one item
+
+      console.log(`🔍 Processing title group: "${title}" (${titleItems.length} items)`)
+
+      // Group items by their first image URL within this title group
+      const imageGroups = new Map<string, any[]>()
+      for (const item of titleItems) {
+        const itemId = String(item.id)
+        const firstImageUrl = itemImageMap.get(itemId)
+
+        if (firstImageUrl) {
+          if (!imageGroups.has(firstImageUrl)) {
+            imageGroups.set(firstImageUrl, [])
+          }
+          imageGroups.get(firstImageUrl)!.push(item)
+        }
+      }
+
+      // Find exact image URL duplicates within this title group
+      const urlDuplicates: any[] = []
+      for (const [url, itemsWithUrl] of imageGroups.entries()) {
+        if (itemsWithUrl.length > 1) {
+          urlDuplicates.push({
+            group_id: `title_${title.replace(/\s+/g, '_')}_url_exact_${urlDuplicates.length + 1}`,
+            type: 'exact_image',
+            match_value: `Title: "${title}" + URL: ${url}`,
+            similarity_score: 1.0,
+            items: itemsWithUrl.map(item => ({
+              id: String(item.id),
               title: item.title || '',
               lot_num: item.lot_num,
-              image_url: itemImageMap.get(item.id) || '',
+              image_url: itemImageMap.get(String(item.id)) || '',
               status: item.status || 'draft',
               created_at: item.created_at || new Date().toISOString()
             }))
           })
-
-          // Mark items as processed
-          uniqueItems.forEach(item => processedItems.add(item.id))
         }
+      }
+
+      // Only compare different first images within this title group
+      const imageUrls = Array.from(imageGroups.keys())
+      const comparisonPairs: Array<{ url1: string; url2: string; item1: any; item2: any; pairId: string }> = []
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url1 = imageUrls[i]
+        const itemsWithUrl1 = imageGroups.get(url1)!
+
+        for (let j = i + 1; j < imageUrls.length; j++) {
+          const url2 = imageUrls[j]
+          const itemsWithUrl2 = imageGroups.get(url2)!
+
+          if (url1 !== url2) {
+            const item1 = itemsWithUrl1[0]
+            const item2 = itemsWithUrl2[0]
+
+            comparisonPairs.push({
+              url1,
+              url2,
+              item1,
+              item2,
+              pairId: `${item1.id}_${item2.id}`
+            })
+          }
+        }
+      }
+
+      if (comparisonPairs.length > 0) {
+        console.log(`🖼️ Comparing ${comparisonPairs.length} first image pairs for title: "${title}"`)
+
+        // Perform batch image comparison
+        const pairIds = comparisonPairs.map(pair => ({ url1: pair.url1, url2: pair.url2, id: pair.pairId }))
+        const comparisonResults = await batchCompareImages(pairIds, {
+          threshold: pixelThreshold,
+          resizeToSameSize: true,
+          maxDimension: maxImageDimension,
+          concurrency: 2
+        })
+
+        totalImageComparisons += comparisonPairs.length
+
+        // Group similar items based on comparison results
+        const similarGroups: any[] = []
+        const processedSimilarItems = new Set<string>()
+
+        for (const [pairId, result] of comparisonResults.entries()) {
+          if (result.isDuplicate && !result.error) {
+            const pair = comparisonPairs.find(p => p.pairId === pairId)
+            if (!pair) continue
+
+            const { item1, item2 } = pair
+
+            if (processedSimilarItems.has(item1.id) || processedSimilarItems.has(item2.id)) continue
+
+            const similarItems = [item1, item2]
+
+            // Look for other similar items in this title group
+            for (const otherPair of comparisonPairs) {
+              if (otherPair.pairId === pairId) continue
+
+              const otherResult = comparisonResults.get(otherPair.pairId)
+              if (otherResult?.isDuplicate) {
+                if (!processedSimilarItems.has(otherPair.item1.id) &&
+                    (otherPair.item1.id === item1.id || otherPair.item1.id === item2.id ||
+                     otherPair.item2.id === item1.id || otherPair.item2.id === item2.id)) {
+                  if (!similarItems.find(item => item.id === otherPair.item1.id)) {
+                    similarItems.push(otherPair.item1)
+                  }
+                  if (!similarItems.find(item => item.id === otherPair.item2.id)) {
+                    similarItems.push(otherPair.item2)
+                  }
+                }
+              }
+            }
+
+            const uniqueItems = similarItems.filter((item, index, self) =>
+              index === self.findIndex(i => i.id === item.id)
+            )
+
+            if (uniqueItems.length > 1) {
+              similarGroups.push({
+                group_id: `title_${title.replace(/\s+/g, '_')}_pixel_similar_${similarGroups.length + 1}`,
+                type: 'similar',
+                match_value: `Title: "${title}" + Pixel similarity: ${result.similarity.toFixed(1)}%`,
+                similarity_score: result.similarity / 100,
+                items: uniqueItems.map(item => ({
+                  id: String(item.id),
+                  title: item.title || '',
+                  lot_num: item.lot_num,
+                  image_url: itemImageMap.get(String(item.id)) || '',
+                  status: item.status || 'draft',
+                  created_at: item.created_at || new Date().toISOString()
+                }))
+              })
+
+              uniqueItems.forEach(item => processedSimilarItems.add(item.id))
+            }
+          }
+        }
+
+        // Add groups from this title
+        allDuplicateGroups.push(...urlDuplicates, ...similarGroups)
+      } else {
+        // Add URL duplicates even if no image comparisons needed
+        allDuplicateGroups.push(...urlDuplicates)
       }
     }
 
-    // Combine all duplicate groups
-    const allDuplicates = [...urlDuplicates, ...similarGroups]
+    console.log(`✅ Completed efficient duplicate detection:`)
+    console.log(`   - ${totalImageComparisons} image comparisons performed (much fewer than before!)`)
+    console.log(`   - ${allDuplicateGroups.length} duplicate groups found`)
 
-    console.log(`✅ Found ${urlDuplicates.length} URL-based exact duplicates and ${similarGroups.length} pixel-based similar groups`)
-
-    setDuplicates(allDuplicates)
+    setDuplicates(allDuplicateGroups)
     setTotalItemsChecked(items.length)
-    setExactGroups(urlDuplicates.length)
-    setSimilarGroups(similarGroups.length)
+    setExactGroups(allDuplicateGroups.filter(g => g.type === 'exact_image').length)
+    setSimilarGroups(allDuplicateGroups.filter(g => g.type === 'similar').length)
     setScanComplete(true)
 
-    // Pre-select items to keep for exact duplicates
+    // Pre-select items to keep (prioritize sold/returned items)
     const initialSelected = new Set<string>()
-    allDuplicates.forEach(group => {
-      if (group.type === 'exact_image' && group.items.length > 0) {
-        initialSelected.add(group.items[0].id)
+    allDuplicateGroups.forEach(group => {
+      if (group.items.length > 0) {
+        // Sort items by priority: sold/returned first, then by creation date
+        const sortedItems = [...group.items].sort((a, b) => {
+          const priorityOrder = { 'sold': 1, 'returned': 2, 'withdrawn': 3, 'passed': 4, 'active': 5, 'draft': 6 }
+          const aPriority = priorityOrder[a.status as keyof typeof priorityOrder] || 99
+          const bPriority = priorityOrder[b.status as keyof typeof priorityOrder] || 99
+
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority // Lower number = higher priority
+          }
+          // If same status, prefer older items (created first)
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+
+        initialSelected.add(sortedItems[0].id) // Keep the highest priority item
       }
     })
     setSelectedItems(initialSelected)
