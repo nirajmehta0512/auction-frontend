@@ -560,7 +560,7 @@ export async function exportAuctionImagesToPlatform(
 }
 
 // Get auctions for a single item
-export async function getAuctionsForItem(itemId: string | number): Promise<{ success: boolean; auctions: Pick<Auction, 'id' | 'short_name' | 'long_name' | 'settlement_date' | 'upload_status' | 'status'>[] }> {
+export async function getAuctionsForItem(itemId: string | number): Promise<{ success: boolean; auctions: Pick<Auction, 'id' | 'short_name' | 'long_name' | 'settlement_date' | 'upload_status'>[] }> {
   const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}/items/${itemId}/auctions`, {
     headers: {

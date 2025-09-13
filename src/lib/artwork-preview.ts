@@ -230,7 +230,7 @@ export const generateArtworkPreviewCustom = (
   result = result.replace(/\$provenance/gi, artwork.provenance || '')
   result = result.replace(/\$low_est/gi, artwork.low_est?.toString() || '')
   result = result.replace(/\$high_est/gi, artwork.high_est?.toString() || '')
-  result = result.replace(/\$lot_num/gi, artwork.lot_num || '')
+  result = result.replace(/\$lot_num/gi, String(artwork.lot_num || ''))
   
   return result
 }

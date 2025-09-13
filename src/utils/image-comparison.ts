@@ -109,7 +109,7 @@ function resizeImageData(imageData: ImageData, targetWidth: number, targetHeight
   tempCanvas.height = imageData.height;
   const tempCtx = tempCanvas.getContext('2d')!;
 
-  const tempImageData = new ImageData(imageData.data, imageData.width, imageData.height);
+  const tempImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
   tempCtx.putImageData(tempImageData, 0, 0);
 
   // Draw resized image

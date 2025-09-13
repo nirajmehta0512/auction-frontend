@@ -687,7 +687,7 @@ export default function ConsignmentViewPage() {
                               className="w-24 h-24 object-cover rounded border cursor-pointer"
                               aspectRatio="auto"
                               showControls={false}
-                              onClick={() => router.push(`/preview/${item.id}`)}
+                              onClick={() => router.push(`/items/${item.id}`)}
                             />
                           </div>
                           

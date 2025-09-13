@@ -10,14 +10,12 @@ import { autoSyncArtworkToGoogleSheet } from './google-sheets-api';
 // Artwork interface matching the actual database schema
 export interface Artwork {
   id?: string;
-  lot_num?: string;                   // Optional: LotNum (up to 10 chars)
   title: string;                      // Required: Title
   description: string;                // Required: Description
   low_est?: number;                   // Optional: Low Estimate (can be null)
   high_est?: number;                  // Optional: High Estimate (can be null)
   start_price?: number;               // Optional: Start Price
   condition?: string;                 // Optional: Condition
-  reserve?: number;                   // Optional: Reserve price
   vendor_id?: number;                 // Optional: Vendor ID (foreign key to clients)
   buyer_id?: number;                  // Optional: Buyer ID (foreign key to clients)
 
@@ -76,6 +74,32 @@ export interface Artwork {
   return_reason?: string;
   returned_by_user_id?: string;
   returned_by_user_name?: string;
+
+  // Notes and additional fields
+  notes?: string;
+  internal_notes?: string;
+
+  // Additional auction fields
+  reserve?: number;
+  final_price?: number;
+  sale_price?: number;
+  location?: string;
+  storage_location?: string;
+  storage_condition?: string;
+
+  // Exhibition and literature
+  exhibition_history?: string;
+  literature?: string;
+
+  // Technical details
+  depth_inches?: string;
+  depth_cm?: string;
+  weight_lbs?: string;
+  weight_kg?: string;
+  frame_type?: string;
+
+  // Lot number (can be number or string)
+  lot_num?: string | number;
 
   // Audit fields
   created_at?: string;

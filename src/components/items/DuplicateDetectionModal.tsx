@@ -18,7 +18,7 @@ interface DuplicateGroup {
   type?: 'exact_image' | 'exact_title' | 'similar'
   match_value?: string
   items: {
-    id: string
+    id: string | number
     title: string
     lot_num?: string
     image_url: string
@@ -220,8 +220,8 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
     for (const item of items) {
       if (item.images && item.images.length > 0 && item.images[0] && typeof item.images[0] === 'string') {
-        const primaryImage: string = normalizeImageUrl(item.images[0])
-        itemImageMap.set(item.id, primaryImage)
+        const primaryImage: string = normalizeImageUrl(item.images[0] || '')
+        itemImageMap.set(String(item.id), primaryImage)
 
         if (!imageGroups.has(primaryImage)) {
           imageGroups.set(primaryImage, [])
@@ -240,8 +240,8 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
           match_value: `URL: ${url}`,
           similarity_score: 1.0,
           items: itemsWithUrl.map(item => ({
-            id: item.id,
-            title: item.title,
+            id: String(item.id), // Ensure ID is always a string
+            title: item.title || '',
             lot_num: item.lot_num,
             image_url: itemImageMap.get(item.id) || '',
             status: item.status || 'draft',
@@ -257,13 +257,13 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
     for (let i = 0; i < items.length; i++) {
       const item1 = items[i]
-        const url1: string = itemImageMap.get(item1.id) || ''
+        const url1: string = itemImageMap.get(String(item1.id)) || ''
 
       if (processedUrls.has(url1)) continue
 
       for (let j = i + 1; j < items.length; j++) {
         const item2 = items[j]
-        const url2: string = itemImageMap.get(item2.id) || ''
+        const url2: string = itemImageMap.get(String(item2.id)) || ''
 
         if (processedUrls.has(url2)) continue
 
@@ -341,8 +341,8 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
             match_value: `Pixel similarity: ${result.similarity.toFixed(1)}%`,
             similarity_score: result.similarity / 100,
             items: uniqueItems.map(item => ({
-              id: item.id,
-              title: item.title,
+              id: String(item.id), // Ensure ID is always a string
+              title: item.title || '',
               lot_num: item.lot_num,
               image_url: itemImageMap.get(item.id) || '',
               status: item.status || 'draft',
@@ -388,11 +388,24 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
     }
   }
 
-  const handleViewItem = (itemId: string) => {
-    window.open(`/preview/${itemId}`, '_blank')
+  const handleViewItem = (itemId: string | number) => {
+    try {
+      // Ensure itemId is a valid number/string and construct URL safely
+      const id = String(itemId).trim()
+      if (!id || id === 'undefined' || id === 'null') {
+        console.error('Invalid item ID:', itemId)
+        return
+      }
+      const url = `/items/${encodeURIComponent(id)}`
+      console.log('Opening item preview URL:', url)
+      window.open(url, '_blank')
+    } catch (error) {
+      console.error('Error opening preview:', error)
+    }
   }
 
-  const handleItemSelection = (groupId: string, itemId: string) => {
+  const handleItemSelection = (groupId: string, itemId: string | number) => {
+    const itemIdStr = String(itemId) // Convert to string for consistent handling
     setSelectedItems(prev => {
       const newSet = new Set(prev)
       // For exact duplicates, only allow selecting one item per group
@@ -400,16 +413,17 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
       if (group?.type?.startsWith('exact_')) {
         // Clear other selections in this group
         group.items.forEach(item => {
-          if (item.id !== itemId) {
-            newSet.delete(item.id)
+          const itemIdToCompare = String(item.id)
+          if (itemIdToCompare !== itemIdStr) {
+            newSet.delete(itemIdToCompare)
           }
         })
       }
 
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId)
+      if (newSet.has(itemIdStr)) {
+        newSet.delete(itemIdStr)
       } else {
-        newSet.add(itemId)
+        newSet.add(itemIdStr)
       }
       return newSet
     })
@@ -421,15 +435,15 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
       if (action === 'keep_selected') {
         // Delete all items that are not selected
-        const allItemIds = duplicates.flatMap(group => group.items.map(item => item.id))
+        const allItemIds = duplicates.flatMap(group => group.items.map(item => String(item.id)))
         itemsToDelete = allItemIds.filter(id => !selectedItems.has(id))
       } else if (action === 'delete_unselected') {
         // Same as keep_selected
-        const allItemIds = duplicates.flatMap(group => group.items.map(item => item.id))
+        const allItemIds = duplicates.flatMap(group => group.items.map(item => String(item.id)))
         itemsToDelete = allItemIds.filter(id => !selectedItems.has(id))
       } else if (action === 'delete_all') {
         // Delete all items in duplicate groups
-        itemsToDelete = duplicates.flatMap(group => group.items.map(item => item.id))
+        itemsToDelete = duplicates.flatMap(group => group.items.map(item => String(item.id)))
       }
 
       if (itemsToDelete.length > 0) {
@@ -1023,15 +1037,15 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         {group.items.map((item, itemIndex) => (
-                          <div key={item.id} className={`border rounded-lg p-3 ${
-                            selectedItems.has(item.id) ? 'border-teal-300 bg-teal-50' : 'border-gray-200'
+                          <div key={String(item.id)} className={`border rounded-lg p-3 ${
+                            selectedItems.has(String(item.id)) ? 'border-teal-300 bg-teal-50' : 'border-gray-200'
                           }`}>
                             {/* Checkbox for selection */}
                             <div className="flex items-center justify-between mb-3">
                               <label className="flex items-center cursor-pointer">
                                 <input
                                   type="checkbox"
-                                  checked={selectedItems.has(item.id)}
+                                  checked={selectedItems.has(String(item.id))}
                                   onChange={() => handleItemSelection(group.group_id, item.id)}
                                   className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 mr-2"
                                 />
@@ -1054,7 +1068,7 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                                   <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
                                     <div className="text-center">
                                       <div className="text-sm font-medium">No Image</div>
-                                      <div className="text-xs">ID: {item.id}</div>
+                                      <div className="text-xs">ID: {String(item.id)}</div>
                                     </div>
                                   </div>
                                 }
@@ -1065,7 +1079,7 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                               <h4 className="font-medium text-sm text-gray-900 truncate" title={item.title}>
                                 {item.title}
                               </h4>
-                              <p className="text-xs text-gray-600">ID: {item.id}</p>
+                              <p className="text-xs text-gray-600">ID: {String(item.id)}</p>
                               <div className="flex items-center justify-between">
                                 <button
                                   onClick={() => handleViewItem(item.id)}

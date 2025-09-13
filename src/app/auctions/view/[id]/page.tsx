@@ -17,7 +17,7 @@ import type { Auction } from '@/lib/auctions-api'
 
 interface AuctionArtwork {
   id: string
-  lot_num?: string
+  lot_num?: string | number
   title: string
   artist_maker?: string
   low_est?: number
@@ -215,7 +215,7 @@ export default function AuctionViewPage() {
   }
 
   const handlePreview = (artworkId: string) => {
-    router.push(`/preview/${artworkId}`)
+    router.push(`/items/${artworkId}`)
   }
 
   // Handle sharing auction
