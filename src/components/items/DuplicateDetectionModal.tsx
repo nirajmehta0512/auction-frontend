@@ -43,7 +43,7 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   const [statusFilter, setStatusFilter] = useState<string[]>(['draft', 'active'])
 
   // Comparison mode settings
-  const [comparisonMode, setComparisonMode] = useState<'backend' | 'frontend'>('frontend')
+  const [comparisonMode, setComparisonMode] = useState<'backend' | 'frontend'>('backend')
   const [pixelThreshold, setPixelThreshold] = useState(0.1)
   const [maxImageDimension, setMaxImageDimension] = useState(512)
 

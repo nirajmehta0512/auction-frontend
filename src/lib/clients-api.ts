@@ -250,6 +250,73 @@ export const testBackendConnectivity = async (): Promise<{ success: boolean; mes
   }
 };
 
+// Debug function to check authentication and sync status
+export const debugSyncManager = async (): Promise<{ success: boolean; message: string; details?: any }> => {
+  console.log('🔧 Debug: Checking authentication and sync manager status');
+
+  const token = getAuthToken();
+  console.log('🔑 Auth token present:', !!token);
+  console.log('🔗 API Base URL:', API_BASE_URL);
+
+  if (!token) {
+    return {
+      success: false,
+      message: 'No authentication token found. Please log in first.',
+      details: {
+        tokenPresent: false,
+        apiUrl: API_BASE_URL
+      }
+    };
+  }
+
+  try {
+    // Test sync status endpoint
+    const statusResponse = await fetch(`${API_BASE_URL}/sync-manager/status`, {
+      method: 'GET',
+      headers: createHeaders()
+    });
+
+    if (!statusResponse.ok) {
+      console.error('❌ Sync status endpoint failed:', statusResponse.status, statusResponse.statusText);
+      return {
+        success: false,
+        message: `Sync status endpoint failed: ${statusResponse.status} ${statusResponse.statusText}`,
+        details: {
+          status: statusResponse.status,
+          statusText: statusResponse.statusText,
+          url: statusResponse.url,
+          authenticated: true
+        }
+      };
+    }
+
+    const statusData = await statusResponse.json();
+    console.log('✅ Sync status endpoint successful:', statusData);
+
+    return {
+      success: true,
+      message: 'Sync manager is working correctly',
+      details: {
+        authenticated: true,
+        syncStatus: statusData,
+        apiUrl: API_BASE_URL
+      }
+    };
+
+  } catch (error: any) {
+    console.error('❌ Sync manager debug failed:', error);
+    return {
+      success: false,
+      message: `Sync manager debug failed: ${error.message}`,
+      details: {
+        error: error.message,
+        authenticated: true,
+        apiUrl: API_BASE_URL
+      }
+    };
+  }
+};
+
 // Get authentication token from localStorage or cookies
 const getAuthToken = (): string | null => {
   return localStorage.getItem('token');
@@ -277,6 +344,21 @@ const handleApiError = async (response: Response): Promise<never> => {
     headers: Object.fromEntries(response.headers.entries()),
     timestamp: new Date().toISOString()
   });
+
+  // Handle authentication errors specifically
+  if (response.status === 401 || response.status === 403) {
+    console.error('🔐 Authentication failed. Please check if user is logged in.');
+    console.error('🔑 Token status:', {
+      hasToken: !!getAuthToken(),
+      tokenPreview: getAuthToken() ? getAuthToken()!.substring(0, 20) + '...' : 'none'
+    });
+    throw new Error('Authentication required. Please log in and try again.');
+  }
+
+  if (response.status === 404) {
+    console.error('🛣️ Route not found. Check if the backend is running and routes are registered.');
+    throw new Error('API endpoint not found. Please check backend configuration.');
+  }
 
   if (contentType && contentType.includes('application/json')) {
     try {
@@ -565,4 +647,187 @@ export const getClientByDisplayId = async (_displayId: string): Promise<Client |
   }
   const result = await searchClients(_displayId, 1);
   return result?.[0] || null;
+};
+
+// =========================================
+// GOOGLE SHEETS SYNC MANAGER API FUNCTIONS
+// =========================================
+
+export interface SyncStatus {
+  pollingActive: boolean;
+  scheduledActive: boolean;
+  lastSyncTimestamps: Record<string, string>;
+  syncInProgress: string[];
+}
+
+export interface SyncResult {
+  success: boolean;
+  message: string;
+  changesProcessed?: number;
+}
+
+/**
+ * Get current sync status
+ */
+export const getSyncStatus = async (): Promise<{ success: boolean; status: SyncStatus }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/status`, {
+    method: 'GET',
+    headers: createHeaders()
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Get current sync status (without authentication for debugging)
+ */
+export const getSyncStatusNoAuth = async (): Promise<{ success: boolean; status: SyncStatus }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/status`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    console.error('❌ Sync status (no auth) failed:', response.status, response.statusText);
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Authentication required. Please log in and try again.');
+    }
+    if (response.status === 404) {
+      throw new Error('API endpoint not found. Please check backend configuration.');
+    }
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+/**
+ * Manually trigger Google Sheets sync
+ */
+export const triggerManualSync = async (): Promise<SyncResult> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/manual`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({})
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Start scheduled sync (runs every 15 minutes)
+ */
+export const startScheduledSync = async (): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/start-scheduled`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({})
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Stop scheduled sync
+ */
+export const stopScheduledSync = async (): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/stop-scheduled`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({})
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Start polling sync
+ */
+export const startPollingSync = async (intervalMinutes: number = 15): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/start-polling`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({ interval_minutes: intervalMinutes })
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Stop polling sync
+ */
+export const stopPollingSync = async (): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-manager/stop-polling`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({})
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Sync clients to Google Sheets (existing functionality)
+ */
+export const syncClientsToGoogleSheets = async (sheetUrl: string, clientIds?: number[]): Promise<{ success: boolean; message: string; count: number }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-to-google-sheet`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({
+      sheet_url: sheetUrl,
+      client_ids: clientIds
+    })
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
+};
+
+/**
+ * Sync from Google Sheets to database (existing functionality)
+ */
+export const syncClientsFromGoogleSheets = async (sheetUrl: string, defaultBrand?: string): Promise<{ success: boolean; message: string; imported?: number; upserted?: number }> => {
+  const response = await fetch(`${API_BASE_URL}/sync-google-sheet`, {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({
+      sheet_url: sheetUrl,
+      default_brand: defaultBrand
+    })
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  return response.json();
 };
