@@ -69,7 +69,7 @@ interface BrandContextValue {
 const BrandContext = createContext<BrandContextValue | undefined>(undefined)
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
-  const [brand, setBrandState] = useState<BrandCode>('MSABER')
+  const [brand, setBrandState] = useState<BrandCode>('ALL')
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? (localStorage.getItem('brand_code') as BrandCode | null) : null
