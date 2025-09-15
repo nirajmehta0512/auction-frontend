@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Share2, ExternalLink, Eye, Maximize2, AlertCircle, Loader2, Edit3, Calendar, User, Tag, Palette, Ruler, Info } from 'lucide-react'
 import { Artwork, ArtworksAPI, formatCurrency, getStatusColor, getStatusLabel } from '@/lib/items-api'
 import { Artist, ArtistsAPI } from '@/lib/artists-api'
@@ -12,6 +12,7 @@ import MediaRenderer from '@/components/ui/MediaRenderer'
 export default function ItemPreviewPage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const [item, setItem] = useState<Artwork | null>(null)
   const [artist, setArtist] = useState<Artist | null>(null)
   const [school, setSchool] = useState<School | null>(null)
@@ -21,6 +22,34 @@ export default function ItemPreviewPage() {
   const [showFullscreenImage, setShowFullscreenImage] = useState(false)
 
   const itemId = params?.id as string
+
+  // Helper function to build edit URL with pagination parameters
+  const buildEditUrl = () => {
+    const params = new URLSearchParams()
+
+    // Add pagination parameters if they exist in the current URL
+    const page = searchParams.get('page')
+    const limit = searchParams.get('limit')
+    const sortField = searchParams.get('sort_field')
+    const sortDirection = searchParams.get('sort_direction')
+
+    if (page) params.set('page', page)
+    if (limit) params.set('limit', limit)
+    if (sortField) params.set('sort_field', sortField)
+    if (sortDirection) params.set('sort_direction', sortDirection)
+
+    // Add filter parameters
+    const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+    filterKeys.forEach(key => {
+      const value = searchParams.get(key)
+      if (value && value !== 'all') {
+        params.set(key, value)
+      }
+    })
+
+    const queryString = params.toString()
+    return `/items/edit/${itemId}${queryString ? `?${queryString}` : ''}`
+  }
 
   useEffect(() => {
     loadItemData()
@@ -176,7 +205,35 @@ export default function ItemPreviewPage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => router.push('/items')}
+                onClick={() => {
+                  // Build return URL with preserved pagination parameters
+                  const params = new URLSearchParams()
+
+                  // Add pagination parameters if they exist in the current URL
+                  const page = searchParams.get('page')
+                  const limit = searchParams.get('limit')
+                  const sortField = searchParams.get('sort_field')
+                  const sortDirection = searchParams.get('sort_direction')
+
+                  if (page) params.set('page', page)
+                  if (limit) params.set('limit', limit)
+                  if (sortField) params.set('sort_field', sortField)
+                  if (sortDirection) params.set('sort_direction', sortDirection)
+
+                  // Add filter parameters
+                  const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+                  filterKeys.forEach(key => {
+                    const value = searchParams.get(key)
+                    if (value && value !== 'all') {
+                      params.set(key, value)
+                    }
+                  })
+
+                  const queryString = params.toString()
+                  const returnUrl = `/items${queryString ? `?${queryString}` : ''}`
+
+                  router.push(returnUrl)
+                }}
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
@@ -192,7 +249,7 @@ export default function ItemPreviewPage() {
                 <Share2 className="h-5 w-5" />
               </button>
               <button
-                onClick={() => router.push(`/items/edit/${item.id}`)}
+                onClick={() => router.push(buildEditUrl())}
                 className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
               >
                 <Edit3 className="h-4 w-4 mr-2" />
@@ -520,7 +577,7 @@ export default function ItemPreviewPage() {
             <div className="space-y-4">
               <div className="flex space-x-4">
                 <button
-                  onClick={() => router.push(`/items/edit/${item.id}`)}
+                  onClick={() => router.push(buildEditUrl())}
                   className="flex-1 bg-teal-600 text-white px-8 py-4 rounded-xl hover:bg-teal-700 font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
                 >
                   <Edit3 className="h-5 w-5 mr-2 inline" />
