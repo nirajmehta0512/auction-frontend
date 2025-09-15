@@ -36,12 +36,15 @@ export default function InvoicesPage() {
     showEOADialog: false
   })
 
+  // Brand selection state
+  const [selectedBrandId, setSelectedBrandId] = useState<number | 'all'>('all')
+  const [brands, setBrands] = useState<Brand[]>([])
+
   // Separate state for buyer and vendor invoices
   const [buyerInvoices, setBuyerInvoices] = useState<Invoice[]>([])
   const [vendorInvoices, setVendorInvoices] = useState<Invoice[]>([])
   const [buyerLoading, setBuyerLoading] = useState(false)
   const [vendorLoading, setVendorLoading] = useState(false)
-  const [brands, setBrands] = useState<Brand[]>([])
 
   // Load brands on component mount
   useEffect(() => {
@@ -58,12 +61,12 @@ export default function InvoicesPage() {
     loadBrands()
   }, [])
 
-  // Load auctions on component mount
+  // Load auctions when brands are loaded or brand selection changes
   useEffect(() => {
     if (brands.length > 0) {
       loadAuctions()
     }
-  }, [brand, brands.length])
+  }, [brands.length, selectedBrandId])
 
   // Load invoices when auction is selected
   useEffect(() => {
@@ -85,12 +88,19 @@ export default function InvoicesPage() {
   const loadAuctions = async () => {
     try {
       setState(prev => ({ ...prev, auctionsLoading: true }))
-      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
-      const response = await getAuctions({
+
+      // Prepare auction query parameters
+      const auctionParams: any = {
         page: 1,
-        limit: 100,
-        brand_id: brandId
-      })
+        limit: 100
+      }
+
+      // Only add brand_id filter if a specific brand is selected (not 'all')
+      if (selectedBrandId !== 'all') {
+        auctionParams.brand_id = selectedBrandId
+      }
+
+      const response = await getAuctions(auctionParams)
       setState(prev => ({
         ...prev,
         auctions: response.auctions || [],
@@ -105,13 +115,19 @@ export default function InvoicesPage() {
   const loadBuyerInvoices = async (auctionId: number, page: number = 1) => {
     try {
       setBuyerLoading(true)
-      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
-      const response = await getAuctionInvoices(auctionId.toString(), {
+
+      const invoiceParams: any = {
         page,
         limit: 50,
-        brand_id: brandId,
         type: 'buyer'
-      })
+      }
+
+      // Only add brand_id filter if a specific brand is selected (not 'all')
+      if (selectedBrandId !== 'all') {
+        invoiceParams.brand_id = selectedBrandId
+      }
+
+      const response = await getAuctionInvoices(auctionId.toString(), invoiceParams)
 
       setBuyerInvoices(response.data.invoices || [])
       setBuyerLoading(false)
@@ -125,13 +141,19 @@ export default function InvoicesPage() {
   const loadVendorInvoices = async (auctionId: number, page: number = 1) => {
     try {
       setVendorLoading(true)
-      const brandId = getBrandId(typeof brand === 'string' ? brand : (brand as any)?.code)
-      const response = await getAuctionInvoices(auctionId.toString(), {
+
+      const invoiceParams: any = {
         page,
         limit: 50,
-        brand_id: brandId,
         type: 'vendor'
-      })
+      }
+
+      // Only add brand_id filter if a specific brand is selected (not 'all')
+      if (selectedBrandId !== 'all') {
+        invoiceParams.brand_id = selectedBrandId
+      }
+
+      const response = await getAuctionInvoices(auctionId.toString(), invoiceParams)
 
       setVendorInvoices(response.data.invoices || [])
       setVendorLoading(false)
@@ -145,12 +167,28 @@ export default function InvoicesPage() {
   const handleAuctionSelect = (auctionId: string | null) => {
     const selectedId = auctionId ? parseInt(auctionId) : null
     const auction = selectedId ? state.auctions.find(a => a.id === selectedId) : null
-    
+
     setState(prev => ({
       ...prev,
       selectedAuctionId: selectedId,
       selectedAuction: auction || null
     }))
+  }
+
+  const handleBrandSelect = (brandId: string | null) => {
+    const selectedId = brandId === 'all' ? 'all' : (brandId ? parseInt(brandId) : 'all')
+    setSelectedBrandId(selectedId)
+
+    // Clear selected auction when brand changes
+    setState(prev => ({
+      ...prev,
+      selectedAuctionId: null,
+      selectedAuction: null
+    }))
+
+    // Clear invoices when brand changes
+    setBuyerInvoices([])
+    setVendorInvoices([])
   }
 
 
@@ -226,6 +264,16 @@ export default function InvoicesPage() {
     searchableText: `${auction.short_name} ${auction.long_name} ${auction.description || ''}`.toLowerCase()
   }))
 
+  // Convert brands to SearchableSelect format
+  const brandOptions = [
+    { value: 'all', label: 'All Brands', searchableText: 'all brands' },
+    ...brands.map(brand => ({
+      value: brand.id.toString(),
+      label: `${brand.name} (${brand.code})`,
+      searchableText: `${brand.name} ${brand.code}`.toLowerCase()
+    }))
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -235,6 +283,20 @@ export default function InvoicesPage() {
           <p className="text-gray-600">
             Select an auction to view and manage its invoices. Import EOA data or generate PDFs for individual invoices.
           </p>
+        </div>
+
+        {/* Brand Selection */}
+        <div className="bg-white rounded-lg shadow-sm border mb-6 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Brand</h2>
+          <div className="max-w-md">
+            <SearchableSelect
+              options={brandOptions}
+              value={selectedBrandId === 'all' ? 'all' : selectedBrandId?.toString() || 'all'}
+              onChange={handleBrandSelect}
+              placeholder="Search and select a brand..."
+              isLoading={false}
+            />
+          </div>
         </div>
 
         {/* Auction Selection */}
@@ -260,7 +322,7 @@ export default function InvoicesPage() {
               </div>
             )}
           </div>
-          
+
           <div className="max-w-md">
             <SearchableSelect
               options={auctionOptions}

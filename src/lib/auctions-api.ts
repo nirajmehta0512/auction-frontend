@@ -384,6 +384,7 @@ export async function getAuctionInvoices(
   if (options.page) params.append('page', options.page.toString());
   if (options.limit) params.append('limit', options.limit.toString());
   if (options.type) params.append('type', options.type);
+  if (options.brand_id) params.append('brand_id', options.brand_id.toString());
 
   const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/invoices?${params}`, {
     headers: {
