@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, Save, X, Upload, Trash2, Plus } from 'lucide-react'
+import { ChevronLeft, Save, X, Upload, Trash2, Plus, Sparkles } from 'lucide-react'
 import { Artwork, ArtworksAPI, validateArtworkData, generateStartPrice, generateReservePriceForAI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
 import { ArtistsAPI, Artist } from '@/lib/artists-api'
 import { SchoolsAPI, School } from '@/lib/schools-api'
@@ -21,6 +21,7 @@ import ArtistSchoolSelection from '@/components/items/common/ArtistSchoolSelecti
 import ArtworkDescriptionSection from '@/components/items/common/ArtworkDescriptionSection'
 import DimensionsSection from '@/components/items/common/DimensionsSection'
 import CertificationSection from '@/components/items/common/CertificationSection'
+import AISuggestionsModal from '@/components/items/AISuggestionsModal'
 
 interface ItemFormProps {
   itemId?: string
@@ -262,6 +263,12 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [pendingImages, setPendingImages] = useState<Record<string, File>>({})
   const [pendingCertificationFiles, setPendingCertificationFiles] = useState<Record<string, File>>({})
+  
+  // AI Suggestions state
+  const [showAISuggestions, setShowAISuggestions] = useState(false)
+  const [aiSuggestions, setAISuggestions] = useState<any>(null)
+  const [aiLoading, setAILoading] = useState(false)
+  const [aiError, setAIError] = useState<string | null>(null)
 
   // Load artists, schools, auctions, clients and consignments data
   useEffect(() => {
@@ -1027,6 +1034,55 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
     }))
   }
 
+  // AI generation function for edit mode
+  const handleAIGeneration = async () => {
+    // Check if there's a first image to analyze
+    const firstImage = formData.images[0]
+    if (!firstImage || firstImage.trim() === '') {
+      setAIError('No image available for AI analysis. Please add an image first.')
+      return
+    }
+
+    try {
+      setAILoading(true)
+      setAIError(null)
+      setShowAISuggestions(true)
+
+      console.log('Analyzing image with AI:', firstImage)
+      const response = await ArtworksAPI.aiAnalyzeUrl(firstImage)
+
+      if (response.success && response.result) {
+        setAISuggestions(response.result)
+      } else {
+        setAIError(response.error || 'Failed to analyze image')
+      }
+    } catch (error: any) {
+      setAIError(error.message || 'Failed to analyze image')
+      console.error('AI analysis error:', error)
+    } finally {
+      setAILoading(false)
+    }
+  }
+
+  // Apply AI suggestions to form
+  const handleApplyAISuggestions = (selectedFields: any) => {
+    Object.entries(selectedFields).forEach(([fieldName, value]) => {
+      if (value !== undefined && value !== null) {
+        // Convert numeric fields to strings for form compatibility
+        if (['low_est', 'high_est', 'start_price', 'reserve'].includes(fieldName)) {
+          handleInputChange(fieldName, value.toString())
+        } else if (typeof value === 'boolean') {
+          handleInputChange(fieldName, value)
+        } else {
+          handleInputChange(fieldName, String(value))
+        }
+      }
+    })
+
+    console.log('Applied AI suggestions:', selectedFields)
+    alert(`Applied ${Object.keys(selectedFields).length} AI suggestions to the form.`)
+  }
+
   // Get count of filled image slots
   const getFilledSlotsCount = (): number => {
     return formData.images.filter(url => url && url.trim() !== '').length
@@ -1273,6 +1329,19 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* AI Generation Button - Only show in edit mode when first image exists */}
+          {mode === 'edit' && formData.images[0] && formData.images[0].trim() !== '' && (
+            <button
+              type="button"
+              onClick={handleAIGeneration}
+              disabled={aiLoading}
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm hover:shadow-md"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {aiLoading ? 'Analyzing...' : 'AI Generate'}
+            </button>
+          )}
+          
           <button
             type="button"
             onClick={() => onCancel ? onCancel() : router.push('/items')}
@@ -1903,6 +1972,20 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           )}
         </form>
       </div>
+
+      {/* AI Suggestions Modal */}
+      <AISuggestionsModal
+        isOpen={showAISuggestions}
+        onClose={() => {
+          setShowAISuggestions(false)
+          setAISuggestions(null)
+          setAIError(null)
+        }}
+        suggestions={aiSuggestions}
+        loading={aiLoading}
+        error={aiError}
+        onApplySuggestions={handleApplyAISuggestions}
+      />
     </div>
   )
 } 

@@ -601,6 +601,54 @@ export class ArtworksAPI {
     await handleApiError(response);
     return response.json();
   }
+
+  // AI analyze image by URL (for edit mode)
+  static async aiAnalyzeUrl(imageUrl: string): Promise<{
+    success: boolean;
+    result?: {
+      title: string;
+      description: string;
+      category: string;
+      materials: string;
+      period_age: string;
+      condition: string;
+      low_est: number;
+      high_est: number;
+      start_price: number;
+      reserve: number;
+      artist_id: number | null;
+      height_inches: string;
+      width_inches: string;
+      height_cm: string;
+      width_cm: string;
+      height_with_frame_inches: string;
+      width_with_frame_inches: string;
+      height_with_frame_cm: string;
+      width_with_frame_cm: string;
+      include_artist_description: boolean;
+      include_artist_key_description: boolean;
+      include_artist_biography: boolean;
+      include_artist_notable_works: boolean;
+      include_artist_major_exhibitions: boolean;
+      include_artist_awards_honors: boolean;
+      include_artist_market_value_range: boolean;
+      include_artist_signature_style: boolean;
+    };
+    error?: string;
+    details?: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/items/ai-analyze-url`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ imageUrl })
+    });
+
+    await handleApiError(response);
+    return response.json();
+  }
 }
 
 // Platform credentials helpers (used by frontend components to pull saved creds)
