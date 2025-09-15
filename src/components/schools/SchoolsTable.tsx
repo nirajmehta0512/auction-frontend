@@ -119,7 +119,7 @@ export default function SchoolsTable({
                 {getSortIcon('name')}
               </button>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '100px' }}>
               <button
                 onClick={() => onSort('location')}
                 className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -128,7 +128,7 @@ export default function SchoolsTable({
                 {getSortIcon('location')}
               </button>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '280px' }}>
               Specialties
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

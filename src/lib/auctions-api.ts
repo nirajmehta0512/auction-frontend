@@ -500,11 +500,17 @@ export async function generatePassedAuction(
 // Export auction data to platform-specific CSV format
 export async function exportAuctionToPlatform(
   auctionId: string,
-  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom'
+  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom',
+  itemIds?: number[]
 ): Promise<void> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export/${platform}`, {
+  const params = new URLSearchParams();
+  if (itemIds && itemIds.length > 0) {
+    params.append('item_ids', itemIds.join(','));
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export/${platform}?${params}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     }
@@ -530,11 +536,17 @@ export async function exportAuctionToPlatform(
 // Export auction images to platform-specific ZIP format
 export async function exportAuctionImagesToPlatform(
   auctionId: string,
-  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' | 'database'
+  platform: 'liveauctioneers' | 'easy_live' | 'invaluable' | 'the_saleroom' | 'database',
+  itemIds?: number[]
 ): Promise<void> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export-images/${platform}`, {
+  const params = new URLSearchParams();
+  if (itemIds && itemIds.length > 0) {
+    params.append('item_ids', itemIds.join(','));
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auctions/${auctionId}/export-images/${platform}?${params}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

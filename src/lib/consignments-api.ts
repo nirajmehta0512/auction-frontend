@@ -25,6 +25,8 @@ export interface Consignment {
   specialist_name?: string;
   valuation_day_id?: number; // Changed from string to number
   online_valuation_reference?: string;
+  reference?: string; // New field
+  reference_commission?: number; // New field (default 3%)
   default_sale_id?: number; // Changed from string to number
   default_vendor_commission?: number;
   status?: 'active' | 'pending' | 'completed' | 'cancelled' | 'archived';

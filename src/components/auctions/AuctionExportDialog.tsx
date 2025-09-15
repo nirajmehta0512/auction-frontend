@@ -103,10 +103,95 @@ export default function AuctionExportDialog({
   const [showArtworkList, setShowArtworkList] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
 
+  // Lot specification state
+  const [lotSpecification, setLotSpecification] = useState('')
+  const [useLotSpecification, setUseLotSpecification] = useState(false)
+
   // Get brand ID from brand code
   const getBrandId = (brandCode: string): number | undefined => {
     const foundBrand = brands.find(b => b.code === brandCode)
     return foundBrand?.id
+  }
+
+  // Parse lot specification string like "1-10,15-20,25,30-35" into array of lot numbers
+  const parseLotSpecification = (spec: string): number[] => {
+    if (!spec.trim()) return []
+
+    // Handle special "all" keyword
+    if (spec.trim().toLowerCase() === 'all') {
+      // Return all possible lot numbers from selected auctions
+      const allLots: number[] = []
+      for (const auctionId of selectedAuctionIds) {
+        const auction = auctions.find(a => a.id === auctionId)
+        if (auction?.artwork_ids && Array.isArray(auction.artwork_ids)) {
+          for (let i = 1; i <= auction.artwork_ids.length; i++) {
+            allLots.push(i)
+          }
+        }
+      }
+      return [...new Set(allLots)].sort((a, b) => a - b)
+    }
+
+    const lots: number[] = []
+    const parts = spec.split(',').map(p => p.trim())
+
+    for (const part of parts) {
+      if (part.includes('-')) {
+        // Handle range like "1-10"
+        const [start, end] = part.split('-').map(s => parseInt(s.trim()))
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            lots.push(i)
+          }
+        }
+      } else {
+        // Handle single lot like "25"
+        const lot = parseInt(part)
+        if (!isNaN(lot)) {
+          lots.push(lot)
+        }
+      }
+    }
+
+    // Remove duplicates and sort
+    return [...new Set(lots)].sort((a, b) => a - b)
+  }
+
+  // Convert lot numbers to item IDs based on auction's artwork_ids array
+  const convertLotsToItemIds = (auctionId: number, lotNumbers: number[]): number[] => {
+    const auction = auctions.find(a => a.id === auctionId)
+    if (!auction?.artwork_ids || !Array.isArray(auction.artwork_ids)) return []
+
+    const itemIds: number[] = []
+    for (const lotNum of lotNumbers) {
+      // Lot numbers are 1-based, array indices are 0-based
+      const arrayIndex = lotNum - 1
+      if (arrayIndex >= 0 && arrayIndex < auction.artwork_ids.length) {
+        itemIds.push(auction.artwork_ids[arrayIndex])
+      }
+    }
+
+    return itemIds
+  }
+
+  // Get filtered artworks based on lot specification
+  const getFilteredArtworks = (): Artwork[] => {
+    if (!useLotSpecification || !lotSpecification.trim()) {
+      return artworks
+    }
+
+    const allLotNumbers = parseLotSpecification(lotSpecification)
+    if (allLotNumbers.length === 0) return []
+
+    // Get item IDs for all selected auctions
+    const filteredItemIds: number[] = []
+    for (const auctionId of selectedAuctionIds) {
+      const itemIds = convertLotsToItemIds(auctionId, allLotNumbers)
+      filteredItemIds.push(...itemIds)
+    }
+
+    // Filter artworks based on item IDs
+    return artworks.filter(artwork => filteredItemIds.includes(artwork.id))
   }
 
   // Load brands on component mount
@@ -286,7 +371,10 @@ export default function AuctionExportDialog({
         return
       }
 
-      if (selectedArtworkIds.length === 0) {
+      // Get the artworks to export based on selection method
+      const artworksToExport = useLotSpecification ? getFilteredArtworks() : artworks.filter(artwork => selectedArtworkIds.includes(artwork.id))
+
+      if (artworksToExport.length === 0) {
         setError('Please select at least one artwork to export')
         return
       }
@@ -296,7 +384,7 @@ export default function AuctionExportDialog({
         return
       }
 
-      console.log(`Exporting ${selectedArtworkIds.length} artworks to ${selectedPlatforms.length} platforms`)
+      console.log(`Exporting ${artworksToExport.length} artworks to ${selectedPlatforms.length} platforms`)
       let totalExports = 0
       let completedExports = 0
 
@@ -307,11 +395,12 @@ export default function AuctionExportDialog({
       // Export CSV for each selected platform
       if (exportCSV) {
         for (const platform of selectedPlatforms) {
-          setExportProgress(`Generating CSV file for ${selectedArtworkIds.length} artworks to ${platformConfigs[platform].label}...`)
+          setExportProgress(`Generating CSV file for ${artworksToExport.length} artworks to ${platformConfigs[platform].label}...`)
           try {
-            await exportAuctionToPlatform(selectedAuctionIds[0].toString(), platform as any)
+            // Pass filtered item IDs to the export function
+            await exportAuctionToPlatform(selectedAuctionIds[0].toString(), platform as any, artworksToExport.map(a => a.id))
             completedExports++
-            setExportProgress(`CSV exported to ${platformConfigs[platform].label} (${selectedArtworkIds.length} artworks, ${completedExports}/${totalExports})`)
+            setExportProgress(`CSV exported to ${platformConfigs[platform].label} (${artworksToExport.length} artworks, ${completedExports}/${totalExports})`)
           } catch (csvError) {
             console.error(`CSV export error for ${platform}:`, csvError)
             const errorMessage = csvError instanceof Error ? csvError.message : 'Unknown error'
@@ -325,16 +414,16 @@ export default function AuctionExportDialog({
       if (exportImages) {
         for (const auctionId of selectedAuctionIds) {
           const auction = auctions.find(a => a.id === auctionId)
-          const auctionArtworks = artworks.filter(artwork => artwork.auction_name === (auction?.short_name || auction?.long_name))
-          const selectedAuctionArtworks = auctionArtworks.filter(artwork => selectedArtworkIds.includes(artwork.id))
+          const auctionArtworks = artworksToExport.filter(artwork => artwork.auction_name === (auction?.short_name || auction?.long_name))
 
           for (const platform of selectedPlatforms) {
-            setExportProgress(`Processing ${selectedAuctionArtworks.length} lots for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label}...`)
+            setExportProgress(`Processing ${auctionArtworks.length} lots for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label}...`)
 
             try {
-              await exportAuctionImagesToPlatform(auctionId.toString(), platform as any)
+              // Pass filtered item IDs to the export function
+              await exportAuctionImagesToPlatform(auctionId.toString(), platform as any, auctionArtworks.map(a => a.id))
               completedExports++
-              setExportProgress(`Images exported for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label} (${selectedAuctionArtworks.length} lots processed, ${completedExports}/${totalExports})`)
+              setExportProgress(`Images exported for "${auction?.short_name || `Auction ${auctionId}`}" to ${platformConfigs[platform].label} (${auctionArtworks.length} lots processed, ${completedExports}/${totalExports})`)
             } catch (imageError) {
               console.error(`Image export error for ${platform}:`, imageError)
               const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error'
@@ -346,7 +435,7 @@ export default function AuctionExportDialog({
       }
 
       const platformNames = selectedPlatforms.map(p => platformConfigs[p].label).join(', ')
-      setSuccess(`Successfully exported ${selectedArtworkIds.length} artworks from ${selectedAuctionIds.length} auction(s) to ${platformNames}`)
+      setSuccess(`Successfully exported ${artworksToExport.length} artworks from ${selectedAuctionIds.length} auction(s) to ${platformNames}`)
 
       setTimeout(() => {
         onClose()
@@ -557,6 +646,64 @@ export default function AuctionExportDialog({
             {selectedArtworkIds.length > 0 && (
               <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-800">
                 {selectedArtworkIds.length} artwork(s) selected
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lot Specification */}
+        {showArtworkList && selectedAuctionIds.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Lot Specification (Optional):
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="use-lot-spec"
+                  checked={useLotSpecification}
+                  onChange={(e) => setUseLotSpecification(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="use-lot-spec" className="text-xs text-gray-600">
+                  Use lot specification instead of manual selection
+                </label>
+              </div>
+            </div>
+
+            {useLotSpecification && (
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="text"
+                    value={lotSpecification}
+                    onChange={(e) => setLotSpecification(e.target.value)}
+                    placeholder="e.g., 1-10,15-20,25,30-35 or 'all' for all lots"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter lot ranges (e.g., 1-10) or individual lots (e.g., 5,8,12) separated by commas.
+                    Use 'all' to export all lots from selected auctions.
+                  </p>
+                </div>
+
+                {lotSpecification && useLotSpecification && (
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="text-sm text-blue-800">
+                      <strong>Parsed lots:</strong> {parseLotSpecification(lotSpecification).join(', ') || 'None'}
+                      {(() => {
+                        const filtered = getFilteredArtworks()
+                        return filtered.length > 0 ? (
+                          <span className="block mt-1">
+                            <strong>Matching artworks:</strong> {filtered.length} item(s) found
+                          </span>
+                        ) : null
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

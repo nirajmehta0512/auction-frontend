@@ -47,6 +47,9 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
   const [pixelThreshold, setPixelThreshold] = useState(0.1)
   const [maxImageDimension, setMaxImageDimension] = useState(512)
 
+  // Brand filter settings
+  const [brandFilterMode, setBrandFilterMode] = useState<'current' | 'all'>('all')
+
   // New advanced filters
   const [itemIdFilter, setItemIdFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -88,9 +91,13 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
   const performBackendScan = async () => {
       const params: any = {
-        brand_code: brand,
         similarity_threshold: similarityThreshold / 100, // Convert percentage to decimal
         status_filter: statusFilter
+      }
+
+      // Only include brand_code if we're filtering by current brand
+      if (brandFilterMode === 'current') {
+        params.brand_code = brand
       }
 
       // Add new advanced filters
@@ -155,9 +162,13 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
 
     // First, get items with images using the same filters
     const params: any = {
-      brand_code: brand,
       status: statusFilter.length === 1 ? statusFilter[0] : undefined,
       limit: 1000 // Large limit to get all items
+    }
+
+    // Only include brand_code if we're filtering by current brand
+    if (brandFilterMode === 'current') {
+      params.brand_code = brand
     }
 
     // Apply filters
@@ -568,6 +579,8 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
                 ? 'Pixel-perfect image analysis using advanced computer vision'
                 : 'Fast duplicate detection using hash-based comparison'
               }
+              {brandFilterMode === 'all' && ' • Scanning across all brands'}
+              {brandFilterMode === 'current' && ` • Scanning ${brand} brand only`}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -603,6 +616,42 @@ export default function DuplicateDetectionModal({ onClose }: DuplicateDetectionM
         {!scanComplete && (
           <div className="flex-1 overflow-auto p-6 border-b border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Brand Filter Mode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Brand Scope
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="brandFilterMode"
+                      value="all"
+                      checked={brandFilterMode === 'all'}
+                      onChange={(e) => setBrandFilterMode(e.target.value as 'all' | 'current')}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">All Brands</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="brandFilterMode"
+                      value="current"
+                      checked={brandFilterMode === 'current'}
+                      onChange={(e) => setBrandFilterMode(e.target.value as 'all' | 'current')}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Current Brand ({brand})</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {brandFilterMode === 'all'
+                    ? 'Scan for duplicates across all brands in your system'
+                    : 'Scan for duplicates within the current brand only'
+                  }
+                </p>
+              </div>
               {/* Comparison Mode */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -221,7 +221,7 @@ const materialOptions = ITEM_MATERIALS.map(material => ({
 
 async function submitPendingItems(payload: any) {
   const apiUrl = getApiBaseUrl()
-  const res = await fetch(`${apiUrl}/public/pending-items/submit`, {
+  const res = await fetch(`${apiUrl}/public/inventory/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -806,16 +806,53 @@ export default function InventoryFormPage() {
   }
 
   const tabs = [
-    { id: 'client', label: 'Your Info', icon: '👤' },
-    { id: 'basic', label: 'Basic Info', icon: '📝' },
-    { id: 'details', label: 'Details', icon: '🔍' },
-    { id: 'images', label: 'Images', icon: '🖼️' },
-    { id: 'preview', label: 'Preview', icon: '👁️' }
+    { id: 'client', label: 'Your Info', icon: '👤', description: 'Enter your contact information' },
+    { id: 'basic', label: 'Basic Info', icon: '📝', description: 'Add artwork details and artist information' },
+    { id: 'details', label: 'Details', icon: '🔍', description: 'Pricing, category and dimensions' },
+    { id: 'images', label: 'Images', icon: '🖼️', description: 'Upload artwork photos' },
+    { id: 'preview', label: 'Preview', icon: '👁️', description: 'Review and submit for approval' }
   ]
+
+  // Navigation helpers
+  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab)
+  const isFirstTab = currentTabIndex === 0
+  const isLastTab = currentTabIndex === tabs.length - 1
+  const canProceedToNext = () => {
+    if (activeTab === 'client') {
+      const hasClientId = clientId?.trim()
+      const hasClientInfo = clientInfo.first_name?.trim() && clientInfo.last_name?.trim() && clientInfo.email?.trim()
+      return hasClientId || hasClientInfo
+    }
+    if (activeTab === 'basic') {
+      return currentArtwork.title?.trim() && currentArtwork.description?.trim()
+    }
+    if (activeTab === 'details') {
+      const lowEst = Number(currentArtwork.low_est)
+      const highEst = Number(currentArtwork.high_est)
+      return Number.isFinite(lowEst) && lowEst > 0 && Number.isFinite(highEst) && highEst > 0 && lowEst < highEst
+    }
+    if (activeTab === 'images') {
+      return currentArtwork.images.some(img => img && img.trim())
+    }
+    return true
+  }
+
+  const goToNextTab = () => {
+    if (!isLastTab && canProceedToNext()) {
+      setActiveTab(tabs[currentTabIndex + 1].id)
+    }
+  }
+
+  const goToPrevTab = () => {
+    if (!isFirstTab) {
+      setActiveTab(tabs[currentTabIndex - 1].id)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="max-w-4xl mx-auto bg-white border rounded-lg">
+        {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -823,45 +860,6 @@ export default function InventoryFormPage() {
               <p className="text-gray-600">Submit multiple inventory items for review. We'll contact you after approval.</p>
             </div>
           </div>
-
-          {/* Artwork Tabs */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Inventory Items ({artworks.length})</h3>
-            <button
-                onClick={addArtwork}
-                className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 active:bg-teal-800 active:scale-95 hover:shadow-lg hover:shadow-teal-500/25 transition-all duration-200 shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-            >
-                <Plus className="h-4 w-4 mr-1 transition-transform duration-200 active:scale-110" />
-                Add Inventory
-            </button>
-          </div>
-            <div className="flex space-x-2 overflow-x-auto pb-2">
-              {artworks.map((artwork, index) => (
-                <div key={artwork.id} className="flex items-center">
-                  <button
-                    onClick={() => setActiveArtworkIndex(index)}
-                    className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${activeArtworkIndex === index
-                        ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 active:scale-95 shadow-md hover:shadow-lg hover:shadow-teal-500/25 focus:ring-teal-500'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 active:scale-95 hover:shadow-md focus:ring-gray-500'
-                      }`}
-                  >
-                    Inventory {index + 1}
-                    {artwork.title && `: ${artwork.title.substring(0, 20)}${artwork.title.length > 20 ? '...' : ''}`}
-                  </button>
-                  {artworks.length > 1 && (
-                    <button
-                      onClick={() => removeArtwork(index)}
-                      className="ml-1 p-2 text-red-600 hover:bg-red-50 active:bg-red-100 active:scale-90 hover:text-red-700 rounded-md transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                      title="Remove this inventory item"
-                    >
-                      <X className="h-4 w-4 transition-transform duration-200 active:rotate-90" />
-                    </button>
-                  )}
-          </div>
-              ))}
-        </div>
-            </div>
 
           {/* Error and Message Display */}
           {error && (
@@ -884,23 +882,124 @@ export default function InventoryFormPage() {
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {tabs.map((tab) => (
+        {/* Client Info Section - Separate from Items */}
+        {activeTab === 'client' && (
+          <div className="p-6 bg-blue-50 border-b border-blue-200">
+            <div className="flex items-center mb-4">
+              <div className="bg-blue-100 rounded-full p-2 mr-3">
+                <span className="text-blue-600 text-lg">👤</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-blue-900">Your Contact Information</h2>
+                <p className="text-blue-700 text-sm">We need this to contact you about your submission</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inventory Items Section - Only show when not on client tab */}
+        {activeTab !== 'client' && (
+          <div className="p-6 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center">
+                <div className="bg-teal-100 rounded-full p-2 mr-3">
+                  <span className="text-teal-600 text-lg">🎨</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Inventory Items ({artworks.length})</h3>
+                  <p className="text-gray-600 text-sm">Manage your artwork submissions</p>
+                </div>
+              </div>
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-200 active:scale-95 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${activeTab === tab.id
-                  ? 'border-teal-500 text-teal-600 focus:ring-teal-500'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:ring-gray-500'
-                  }`}
+                onClick={addArtwork}
+                className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 active:bg-teal-800 active:scale-95 hover:shadow-lg hover:shadow-teal-500/25 transition-all duration-200 shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
               >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
+                <Plus className="h-4 w-4 mr-1 transition-transform duration-200 active:scale-110" />
+                Add Inventory
               </button>
-            ))}
-          </nav>
+            </div>
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+              {artworks.map((artwork, index) => (
+                <div key={artwork.id} className="flex items-center">
+                  <button
+                    onClick={() => setActiveArtworkIndex(index)}
+                    className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${activeArtworkIndex === index
+                        ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 active:scale-95 shadow-md hover:shadow-lg hover:shadow-teal-500/25 focus:ring-teal-500'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 active:scale-95 hover:shadow-md focus:ring-gray-500'
+                      }`}
+                  >
+                    Inventory {index + 1}
+                    {artwork.title && `: ${artwork.title.substring(0, 20)}${artwork.title.length > 20 ? '...' : ''}`}
+                  </button>
+                  {artworks.length > 1 && (
+                    <button
+                      onClick={() => removeArtwork(index)}
+                      className="ml-1 p-2 text-red-600 hover:bg-red-50 active:bg-red-100 active:scale-90 hover:text-red-700 rounded-md transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      title="Remove this inventory item"
+                    >
+                      <X className="h-4 w-4 transition-transform duration-200 active:rotate-90" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Progress Indicator */}
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {tabs.map((tab, index) => (
+                <div key={tab.id} className="flex items-center">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                    activeTab === tab.id 
+                      ? 'bg-teal-600 border-teal-600 text-white' 
+                      : index < currentTabIndex 
+                        ? 'bg-green-100 border-green-500 text-green-600'
+                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                  }`}>
+                    {index < currentTabIndex ? (
+                      <span className="text-sm">✓</span>
+                    ) : (
+                      <span className="text-sm font-medium">{index + 1}</span>
+                    )}
+                  </div>
+                  {index < tabs.length - 1 && (
+                    <div className={`w-12 h-0.5 mx-2 transition-all duration-200 ${
+                      index < currentTabIndex ? 'bg-green-500' : 'bg-gray-300'
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="text-sm text-gray-600">
+              Step {currentTabIndex + 1} of {tabs.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Current Tab Header */}
+        <div className="px-6 py-4 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">{tabs[currentTabIndex]?.icon}</span>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">{tabs[currentTabIndex]?.label}</h2>
+                <p className="text-sm text-gray-600">{tabs[currentTabIndex]?.description}</p>
+              </div>
+            </div>
+            {!canProceedToNext() && activeTab !== 'preview' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-yellow-800">
+                  {activeTab === 'client' && 'Please provide your contact information'}
+                  {activeTab === 'basic' && 'Please add title and description'}
+                  {activeTab === 'details' && 'Please add valid price estimates'}
+                  {activeTab === 'images' && 'Please upload at least one image'}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <form className="p-6">
@@ -1261,17 +1360,76 @@ export default function InventoryFormPage() {
           )}
         </form>
 
-        {/* Submit Button */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={submitting}
-            className={`flex items-center px-8 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-teal-600 disabled:hover:shadow-sm disabled:hover:-translate-y-0 transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-teal-500/25 active:bg-teal-800 active:scale-95 hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${submitting ? 'animate-pulse' : ''}`}
-          >
-            <Save className={`h-5 w-5 mr-2 transition-transform duration-200 ${submitting ? 'animate-spin' : 'active:scale-110'}`} />
-            {submitting ? 'Submitting...' : 'Submit for Review'}
-          </button>
+        {/* Navigation Buttons */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            {/* Previous Button */}
+            <button
+              type="button"
+              onClick={goToPrevTab}
+              disabled={isFirstTab}
+              className={`flex items-center px-6 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                isFirstTab
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-md hover:-translate-y-0.5 active:scale-95 focus:ring-gray-500'
+              }`}
+            >
+              <ChevronLeft className="h-5 w-5 mr-2" />
+              Previous
+            </button>
+
+            {/* Progress Hint */}
+            <div className="text-center">
+              {!canProceedToNext() && activeTab !== 'preview' && (
+                <div className="flex items-center text-yellow-600 bg-yellow-50 px-4 py-2 rounded-lg border border-yellow-200">
+                  <span className="text-sm font-medium">⚠️ Complete required fields to continue</span>
+                </div>
+              )}
+              {canProceedToNext() && activeTab !== 'preview' && (
+                <div className="flex items-center text-green-600 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
+                  <span className="text-sm font-medium">✅ Ready to proceed</span>
+                </div>
+              )}
+            </div>
+
+            {/* Next/Submit Button */}
+            {activeTab === 'preview' ? (
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting}
+                className={`flex items-center px-8 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-teal-600 disabled:hover:shadow-sm disabled:hover:-translate-y-0 transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-teal-500/25 active:bg-teal-800 active:scale-95 hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${submitting ? 'animate-pulse' : ''}`}
+              >
+                <Save className={`h-5 w-5 mr-2 transition-transform duration-200 ${submitting ? 'animate-spin' : 'active:scale-110'}`} />
+                {submitting ? 'Submitting...' : 'Submit for Review'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={goToNextTab}
+                disabled={!canProceedToNext() || isLastTab}
+                className={`flex items-center px-6 py-3 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  !canProceedToNext() || isLastTab
+                    ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                    : 'bg-teal-600 text-white hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 hover:-translate-y-0.5 active:bg-teal-800 active:scale-95 focus:ring-teal-500 shadow-md'
+                }`}
+              >
+                Next
+                <ChevronLeft className="h-5 w-5 ml-2 rotate-180" />
+              </button>
+            )}
+          </div>
+
+          {/* Progress Info */}
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-500">
+              {activeTab === 'client' && 'Step 1: Enter your contact information so we can reach you'}
+              {activeTab === 'basic' && 'Step 2: Add basic artwork information and artist details'}
+              {activeTab === 'details' && 'Step 3: Set pricing and provide detailed specifications'}
+              {activeTab === 'images' && 'Step 4: Upload high-quality photos of your artwork'}
+              {activeTab === 'preview' && 'Step 5: Review all information and submit for approval'}
+            </p>
+          </div>
         </div>
       </div>
     </div>

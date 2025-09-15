@@ -37,7 +37,7 @@ const Label = ({ htmlFor, className, children }: { htmlFor?: string; className?:
   <label htmlFor={htmlFor} className={className}>{children}</label>
 )
 
-const Input = ({ id, type = "text", value, onChange, className, required, min, placeholder, disabled }: {
+const Input = ({ id, type = "text", value, onChange, className, required, min, placeholder, disabled, step }: {
   id?: string;
   type?: string;
   value?: string | number;
@@ -47,6 +47,7 @@ const Input = ({ id, type = "text", value, onChange, className, required, min, p
   min?: string;
   placeholder?: string;
   disabled?: boolean;
+  step?: string;
 }) => (
   <input
     id={id}
@@ -58,6 +59,7 @@ const Input = ({ id, type = "text", value, onChange, className, required, min, p
     min={min}
     placeholder={placeholder}
     disabled={disabled}
+    step={step}
   />
 )
 
@@ -202,6 +204,8 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
     specialist_name: consignment?.specialist_name || '',
     valuation_day_id: consignment?.valuation_day_id || 0, // Changed to number
     online_valuation_reference: consignment?.online_valuation_reference || '',
+    reference: consignment?.reference || '', // New field
+    reference_commission: consignment?.reference_commission || 3, // New field with default 3%
     default_sale_id: consignment?.default_sale_id || 0, // Changed to number
     default_vendor_commission: consignment?.default_vendor_commission || 0,
     status: consignment?.status || 'pending' as 'active' | 'pending' | 'completed' | 'cancelled' | 'archived',
@@ -322,6 +326,8 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
         specialist_id: formData.specialist_id || undefined,
         valuation_day_id: formData.valuation_day_id || undefined,
         online_valuation_reference: formData.online_valuation_reference || undefined,
+        reference: formData.reference || undefined, // New field
+        reference_commission: formData.reference_commission, // New field
         default_sale_id: formData.default_sale_id || undefined,
         default_vendor_commission: formData.default_vendor_commission,
         status: formData.status,
@@ -719,6 +725,38 @@ export default function ConsignmentForm({ consignment, onSave, onCancel }: Consi
               placeholder="Enter valuation reference"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-2">
+              Reference
+            </Label>
+            <Input
+              id="reference"
+              value={formData.reference}
+              onChange={(e) => handleInputChange('reference', e.target.value)}
+              placeholder="Enter reference name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="reference_commission" className="block text-sm font-medium text-gray-700 mb-2">
+              Reference Commission (%)
+            </Label>
+            <Input
+              id="reference_commission"
+              type="number"
+              value={formData.reference_commission}
+              onChange={(e) => handleInputChange('reference_commission', parseFloat(e.target.value) || 0)}
+              placeholder="3.0"
+              min="0"
+              step="0.1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Percentage of hammer price (default: 3%)
+            </p>
           </div>
 
           <div>
