@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { FileText, Import, Plus, Download } from 'lucide-react'
+import { FileText, Import, Download } from 'lucide-react'
 import { getAuctions, getAuctionInvoices, exportEOACsv, type Auction, type Invoice } from '@/lib/auctions-api'
 import { getBrands, type Brand } from '@/lib/brands-api'
 import SearchableSelect from '@/components/ui/SearchableSelect'
@@ -51,8 +51,11 @@ export default function InvoicesPage() {
     const loadBrands = async () => {
       try {
         const response = await getBrands()
-        if (response.success) {
+        if (response.success && response.data) {
           setBrands(response.data)
+          console.log('Loaded brands:', response.data.length)
+        } else {
+          console.error('Failed to load brands:', response)
         }
       } catch (err: any) {
         console.error('Error loading brands:', err)
@@ -79,11 +82,6 @@ export default function InvoicesPage() {
     }
   }, [state.selectedAuctionId, brand])
 
-  // Get brand ID from brand code
-  const getBrandId = (brandCode: string): number | undefined => {
-    const foundBrand = brands.find(b => b.code === brandCode)
-    return foundBrand?.id
-  }
 
   const loadAuctions = async () => {
     try {
@@ -245,34 +243,57 @@ export default function InvoicesPage() {
     }
   }
 
-  const handleBuyerPageChange = (newPage: number) => {
-    if (state.selectedAuctionId) {
-      loadBuyerInvoices(state.selectedAuctionId, newPage)
+
+  // Convert auctions to SearchableSelect format with enhanced information
+  const auctionOptions = state.auctions.map(auction => {
+    const startDate = auction.catalogue_launch_date
+      ? new Date(auction.catalogue_launch_date).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      : 'Not set'
+
+    const endDate = auction.settlement_date
+      ? new Date(auction.settlement_date).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      : 'Not set'
+
+    const status = (() => {
+      const today = new Date()
+      const catalogueLaunchDate = auction.catalogue_launch_date ? new Date(auction.catalogue_launch_date) : null
+      const settlementDate = new Date(auction.settlement_date)
+
+      if (today > settlementDate) return 'Past'
+      else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) return 'Present'
+      else return 'Future'
+    })()
+
+    return {
+      value: auction.id.toString(),
+      label: `${auction.short_name} - ${auction.long_name}`,
+      description: `${status} • ${startDate} - ${endDate} • ${auction.artwork_ids?.length || 0} items`,
+      searchableText: `${auction.short_name} ${auction.long_name} ${auction.description || ''} ${status} ${startDate} ${endDate}`.toLowerCase()
     }
-  }
+  })
 
-  const handleVendorPageChange = (newPage: number) => {
-    if (state.selectedAuctionId) {
-      loadVendorInvoices(state.selectedAuctionId, newPage)
-    }
-  }
-
-  // Convert auctions to SearchableSelect format
-  const auctionOptions = state.auctions.map(auction => ({
-    value: auction.id.toString(),
-    label: `${auction.short_name} - ${auction.long_name}`,
-    searchableText: `${auction.short_name} ${auction.long_name} ${auction.description || ''}`.toLowerCase()
-  }))
-
-  // Convert brands to SearchableSelect format
+  // Convert brands to SearchableSelect format with enhanced information
   const brandOptions = [
-    { value: 'all', label: 'All Brands', searchableText: 'all brands' },
+    {
+      value: 'all',
+      label: 'All Brands',
+      description: 'View all auctions across all brands'
+    },
     ...brands.map(brand => ({
       value: brand.id.toString(),
       label: `${brand.name} (${brand.code})`,
-      searchableText: `${brand.name} ${brand.code}`.toLowerCase()
+      description: brand.contact_email || 'No contact email set'
     }))
   ]
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -285,77 +306,144 @@ export default function InvoicesPage() {
           </p>
         </div>
 
-        {/* Brand Selection */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Brand</h2>
-          <div className="max-w-md">
-            <SearchableSelect
-              options={brandOptions}
-              value={selectedBrandId === 'all' ? 'all' : selectedBrandId?.toString() || 'all'}
-              onChange={handleBrandSelect}
-              placeholder="Search and select a brand..."
-              isLoading={false}
-            />
+        {/* Combined Selection Card */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8 relative">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Auction & Brand Selection
+            </h2>
+            <p className="text-blue-100 text-sm mt-1">
+              Choose a brand and auction to view and manage invoices
+            </p>
           </div>
-        </div>
 
-        {/* Auction Selection */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Select Auction</h2>
-            {state.selectedAuctionId && (
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleImportEOA}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
-                >
-                  <Import className="h-4 w-4 mr-2" />
-                  Import EOA Data
-                </button>
-                <button
-                  onClick={handleExportEOA}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer hover:underline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </button>
+          <div className="p-6">
+            {/* Selection Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Brand Selection */}
+              <div className="space-y-3 relative">
+                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded"></div>
+                  Brand Filter
+                </label>
+                <SearchableSelect
+                  options={brandOptions}
+                  value={selectedBrandId === 'all' ? 'all' : selectedBrandId?.toString() || 'all'}
+                  onChange={handleBrandSelect}
+                  placeholder="Search and select a brand..."
+                  isLoading={brands.length === 0}
+                  inputPlaceholder="Type to search brands..."
+                />
+              </div>
+
+              {/* Auction Selection */}
+              <div className="space-y-3 relative">
+                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded"></div>
+                  Auction Selection
+                </label>
+                <SearchableSelect
+                  options={auctionOptions}
+                  value={state.selectedAuctionId?.toString() || null}
+                  onChange={handleAuctionSelect}
+                  placeholder="Search and select an auction..."
+                  isLoading={state.auctionsLoading}
+                />
+              </div>
+            </div>
+
+            {/* Selected Auction Info & Actions */}
+            {state.selectedAuction && (
+              <div className="border-t border-gray-100 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-lg">{state.selectedAuction.long_name}</h3>
+                      <p className="text-sm text-gray-600">{state.selectedAuction.short_name}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                        (() => {
+                          const today = new Date()
+                          const catalogueLaunchDate = state.selectedAuction.catalogue_launch_date ? new Date(state.selectedAuction.catalogue_launch_date) : null
+                          const settlementDate = new Date(state.selectedAuction.settlement_date)
+
+                          if (today > settlementDate) return 'bg-gray-100 text-gray-800'
+                          else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) return 'bg-green-100 text-green-800'
+                          else return 'bg-blue-100 text-blue-800'
+                        })()
+                      }`}>
+                        {(() => {
+                          const today = new Date()
+                          const catalogueLaunchDate = state.selectedAuction.catalogue_launch_date ? new Date(state.selectedAuction.catalogue_launch_date) : null
+                          const settlementDate = new Date(state.selectedAuction.settlement_date)
+
+                          if (today > settlementDate) return 'Past'
+                          else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) return 'Present'
+                          else return 'Future'
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleImportEOA}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                    >
+                      <Import className="h-4 w-4 mr-2" />
+                      Import EOA Data
+                    </button>
+                    <button
+                      onClick={handleExportEOA}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Auction Details */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</p>
+                    <p className="mt-1 text-sm text-gray-900 capitalize">{state.selectedAuction.type?.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</p>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {state.selectedAuction.catalogue_launch_date
+                        ? new Date(state.selectedAuction.catalogue_launch_date).toLocaleDateString('en-GB')
+                        : 'Not set'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</p>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(state.selectedAuction.settlement_date).toLocaleDateString('en-GB')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Items</p>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {state.selectedAuction.artwork_ids?.length || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* No auction selected message */}
+            {!state.selectedAuction && (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-sm">Select an auction to view and manage its invoices</p>
               </div>
             )}
           </div>
-
-          <div className="max-w-md">
-            <SearchableSelect
-              options={auctionOptions}
-              value={state.selectedAuctionId?.toString() || null}
-              onChange={handleAuctionSelect}
-              placeholder="Search and select an auction..."
-              isLoading={state.auctionsLoading}
-            />
-          </div>
-
-          {state.selectedAuction && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900">{state.selectedAuction.long_name}</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Status: <span className="capitalize">
-                  {(() => {
-                    const today = new Date()
-                    const catalogueLaunchDate = state.selectedAuction.catalogue_launch_date ? new Date(state.selectedAuction.catalogue_launch_date) : null
-                    const settlementDate = new Date(state.selectedAuction.settlement_date)
-
-                    if (today > settlementDate) return 'Past'
-                    else if (catalogueLaunchDate && today >= catalogueLaunchDate && today <= settlementDate) return 'Present'
-                    else return 'Future'
-                  })()}
-                </span>
-                {state.selectedAuction.settlement_date && (
-                  <span className="ml-4">
-                    Settlement: {new Date(state.selectedAuction.settlement_date).toLocaleDateString()}
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Buyer Invoices Section */}

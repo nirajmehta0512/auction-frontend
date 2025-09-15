@@ -57,8 +57,9 @@ export default function SearchableSelect<T = string | number>({
   }, [options, query, dynamicOptions, enableDynamicSearch, loading])
 
   const currentLabel = useMemo(() => {
+    if (!value) return null
     const found = options.find(o => String(o.value) === String(value))
-    return found?.label
+    return found?.label || `Selected: ${value}`
   }, [options, value])
 
   // Dynamic search handler with debouncing
@@ -132,7 +133,7 @@ export default function SearchableSelect<T = string | number>({
   }, [])
 
   return (
-    <div ref={componentRef} className={`relative ${className || ''}`}>
+    <div ref={componentRef} className={`relative ${className || ''}`} style={{ isolation: 'isolate' }}>
       <button
         type="button"
         disabled={disabled}
@@ -141,11 +142,10 @@ export default function SearchableSelect<T = string | number>({
       >
         <span className="truncate block min-w-0 text-gray-900">
           {currentLabel || placeholder}
-          {!currentLabel && value && ` (Value: ${value})`}
         </span>
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-xl ring-1 ring-black ring-opacity-5">
           <div className="p-2 border-b">
             <input
               autoFocus
@@ -158,11 +158,20 @@ export default function SearchableSelect<T = string | number>({
               <div className="text-xs text-gray-500 mt-1">Searching...</div>
             )}
           </div>
-          <div className="max-h-64 overflow-auto">
-            {filtered.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-500">No results</div>
+          <div className="max-h-80 overflow-auto">
+            {isLoading && (
+              <div className="px-3 py-3 text-sm text-gray-500 flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                Loading options...
+              </div>
             )}
-            {filtered.map((opt) => (
+            {!isLoading && filtered.length === 0 && query.trim() && (
+              <div className="px-3 py-2 text-sm text-gray-500">No results found for "{query}"</div>
+            )}
+            {!isLoading && filtered.length === 0 && !query.trim() && options.length === 0 && (
+              <div className="px-3 py-2 text-sm text-gray-500">No options available</div>
+            )}
+            {!isLoading && filtered.map((opt) => (
               <button
                 key={String(opt.value)}
                 type="button"
@@ -172,11 +181,11 @@ export default function SearchableSelect<T = string | number>({
                   setQuery('');
                   onChange?.(opt.value)
                 }}
-                className={`w-full text-left px-3 py-2 transition-colors duration-150 ease-in-out hover:bg-blue-50 hover:text-blue-900 cursor-pointer ${String(value) === String(opt.value) ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
+                className={`w-full text-left px-3 py-3 transition-colors duration-150 ease-in-out hover:bg-blue-50 hover:text-blue-900 cursor-pointer border-b border-gray-50 last:border-b-0 ${String(value) === String(opt.value) ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
               >
-                <div className="text-sm">{opt.label}</div>
+                <div className="font-medium text-sm">{opt.label}</div>
                 {opt.description && (
-                  <div className={`text-xs ${String(value) === String(opt.value) ? 'text-blue-700' : 'text-gray-500'}`}>{opt.description}</div>
+                  <div className={`text-xs mt-1 ${String(value) === String(opt.value) ? 'text-blue-700' : 'text-gray-500'}`}>{opt.description}</div>
                 )}
               </button>
             ))}
