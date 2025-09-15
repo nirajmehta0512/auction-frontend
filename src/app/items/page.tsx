@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Download, Upload, Filter, MoreVertical, Eye, Sparkles, RefreshCw, FileText, Share2, Printer, Check, Trophy, Trash2, Search, ChevronDown, Copy } from 'lucide-react'
 import { Artwork, ArtworksAPI, ArtworksResponse } from '@/lib/items-api'
 import { useBrand } from '@/lib/brand-context'
@@ -44,7 +44,10 @@ interface FilterState {
 
 export default function ItemsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { brand } = useBrand()
+  const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false)
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [artworks, setArtworks] = useState<Artwork[]>([])
@@ -97,7 +100,85 @@ export default function ItemsPage() {
     passed: 0
   })
 
+  // Initialize state from URL parameters on mount (only once)
+  useEffect(() => {
+    if (searchParams && !hasInitializedFromUrl) {
+      const urlPage = searchParams.get('page')
+      const urlLimit = searchParams.get('limit')
+      const urlSortField = searchParams.get('sort_field')
+      const urlSortDirection = searchParams.get('sort_direction')
 
+
+      // Set initial values from URL parameters
+      if (urlPage) setPage(parseInt(urlPage) || 1)
+      if (urlLimit) setLimit(parseInt(urlLimit) || 25)
+      if (urlSortField) setSortField(urlSortField)
+      if (urlSortDirection) setSortDirection(urlSortDirection as 'asc' | 'desc')
+
+      // Update filters from URL parameters
+      const newFilters: any = {}
+      const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+      let hasFilterChanges = false
+
+      filterKeys.forEach(key => {
+        const value = searchParams.get(key)
+        if (value !== null) {
+          newFilters[key] = value
+          hasFilterChanges = true
+        }
+      })
+
+      if (hasFilterChanges) {
+        setFilters(newFilters)
+      }
+
+      setHasInitializedFromUrl(true)
+    } else if (searchParams && !hasInitializedFromUrl) {
+      // No URL parameters to parse, just mark as initialized
+      setHasInitializedFromUrl(true)
+    }
+  }, [searchParams, hasInitializedFromUrl])
+
+  // Handle URL parameter changes after initial load
+  useEffect(() => {
+    if (searchParams && hasInitializedFromUrl) {
+      const urlPage = searchParams.get('page')
+      const urlLimit = searchParams.get('limit')
+      const urlSortField = searchParams.get('sort_field')
+      const urlSortDirection = searchParams.get('sort_direction')
+
+      // Update pagination and sorting if changed
+      if (urlPage && parseInt(urlPage) !== page) {
+        setPage(parseInt(urlPage) || 1)
+      }
+      if (urlLimit && parseInt(urlLimit) !== limit) {
+        setLimit(parseInt(urlLimit) || 25)
+      }
+      if (urlSortField && urlSortField !== sortField) {
+        setSortField(urlSortField)
+      }
+      if (urlSortDirection && urlSortDirection !== sortDirection) {
+        setSortDirection(urlSortDirection as 'asc' | 'desc')
+      }
+
+      // Update filters if changed
+      const newFilters = { ...filters }
+      let hasFilterChanges = false
+      const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+
+      filterKeys.forEach(key => {
+        const value = searchParams.get(key)
+        if (value !== null && (newFilters as any)[key] !== value) {
+          (newFilters as any)[key] = value
+          hasFilterChanges = true
+        }
+      })
+
+      if (hasFilterChanges) {
+        setFilters(newFilters)
+      }
+    }
+  }, [searchParams, hasInitializedFromUrl, page, limit, sortField, sortDirection, filters])
 
   // Load artworks
   const loadItems = async () => {
@@ -112,6 +193,7 @@ export default function ItemsPage() {
         sort_field: sortField,
         sort_direction: sortDirection
       }
+
 
       // Handle brand filtering: only add brand_code if a specific brand is selected
       // filters.brand being empty string means "All Brands" - don't filter by brand
@@ -143,12 +225,40 @@ export default function ItemsPage() {
   }
 
   useEffect(() => {
-    loadItems()
-  }, [page, limit, filters, sortField, sortDirection, brand])
+    // Only load items after URL parameters have been initialized
+    if (hasInitializedFromUrl) {
+      loadItems()
+    }
+  }, [page, limit, filters, sortField, sortDirection, brand, hasInitializedFromUrl])
 
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
     setFilters(prev => ({ ...prev, ...newFilters }))
-    setPage(1) // Reset to first page when filtering
+    navigateToPage(1) // Reset to first page when filtering
+  }
+
+  // Helper function to navigate to a page and update URL
+  const navigateToPage = (newPage: number) => {
+    setPage(newPage)
+
+    // Update URL with current pagination state
+    const params = new URLSearchParams()
+    params.set('page', newPage.toString())
+    params.set('limit', limit.toString())
+    params.set('sort_field', sortField)
+    params.set('sort_direction', sortDirection)
+
+    // Add filter parameters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== '' && value !== 'all') {
+        params.set(key, value.toString())
+      }
+    })
+
+    const queryString = params.toString()
+    const newUrl = `/items${queryString ? `?${queryString}` : ''}`
+
+    // Use replace to avoid adding to browser history for pagination
+    router.replace(newUrl, { scroll: false })
   }
 
   const handleSort = (field: string) => {
@@ -158,6 +268,8 @@ export default function ItemsPage() {
       setSortField(field)
       setSortDirection('asc')
     }
+    // Update URL when sorting changes
+    setTimeout(() => navigateToPage(page), 0)
   }
 
   const handleDeleteItem = async (itemId: string) => {
@@ -299,7 +411,24 @@ export default function ItemsPage() {
                 <div className="py-2">
                   <button
                     onClick={() => {
-                      router.push('/items/new')
+                      // Build pagination parameters for the URL
+                      const params = new URLSearchParams()
+                      params.set('page', page.toString())
+                      params.set('limit', limit.toString())
+                      params.set('sort_field', sortField)
+                      params.set('sort_direction', sortDirection)
+
+                      // Add filter parameters
+                      Object.entries(filters).forEach(([key, value]) => {
+                        if (value && value !== '' && value !== 'all') {
+                          params.set(key, value.toString())
+                        }
+                      })
+
+                      const queryString = params.toString()
+                      const url = `/items/new${queryString ? `?${queryString}` : ''}`
+
+                      router.push(url)
                       setShowAddDropdown(false)
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center cursor-pointer hover:underline"
@@ -505,7 +634,7 @@ export default function ItemsPage() {
                 </span>
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={() => setPage(Math.max(1, page - 1))}
+                    onClick={() => navigateToPage(Math.max(1, page - 1))}
                     disabled={page === 1}
                     className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -529,7 +658,7 @@ export default function ItemsPage() {
                       pages.push(
                         <button
                           key={1}
-                          onClick={() => setPage(1)}
+                          onClick={() => navigateToPage(1)}
                           className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                         >
                           1
@@ -545,7 +674,7 @@ export default function ItemsPage() {
                       pages.push(
                         <button
                           key={i}
-                          onClick={() => setPage(i)}
+                          onClick={() => navigateToPage(i)}
                           className={`px-2 py-1 border rounded text-xs font-medium cursor-pointer ${
                             i === page
                               ? 'bg-teal-600 text-white border-teal-600'
@@ -565,7 +694,7 @@ export default function ItemsPage() {
                       pages.push(
                         <button
                           key={totalPages}
-                          onClick={() => setPage(totalPages)}
+                          onClick={() => navigateToPage(totalPages)}
                           className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                         >
                           {totalPages}
@@ -577,7 +706,7 @@ export default function ItemsPage() {
                   })()}
 
                   <button
-                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    onClick={() => navigateToPage(Math.min(totalPages, page + 1))}
                     disabled={page === totalPages}
                     className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
@@ -694,6 +823,7 @@ export default function ItemsPage() {
             ) : (
               <div className="h-full overflow-auto">
                 <ItemsTable
+                  key={`items-table-${page}-${sortField}-${sortDirection}-${limit}`}
                   items={artworks}
                   selectedItems={selectedItems}
                   onSelectionChange={setSelectedItems}
@@ -701,6 +831,9 @@ export default function ItemsPage() {
                   sortField={sortField}
                   sortDirection={sortDirection}
                   onDelete={handleDeleteItem}
+                  currentPage={page}
+                  currentFilters={filters}
+                  currentLimit={limit}
                 />
               </div>
             )
@@ -723,7 +856,7 @@ export default function ItemsPage() {
                     value={limit}
                     onChange={(e) => {
                       setLimit(parseInt(e.target.value))
-                      setPage(1)
+                      navigateToPage(1)
                     }}
                     className="border border-gray-300 rounded px-2 py-1 text-xs"
                   >
@@ -736,7 +869,7 @@ export default function ItemsPage() {
 
               <div className="flex items-center space-x-1">
                 <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
+                  onClick={() => navigateToPage(Math.max(1, page - 1))}
                   disabled={page === 1}
                   className={`px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${!page || page > 1 ? 'cursor-pointer' : ''}`}
                 >
@@ -760,7 +893,7 @@ export default function ItemsPage() {
                     pages.push(
                       <button
                         key={1}
-                        onClick={() => setPage(1)}
+                        onClick={() => navigateToPage(1)}
                         className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         1
@@ -776,7 +909,7 @@ export default function ItemsPage() {
                     pages.push(
                       <button
                         key={i}
-                        onClick={() => setPage(i)}
+                        onClick={() => navigateToPage(i)}
                         className={`px-2 py-1 border rounded text-xs font-medium cursor-pointer ${
                           i === page
                             ? 'bg-teal-600 text-white border-teal-600'
@@ -796,7 +929,7 @@ export default function ItemsPage() {
                     pages.push(
                       <button
                         key={totalPages}
-                        onClick={() => setPage(totalPages)}
+                        onClick={() => navigateToPage(totalPages)}
                         className="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         {totalPages}
@@ -808,7 +941,7 @@ export default function ItemsPage() {
                 })()}
 
                 <button
-                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  onClick={() => navigateToPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
                   className={`px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${page < totalPages ? 'cursor-pointer' : ''}`}
                 >

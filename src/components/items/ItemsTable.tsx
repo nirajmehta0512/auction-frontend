@@ -18,6 +18,9 @@ interface ItemsTableProps {
   onSort?: (field: string, direction: 'asc' | 'desc') => void
   sortField?: string
   sortDirection?: 'asc' | 'desc'
+  currentPage?: number
+  currentFilters?: any
+  currentLimit?: number
 }
 
 type SortField = 'id' | 'title' | 'low_est' | 'high_est' | 'start_price' | 'status' | 'category' | 'created_at'
@@ -30,9 +33,13 @@ export default function ItemsTable({
   onDelete,
   onSort,
   sortField = 'created_at',
-  sortDirection = 'desc'
+  sortDirection = 'desc',
+  currentPage = 1,
+  currentFilters = {},
+  currentLimit = 25
 }: ItemsTableProps) {
   const router = useRouter()
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [auctionsByItem, setAuctionsByItem] = useState<Record<string, { id: number; short_name: string; long_name: string; status: string | null; settlement_date: string | null }[]>>({})
   const [loadingAuctions, setLoadingAuctions] = useState(false)
@@ -92,7 +99,25 @@ export default function ItemsTable({
     if (onEdit) {
       onEdit(item)
     } else {
-      router.push(`/items/edit/${item.id}`)
+      // Build pagination parameters for the URL
+      const params = new URLSearchParams()
+      params.set('page', currentPage.toString())
+      params.set('limit', currentLimit.toString())
+      params.set('sort_field', sortField)
+      params.set('sort_direction', sortDirection)
+
+      // Add filter parameters
+      Object.entries(currentFilters).forEach(([key, value]) => {
+        if (value && value !== '' && value !== 'all') {
+          params.set(key, value.toString())
+        }
+      })
+
+      const queryString = params.toString()
+      const url = `/items/edit/${item.id}${queryString ? `?${queryString}` : ''}`
+
+
+      router.push(url)
     }
     setOpenMenuId(null)
   }
@@ -105,7 +130,24 @@ export default function ItemsTable({
   }
 
   const handlePreview = (itemId: string) => {
-    router.push(`/items/${itemId}`)
+    // Build pagination parameters for the URL
+    const params = new URLSearchParams()
+    params.set('page', currentPage.toString())
+    params.set('limit', currentLimit.toString())
+    params.set('sort_field', sortField)
+    params.set('sort_direction', sortDirection)
+
+    // Add filter parameters
+    Object.entries(currentFilters).forEach(([key, value]) => {
+      if (value && value !== '' && value !== 'all') {
+        params.set(key, value.toString())
+      }
+    })
+
+    const queryString = params.toString()
+    const url = `/items/${itemId}${queryString ? `?${queryString}` : ''}`
+
+    router.push(url)
     setOpenMenuId(null)
   }
 

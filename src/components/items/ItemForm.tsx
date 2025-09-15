@@ -1283,7 +1283,35 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       if (onSave && savedArtwork) {
         onSave(savedArtwork)
       } else {
-        router.push('/items')
+        // Build the return URL with preserved pagination parameters
+        const params = new URLSearchParams()
+
+        // Add pagination parameters if they exist in the current URL
+        const page = searchParams.get('page')
+        const limit = searchParams.get('limit')
+        const sortField = searchParams.get('sort_field')
+        const sortDirection = searchParams.get('sort_direction')
+
+
+        if (page) params.set('page', page)
+        if (limit) params.set('limit', limit)
+        if (sortField) params.set('sort_field', sortField)
+        if (sortDirection) params.set('sort_direction', sortDirection)
+
+        // Add filter parameters
+        const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+        filterKeys.forEach(key => {
+          const value = searchParams.get(key)
+          if (value && value !== 'all') {
+            params.set(key, value)
+          }
+        })
+
+        const queryString = params.toString()
+        const returnUrl = `/items${queryString ? `?${queryString}` : ''}`
+
+
+        router.push(returnUrl)
       }
     } catch (err: any) {
       setError(err.message || `Failed to ${mode} item`)
@@ -1315,7 +1343,35 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => router.push('/items')}
+            onClick={() => {
+              // Build the return URL with preserved pagination parameters
+              const params = new URLSearchParams()
+
+              // Add pagination parameters if they exist in the current URL
+              const page = searchParams.get('page')
+              const limit = searchParams.get('limit')
+              const sortField = searchParams.get('sort_field')
+              const sortDirection = searchParams.get('sort_direction')
+
+              if (page) params.set('page', page)
+              if (limit) params.set('limit', limit)
+              if (sortField) params.set('sort_field', sortField)
+              if (sortDirection) params.set('sort_direction', sortDirection)
+
+              // Add filter parameters
+              const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+              filterKeys.forEach(key => {
+                const value = searchParams.get(key)
+                if (value && value !== 'all') {
+                  params.set(key, value)
+                }
+              })
+
+              const queryString = params.toString()
+              const returnUrl = `/items${queryString ? `?${queryString}` : ''}`
+
+              router.push(returnUrl)
+            }}
             className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
@@ -1344,7 +1400,39 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           
           <button
             type="button"
-            onClick={() => onCancel ? onCancel() : router.push('/items')}
+            onClick={() => {
+              if (onCancel) {
+                onCancel()
+              } else {
+                // Build the return URL with preserved pagination parameters
+                const params = new URLSearchParams()
+
+                // Add pagination parameters if they exist in the current URL
+                const page = searchParams.get('page')
+                const limit = searchParams.get('limit')
+                const sortField = searchParams.get('sort_field')
+                const sortDirection = searchParams.get('sort_direction')
+
+                if (page) params.set('page', page)
+                if (limit) params.set('limit', limit)
+                if (sortField) params.set('sort_field', sortField)
+                if (sortDirection) params.set('sort_direction', sortDirection)
+
+                // Add filter parameters
+                const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+                filterKeys.forEach(key => {
+                  const value = searchParams.get(key)
+                  if (value && value !== 'all') {
+                    params.set(key, value)
+                  }
+                })
+
+                const queryString = params.toString()
+                const returnUrl = `/items${queryString ? `?${queryString}` : ''}`
+
+                router.push(returnUrl)
+              }
+            }}
             className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200"
           >
             <X className="h-4 w-4 mr-2" />
