@@ -535,7 +535,6 @@ export default function AuctionsPage() {
           <AuctionExportDialog
             onClose={() => setShowExportDialog(false)}
             selectedAuctions={selectedAuctions}
-            brand={brand}
           />
         </div>
       )}

@@ -4,14 +4,12 @@
 import React, { useState, useEffect } from 'react'
 import { X, Download, Search, Globe, AlertCircle, CheckCircle, Filter, FileText, Image as ImageIcon, Package } from 'lucide-react'
 import { getAuctions, exportAuctionToPlatform, exportAuctionImagesToPlatform } from '@/lib/auctions-api'
-import { getBrands, type Brand } from '@/lib/brands-api'
 import { ArtworksAPI } from '@/lib/items-api'
 import type { Auction } from '@/lib/auctions-api'
 
 interface AuctionExportDialogProps {
   onClose: () => void
   selectedAuctions?: number[]
-  brand?: string
 }
 
 type Platform = 'database' | 'liveauctioneers' | 'easylive' | 'thesaleroom' | 'invaluable'
@@ -76,8 +74,7 @@ const platformConfigs: Record<Platform, PlatformConfig> = {
 
 export default function AuctionExportDialog({
   onClose,
-  selectedAuctions = [],
-  brand = 'MSABER'
+  selectedAuctions = []
 }: AuctionExportDialogProps) {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['database'])
   const [loading, setLoading] = useState(false)
@@ -101,17 +98,11 @@ export default function AuctionExportDialog({
   const [selectedArtworkIds, setSelectedArtworkIds] = useState<number[]>([])
   const [artworksLoading, setArtworksLoading] = useState(false)
   const [showArtworkList, setShowArtworkList] = useState(false)
-  const [brands, setBrands] = useState<Brand[]>([])
 
   // Lot specification state
   const [lotSpecification, setLotSpecification] = useState('')
   const [useLotSpecification, setUseLotSpecification] = useState(false)
 
-  // Get brand ID from brand code
-  const getBrandId = (brandCode: string): number | undefined => {
-    const foundBrand = brands.find(b => b.code === brandCode)
-    return foundBrand?.id
-  }
 
   // Parse lot specification string like "1-10,15-20,25,30-35" into array of lot numbers
   const parseLotSpecification = (spec: string): number[] => {
@@ -194,38 +185,19 @@ export default function AuctionExportDialog({
     return artworks.filter(artwork => filteredItemIds.includes(artwork.id))
   }
 
-  // Load brands on component mount
-  useEffect(() => {
-    const loadBrands = async () => {
-      try {
-        const response = await getBrands()
-        if (response.success) {
-          setBrands(response.data)
-        }
-      } catch (err: any) {
-        console.error('Error loading brands:', err)
-      }
-    }
-    loadBrands()
-  }, [])
-
   // Load auctions on component mount
   useEffect(() => {
-    if (brands.length > 0) {
-      loadAuctions()
-    }
-  }, [brand, brands.length])
+    loadAuctions()
+  }, [])
 
   const loadAuctions = async () => {
     try {
       setAuctionsLoading(true)
-      const brandId = getBrandId(brand)
       const response = await getAuctions({
         page: 1,
         limit: 100,
         sort_field: 'created_at',
-        sort_direction: 'desc',
-        brand_id: brandId
+        sort_direction: 'desc'
       })
       setAuctions(response.auctions)
     } catch (err) {
@@ -479,7 +451,6 @@ export default function AuctionExportDialog({
             Select auctions, choose specific artworks, and export to multiple platforms simultaneously.
           </p>
           <div className="text-xs text-gray-500 space-y-1">
-            <p>Brand: {brand}</p>
             <p>• Select multiple auctions to combine their artworks</p>
             <p>• Choose specific artworks from selected auctions</p>
             <p>• Export to multiple platforms at once</p>
