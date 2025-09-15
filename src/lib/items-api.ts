@@ -168,6 +168,8 @@ interface GetArtworksParams {
   materials?: string;
   artist_id?: string;
   school_id?: string;
+  buyer_id?: string;
+  vendor_id?: string;
 }
 
 // Helper function to get auth token
@@ -549,6 +551,8 @@ export class ArtworksAPI {
     materials?: string;
     artist_id?: string;
     school_id?: string;
+    buyer_id?: string;
+    vendor_id?: string;
   } = {}): Promise<{
     success: boolean;
     duplicates?: {

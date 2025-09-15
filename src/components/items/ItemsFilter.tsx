@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { Search, Filter, X } from 'lucide-react'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { ArtworksAPI, ITEM_CATEGORIES, ITEM_PERIODS, ITEM_MATERIALS, ITEM_CONDITIONS } from '@/lib/items-api'
+import { searchClients, formatClientDisplay, getClientDisplayName } from '@/lib/clients-api'
 import { useBrand } from '@/lib/brand-context'
 
 interface FilterState {
@@ -24,6 +25,8 @@ interface FilterState {
   materials?: string
   artist_id?: string
   school_id?: string
+  buyer_id?: string
+  vendor_id?: string
 }
 
 interface ItemsFilterProps {
@@ -82,6 +85,12 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
   const [itemSuggestions, setItemSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
   const [loadingItems, setLoadingItems] = useState(false)
+  const [buyerSuggestions, setBuyerSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [vendorSuggestions, setVendorSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [loadingBuyers, setLoadingBuyers] = useState(false)
+  const [loadingVendors, setLoadingVendors] = useState(false)
+  const [selectedBuyerName, setSelectedBuyerName] = useState<string>('')
+  const [selectedVendorName, setSelectedVendorName] = useState<string>('')
 
   // Dynamic search function for real-time search across ALL items
   const handleDynamicSearch = async (query: string): Promise<Array<{value: string, label: string, description?: string}>> => {
@@ -130,6 +139,90 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
     } catch (error) {
       console.error('Dynamic search error:', error)
       return [{ value: '', label: 'All Items', description: 'Show all inventory items' }]
+    }
+  }
+
+  // Dynamic search function for buyers
+  const handleBuyerSearch = async (query: string): Promise<Array<{value: string, label: string, description?: string}>> => {
+    if (!query.trim()) {
+      return [{ value: '', label: 'All Buyers', description: 'Show items for all buyers' }]
+    }
+
+    try {
+      setLoadingBuyers(true)
+      // Search for clients that are buyers or buyer_vendors
+      const [buyerResults, buyerVendorResults] = await Promise.all([
+        searchClients(query, 10, 'buyer'),
+        searchClients(query, 10, 'buyer_vendor')
+      ])
+
+      const suggestions = [
+        { value: '', label: 'All Buyers', description: 'Show items for all buyers' }
+      ]
+
+      // Combine and deduplicate results
+      const seenIds = new Set<number>()
+      const allResults = [...buyerResults, ...buyerVendorResults]
+
+      allResults.forEach(client => {
+        if (!seenIds.has(client.id!)) {
+          seenIds.add(client.id!)
+          suggestions.push({
+            value: String(client.id),
+            label: getClientDisplayName(client),
+            description: `${formatClientDisplay(client)} • ${client.client_type}`
+          })
+        }
+      })
+
+      return suggestions
+    } catch (error) {
+      console.error('Buyer search error:', error)
+      return [{ value: '', label: 'All Buyers', description: 'Show items for all buyers' }]
+    } finally {
+      setLoadingBuyers(false)
+    }
+  }
+
+  // Dynamic search function for vendors
+  const handleVendorSearch = async (query: string): Promise<Array<{value: string, label: string, description?: string}>> => {
+    if (!query.trim()) {
+      return [{ value: '', label: 'All Vendors', description: 'Show items for all vendors' }]
+    }
+
+    try {
+      setLoadingVendors(true)
+      // Search for clients that are vendors or buyer_vendors
+      const [vendorResults, buyerVendorResults] = await Promise.all([
+        searchClients(query, 10, 'vendor'),
+        searchClients(query, 10, 'buyer_vendor')
+      ])
+
+      const suggestions = [
+        { value: '', label: 'All Vendors', description: 'Show items for all vendors' }
+      ]
+
+      // Combine and deduplicate results
+      const seenIds = new Set<number>()
+      const allResults = [...vendorResults, ...buyerVendorResults]
+
+      allResults.forEach(client => {
+        if (!seenIds.has(client.id!)) {
+          seenIds.add(client.id!)
+          suggestions.push({
+            value: String(client.id),
+            label: getClientDisplayName(client),
+            description: `${formatClientDisplay(client)} • ${client.client_type}`
+          })
+        }
+      })
+
+      return suggestions
+    } catch (error) {
+      console.error('Vendor search error:', error)
+      return [{ value: '', label: 'All Vendors', description: 'Show items for all vendors' }]
+    } finally {
+      setLoadingVendors(false)
     }
   }
 
@@ -197,6 +290,8 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
   }, [])
 
   const handleClearFilters = () => {
+    setSelectedBuyerName('')
+    setSelectedVendorName('')
     onFilterChange({
       status: 'all',
       category: '',
@@ -213,7 +308,9 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
       period_age: '',
       materials: '',
       artist_id: '',
-      school_id: ''
+      school_id: '',
+      buyer_id: '',
+      vendor_id: ''
     })
   }
 
@@ -232,7 +329,9 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
     filters.period_age !== '' ||
     filters.materials !== '' ||
     filters.artist_id !== '' ||
-    filters.school_id !== ''
+    filters.school_id !== '' ||
+    filters.buyer_id !== '' ||
+    filters.vendor_id !== ''
 
   // When filters are hidden, show only the toggle button
   if (!showFilters) {
@@ -421,6 +520,46 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
               onChange={(value) => onFilterChange({ materials: value?.toString() || '' })}
               className="w-full"
               inputPlaceholder="Type to search materials..."
+            />
+          </div>
+
+          {/* Buyer ID */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Buyer</label>
+            <SearchableSelect
+              value={filters.buyer_id || ''}
+              options={buyerSuggestions}
+              placeholder={loadingBuyers ? "Loading buyers..." : "Search for buyer..."}
+              onChange={(value) => {
+                const buyerId = value?.toString() || ''
+                const buyerName = buyerSuggestions.find(b => b.value === buyerId)?.label || ''
+                setSelectedBuyerName(buyerName)
+                onFilterChange({ buyer_id: buyerId })
+              }}
+              inputPlaceholder="Search buyers by name, email, or ID..."
+              className="w-full"
+              enableDynamicSearch={true}
+              onSearch={handleBuyerSearch}
+            />
+          </div>
+
+          {/* Vendor ID */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Vendor</label>
+            <SearchableSelect
+              value={filters.vendor_id || ''}
+              options={vendorSuggestions}
+              placeholder={loadingVendors ? "Loading vendors..." : "Search for vendor..."}
+              onChange={(value) => {
+                const vendorId = value?.toString() || ''
+                const vendorName = vendorSuggestions.find(v => v.value === vendorId)?.label || ''
+                setSelectedVendorName(vendorName)
+                onFilterChange({ vendor_id: vendorId })
+              }}
+              inputPlaceholder="Search vendors by name, email, or ID..."
+              className="w-full"
+              enableDynamicSearch={true}
+              onSearch={handleVendorSearch}
             />
           </div>
         </div>
@@ -626,6 +765,36 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
                   <button
                     onClick={() => onFilterChange({ materials: '' })}
                     className="ml-2 text-rose-600 hover:text-rose-800 cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+
+              {filters.buyer_id && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-800">
+                  Buyer: {selectedBuyerName || `ID: ${filters.buyer_id}`}
+                  <button
+                    onClick={() => {
+                      setSelectedBuyerName('')
+                      onFilterChange({ buyer_id: '' })
+                    }}
+                    className="ml-2 text-violet-600 hover:text-violet-800 cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+
+              {filters.vendor_id && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-lime-100 text-lime-800">
+                  Vendor: {selectedVendorName || `ID: ${filters.vendor_id}`}
+                  <button
+                    onClick={() => {
+                      setSelectedVendorName('')
+                      onFilterChange({ vendor_id: '' })
+                    }}
+                    className="ml-2 text-lime-600 hover:text-lime-800 cursor-pointer"
                   >
                     <X className="h-3 w-3" />
                   </button>
