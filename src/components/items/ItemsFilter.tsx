@@ -85,8 +85,12 @@ export default function ItemsFilter({ filters, onFilterChange, statusCounts, fil
   const [brands, setBrands] = useState<Array<{id: number, code: string, name: string}>>([])
   const [itemSuggestions, setItemSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
   const [loadingItems, setLoadingItems] = useState(false)
-  const [buyerSuggestions, setBuyerSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
-  const [vendorSuggestions, setVendorSuggestions] = useState<Array<{value: string, label: string, description: string}>>([])
+  const [buyerSuggestions, setBuyerSuggestions] = useState<Array<{value: string, label: string, description: string}>>([
+    { value: '', label: 'All Buyers', description: 'Show items for all buyers' }
+  ])
+  const [vendorSuggestions, setVendorSuggestions] = useState<Array<{value: string, label: string, description: string}>>([
+    { value: '', label: 'All Vendors', description: 'Show items for all vendors' }
+  ])
   const [loadingBuyers, setLoadingBuyers] = useState(false)
   const [loadingVendors, setLoadingVendors] = useState(false)
   const [selectedBuyerName, setSelectedBuyerName] = useState<string>('')

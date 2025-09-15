@@ -620,12 +620,14 @@ export const exportClientsCSV = async (params: {
 
 /**
  * Search clients by text (searches across multiple fields including display_id, tags, and bidder_notes)
+ * Shows all clients across all brands by default
  */
 export const searchClients = async (searchTerm: string, limit: number = 10, clientType?: 'buyer' | 'vendor' | 'supplier' | 'buyer_vendor'): Promise<Client[]> => {
   const params = {
     search: searchTerm,
     limit,
     status: 'active', // Only search active clients by default
+    brand_code: 'ALL', // Show clients from all brands
     ...(clientType && { client_type: clientType })
   };
 

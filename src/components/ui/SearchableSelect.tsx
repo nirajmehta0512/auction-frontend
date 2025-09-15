@@ -47,9 +47,14 @@ export default function SearchableSelect<T = string | number>({
       return dynamicOptions
     }
     if (!query.trim()) return options
+    if (enableDynamicSearch && query.trim() && dynamicOptions.length === 0 && !loading) {
+      // If we have a query but no dynamic results and not loading, show static options filtered
+      const q = query.toLowerCase()
+      return options.filter((o) => o.label.toLowerCase().includes(q) || (o.description?.toLowerCase().includes(q) ?? false))
+    }
     const q = query.toLowerCase()
     return options.filter((o) => o.label.toLowerCase().includes(q) || (o.description?.toLowerCase().includes(q) ?? false))
-  }, [options, query, dynamicOptions, enableDynamicSearch])
+  }, [options, query, dynamicOptions, enableDynamicSearch, loading])
 
   const currentLabel = useMemo(() => {
     const found = options.find(o => String(o.value) === String(value))
@@ -58,7 +63,13 @@ export default function SearchableSelect<T = string | number>({
 
   // Dynamic search handler with debouncing
   const handleDynamicSearch = useCallback(async (searchQuery: string) => {
-    if (!enableDynamicSearch || !onSearch || searchQuery.trim().length < 2) {
+    if (!enableDynamicSearch || !onSearch) {
+      setDynamicOptions([])
+      return
+    }
+
+    // For very short queries, clear dynamic options to show static options
+    if (searchQuery.trim().length === 0) {
       setDynamicOptions([])
       return
     }

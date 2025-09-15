@@ -287,7 +287,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
           fetchClients({
             status: 'active',
             limit: 1000,
-            brand_code: brand || 'MSABER'
+            brand_code: 'ALL' // Show clients from all brands
           }),
           getConsignments({
             limit: 1000
