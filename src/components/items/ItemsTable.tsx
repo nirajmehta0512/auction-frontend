@@ -99,15 +99,23 @@ export default function ItemsTable({
     if (onEdit) {
       onEdit(item)
     } else {
-      // Build pagination parameters for the URL
+      // Build ALL pagination, sorting, and filter parameters for the URL
       const params = new URLSearchParams()
       params.set('page', currentPage.toString())
       params.set('limit', currentLimit.toString())
       params.set('sort_field', sortField)
       params.set('sort_direction', sortDirection)
 
-      // Add filter parameters
-      Object.entries(currentFilters).forEach(([key, value]) => {
+      // Add ALL filter parameters from ItemsFilter.tsx
+      const filterKeys = [
+        'status', 'category', 'search', 'brand', 'item_id',
+        'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+        'start_price_min', 'start_price_max', 'condition', 'period_age',
+        'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+      ]
+
+      filterKeys.forEach(key => {
+        const value = currentFilters[key]
         if (value && value !== '' && value !== 'all') {
           params.set(key, value.toString())
         }
@@ -115,7 +123,6 @@ export default function ItemsTable({
 
       const queryString = params.toString()
       const url = `/items/edit/${item.id}${queryString ? `?${queryString}` : ''}`
-
 
       router.push(url)
     }
@@ -130,15 +137,23 @@ export default function ItemsTable({
   }
 
   const handlePreview = (itemId: string) => {
-    // Build pagination parameters for the URL
+    // Build ALL pagination, sorting, and filter parameters for the URL
     const params = new URLSearchParams()
     params.set('page', currentPage.toString())
     params.set('limit', currentLimit.toString())
     params.set('sort_field', sortField)
     params.set('sort_direction', sortDirection)
 
-    // Add filter parameters
-    Object.entries(currentFilters).forEach(([key, value]) => {
+    // Add ALL filter parameters from ItemsFilter.tsx
+    const filterKeys = [
+      'status', 'category', 'search', 'brand', 'item_id',
+      'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+      'start_price_min', 'start_price_max', 'condition', 'period_age',
+      'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+    ]
+
+    filterKeys.forEach(key => {
+      const value = currentFilters[key]
       if (value && value !== '' && value !== 'all') {
         params.set(key, value.toString())
       }

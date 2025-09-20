@@ -23,7 +23,7 @@ export default function ItemPreviewPage() {
 
   const itemId = params?.id as string
 
-  // Helper function to build edit URL with pagination parameters
+  // Helper function to build edit URL with all pagination, sorting, and filter parameters
   const buildEditUrl = () => {
     const params = new URLSearchParams()
 
@@ -38,11 +38,16 @@ export default function ItemPreviewPage() {
     if (sortField) params.set('sort_field', sortField)
     if (sortDirection) params.set('sort_direction', sortDirection)
 
-    // Add filter parameters
-    const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+    // Add ALL filter parameters from ItemsFilter.tsx
+    const filterKeys = [
+      'status', 'category', 'search', 'brand', 'item_id',
+      'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+      'start_price_min', 'start_price_max', 'condition', 'period_age',
+      'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+    ]
     filterKeys.forEach(key => {
       const value = searchParams.get(key)
-      if (value && value !== 'all') {
+      if (value && value !== '' && value !== 'all') {
         params.set(key, value)
       }
     })
@@ -206,7 +211,7 @@ export default function ItemPreviewPage() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => {
-                  // Build return URL with preserved pagination parameters
+                  // Build return URL with ALL preserved pagination, sorting, and filter parameters
                   const params = new URLSearchParams()
 
                   // Add pagination parameters if they exist in the current URL
@@ -220,11 +225,16 @@ export default function ItemPreviewPage() {
                   if (sortField) params.set('sort_field', sortField)
                   if (sortDirection) params.set('sort_direction', sortDirection)
 
-                  // Add filter parameters
-                  const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+                  // Add ALL filter parameters from ItemsFilter.tsx
+                  const filterKeys = [
+                    'status', 'category', 'search', 'brand', 'item_id',
+                    'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+                    'start_price_min', 'start_price_max', 'condition', 'period_age',
+                    'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+                  ]
                   filterKeys.forEach(key => {
                     const value = searchParams.get(key)
-                    if (value && value !== 'all') {
+                    if (value && value !== '' && value !== 'all') {
                       params.set(key, value)
                     }
                   })

@@ -1283,7 +1283,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
       if (onSave && savedArtwork) {
         onSave(savedArtwork)
       } else {
-        // Build the return URL with preserved pagination parameters
+        // Build the return URL with ALL preserved pagination, sorting, and filter parameters
         const params = new URLSearchParams()
 
         // Add pagination parameters if they exist in the current URL
@@ -1292,24 +1292,27 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         const sortField = searchParams.get('sort_field')
         const sortDirection = searchParams.get('sort_direction')
 
-
         if (page) params.set('page', page)
         if (limit) params.set('limit', limit)
         if (sortField) params.set('sort_field', sortField)
         if (sortDirection) params.set('sort_direction', sortDirection)
 
-        // Add filter parameters
-        const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+        // Add ALL filter parameters from ItemsFilter.tsx
+        const filterKeys = [
+          'status', 'category', 'search', 'brand', 'item_id',
+          'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+          'start_price_min', 'start_price_max', 'condition', 'period_age',
+          'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+        ]
         filterKeys.forEach(key => {
           const value = searchParams.get(key)
-          if (value && value !== 'all') {
+          if (value && value !== '' && value !== 'all') {
             params.set(key, value)
           }
         })
 
         const queryString = params.toString()
         const returnUrl = `/items${queryString ? `?${queryString}` : ''}`
-
 
         router.push(returnUrl)
       }
@@ -1344,7 +1347,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
         <div className="flex items-center space-x-4">
           <button
             onClick={() => {
-              // Build the return URL with preserved pagination parameters
+              // Build the return URL with ALL preserved pagination, sorting, and filter parameters
               const params = new URLSearchParams()
 
               // Add pagination parameters if they exist in the current URL
@@ -1358,11 +1361,16 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               if (sortField) params.set('sort_field', sortField)
               if (sortDirection) params.set('sort_direction', sortDirection)
 
-              // Add filter parameters
-              const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+              // Add ALL filter parameters from ItemsFilter.tsx
+              const filterKeys = [
+                'status', 'category', 'search', 'brand', 'item_id',
+                'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+                'start_price_min', 'start_price_max', 'condition', 'period_age',
+                'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+              ]
               filterKeys.forEach(key => {
                 const value = searchParams.get(key)
-                if (value && value !== 'all') {
+                if (value && value !== '' && value !== 'all') {
                   params.set(key, value)
                 }
               })
@@ -1404,7 +1412,7 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
               if (onCancel) {
                 onCancel()
               } else {
-                // Build the return URL with preserved pagination parameters
+                // Build the return URL with ALL preserved pagination, sorting, and filter parameters
                 const params = new URLSearchParams()
 
                 // Add pagination parameters if they exist in the current URL
@@ -1418,11 +1426,16 @@ export default function ItemForm({ itemId, initialData, mode, onSave, onCancel }
                 if (sortField) params.set('sort_field', sortField)
                 if (sortDirection) params.set('sort_direction', sortDirection)
 
-                // Add filter parameters
-                const filterKeys = ['status', 'category', 'search', 'brand', 'item_id', 'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max', 'start_price_min', 'start_price_max', 'condition', 'period_age', 'materials', 'artist_id', 'school_id']
+                // Add ALL filter parameters from ItemsFilter.tsx
+                const filterKeys = [
+                  'status', 'category', 'search', 'brand', 'item_id',
+                  'low_est_min', 'low_est_max', 'high_est_min', 'high_est_max',
+                  'start_price_min', 'start_price_max', 'condition', 'period_age',
+                  'materials', 'artist_id', 'school_id', 'buyer_id', 'vendor_id'
+                ]
                 filterKeys.forEach(key => {
                   const value = searchParams.get(key)
-                  if (value && value !== 'all') {
+                  if (value && value !== '' && value !== 'all') {
                     params.set(key, value)
                   }
                 })
